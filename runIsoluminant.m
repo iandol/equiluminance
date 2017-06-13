@@ -1,4 +1,4 @@
-function isoluminant_stimuli(ana)
+function runIsoluminant(ana)
 
 %===================Initiate out metadata===================
 ana.date = datestr(datetime);
@@ -15,7 +15,8 @@ c = sprintf(' %i',fix(clock()));
 nameExp = [nameExp c];
 ana.nameExp = regexprep(nameExp,' ','_');
 
-cla(ana.plotAxis);
+cla(ana.plotAxis1);
+cla(ana.plotAxis2);
 
 try
 	PsychDefaultSetup(2);
@@ -33,7 +34,7 @@ try
 			sM.gammaTable = c;
 		end
 		clear c;
-		if ~isempty(sM.windowed)
+		if ana.debug
 			sM.gammaTable.plot
 		end
 	end
@@ -42,7 +43,8 @@ try
 	
 	%============================SET UP VARIABLES=====================================
 	ana.nTrials = (sum(ana.colorEnd)-sum(ana.colorStart))/sum(ana.colorStep)+1; %
-	ana.onFrames = round(ana.frequency/sM.screenVals.ifi); % video frames for each color
+	ana.onFrames = round((1/ana.frequency) * sM.screenVals.fps); % video frames for each color
+	fprintf("\n--->>> ISOLUM Number of Trials: %i; Number of Frames for Flip: %i\n",ana.nTrials, ana.onFrames);
 	
 	diameter = ceil(ana.circleDiameter*sM.ppd);
 	circleRect = [0,0,diameter,diameter];
@@ -56,7 +58,7 @@ try
 	eL.name = ana.nameExp;
 	eL.saveFile = [ana.nameExp '.edf'];
 	eL.recordData = true; %save EDF file
-	eL.sampleRate = 500;
+	eL.sampleRate = 1000;
 	eL.remoteCalibration = false; % manual calibration?
 	eL.calibrationStyle = 'HV5'; % calibration style
 	eL.modify.calibrationtargetcolour = [0 0 0];
@@ -78,6 +80,7 @@ try
 	tL.screenLog.beforeDisplay = GetSecs();
 	tL.screenLog.stimTime(1) = 1;
 	iii = 1;
+	powerValues = [];
 	breakLoop = false;
 	ana.trial = struct();
 	tick = 1;
@@ -86,6 +89,7 @@ try
 	
 	while ~breakLoop
 		%=========================MAINTAIN INITIAL FIXATION==========================
+		fprintf('===>>> START Trial = %i\n', iii);
 		resetFixation(eL);
 		trackerClearScreen(eL);
 		trackerDrawFixation(eL); %draw fixation window on eyelink computer
@@ -95,10 +99,10 @@ try
 		statusMessage(eL,'INITIATE FIXATION...');
 		fixated = '';
 		ListenChar(2);
-		drawCross(sM,0.3,[0 0 0 1],ana.fixX,ana.fixY);
+		%drawCross(sM,0.3,[0 0 0 1],ana.fixX,ana.fixY);
+		drawSpot(sM,0.25,[1 1 1 1])
 		Screen('Flip',sM.win); %flip the buffer
 		syncTime(eL);
-		%fprintf('===>>> INITIATE FIXATION Trial = %i\n', iii);
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
 			getSample(eL);
 			fixated=testSearchHoldFixation(eL,'fix','breakfix');
@@ -122,15 +126,17 @@ try
 						breakLoop = true;
 				end
 			end
+			WaitSecs('YieldSecs',0.0016);
 		end
 		ListenChar(0);
 		if strcmpi(fixated,'breakfix')
 			fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', iii);
 			statusMessage(eL,'Subject Broke Initial Fixation!');
-			edfMessage(eL,'MSG:BreakFix');
+			edfMessage(eL,'MSG:BreakInitialFix');
 			resetFixation(eL);
 			stopRecording(eL);
 			setOffline(eL);
+			WaitSecs('YieldSecs',0.1);
 			continue
 		end
 		
@@ -146,30 +152,35 @@ try
 		ii = 1;
 		toggle = 0;
 		thisPupil = [];
-		mColor = ana.colorStart + ana.colorStep .* iii;
-		fColor = ana.colorFixed;
+		modColor = ana.colorStart + ana.colorStep .* iii;
+		fixedColor = ana.colorFixed;
+		backColor = modColor;
+		centerColor = fixedColor;
+		
 		ana.trial(iii).n = iii;
-		ana.trial(iii).mColor = mColor;
-		ana.trial(iii).fColor = fColor;
+		ana.trial(iii).mColor = modColor;
+		ana.trial(iii).fColor = fixedColor;
 		ana.trial(iii).pupil = [];
 		ana.trial(iii).frameN = [];
 		
 		tStart = GetSecs; vbl = tStart;if isempty(tL.vbl);tL.vbl(1) = tStart;tL.startTime = tStart; end
-			
+		
+		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		while GetSecs < tStart + ana.trialDuration
 			if i > ana.onFrames
 				toggle = mod(toggle+1,2); %switch the toggle 0 or 1
 				ana.trial(iii).frameN = [ana.trial(iii).frameN i];
 				i = 1; %reset out counter
-			end
-			if toggle
-				bColor = mColor; cColor = fColor;
-			else
-				bColor = fColor; cColor = mColor;
+				if toggle
+					backColor = fixedColor; centerColor = modColor;
+				else
+					backColor = modColor; centerColor = fixedColor;
+				end
 			end
 			
-			Screen('FillRect', sM.win, bColor, sM.winRect);
-			Screen('FillOval', sM.win, cColor, circleRect);
+			Screen('FillRect', sM.win, backColor, sM.winRect);
+			Screen('FillOval', sM.win, centerColor, circleRect);
 			drawCross(sM,0.3,[0 0 0 1], ana.fixX, ana.fixY);
 			[tL.vbl(tick),tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);
 			tL.stimTime(tick) = toggle;
@@ -185,6 +196,8 @@ try
 				break %break the for loop
 			end
 		end
+		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		
 		sM.drawBackground();
 		tEnd=Screen('Flip',sM.win);
@@ -196,7 +209,6 @@ try
 		if ~strcmpi(fixated,'fix')
 			fprintf('===>>> BROKE FIXATION Trial = %i (%i secs)\n', iii, tEnd-tStart);
 			statusMessage(eL,'Subject Broke Fixation!');
-			response = -1;
 			edfMessage(eL,'TRIAL_RESULT -1');
 			edfMessage(eL,'MSG:BreakFix');
 			resetFixation(eL);
@@ -205,10 +217,11 @@ try
 			continue
 		else
 			fprintf('===>>> SUCCESS: Trial = %i (%i secs)\n', iii, tEnd-tStart);
-			response = 1;
+			ana.trial(iii).success = true;
 			stopRecording(eL);
 			edfMessage(eL,'TRIAL_RESULT 1');
 			setOffline(eL);
+			updatePlot(iii);
 			iii = iii+1;
 		end
 		
@@ -235,18 +248,15 @@ try
 			WaitSecs('YieldSecs',0.015);
 		end
 
-		ListenChar(2);
-		updatePlot();
+		ListenChar(0);
 		if iii > ana.nTrials; breakLoop = true; end
 		
 	end % while ~breakLoop
 	
 	%===============================Clean up============================
 	close(sM);
-	close(eL);
 	ListenChar(0);ShowCursor;Priority(0);Screen('CloseAll');
 	
-	tL.printRunLog;
 	oldDir = pwd;
 	if exist(ana.ResultDir,'dir') > 0
 		cd(ana.ResultDir);
@@ -256,7 +266,9 @@ try
 	fprintf('==>> SAVE %s, to: %s\n', ana.nameExp, pwd);
 	save([ana.nameExp '.mat'],'ana','eL', 'sM', 'tL');
 	cd(oldDir)
+	tL.printRunLog;
 	clear ana eL sM tL
+	
 	
 catch ME
 	close(sM);
@@ -264,18 +276,38 @@ catch ME
 	getReport(ME)
 end
 
-	function updatePlot()
-		hold(ana.plotAxis,'on');
-		plot(ana.plotAxis,ana.trial(end).pupil);
+	function updatePlot(thisTrial)
+		ifi = sM.screenVals.ifi;
+		t = [0:ifi:ifi*(ana.trial(thisTrial).totalFrames-1)];
+		hold(ana.plotAxis1,'on');
+		plot(ana.plotAxis1,t,ana.trial(thisTrial).pupil);
+		calculatePower(thisTrial)
+		plot(ana.plotAxis2,powerValues,'k-o');
 	end
 
-	function calculatePower()
+	function calculatePower(thisTrial)
 		
 		Fs = sM.screenVals.fps;            % Sampling frequency                  
-		T = sM.screenVals.fps;             % Sampling period       
-		L = 1500;             % Length of signal
-		t = (0:L-1)*T;   
-		
+		T = sM.screenVals.ifi;             % Sampling period       
+		L(thisTrial)=length(ana.trial(thisTrial).pupil);
+		t = (0:L(thisTrial)-1)*T;
+		P=ana.trial(thisTrial).pupil;
+		P1=fft(P);
+		P2 = abs(P1/L(thisTrial));
+		P3=P2(1:L(thisTrial)/2+1);
+		P3(2:end-1) = 2*P3(2:end-1);
+		f=Fs*(0:(L(thisTrial)/2))/L(thisTrial);
+		%figure;plot(f,P3);
+		idx = analysisCore.findNearest(f, ana.frequency);
+		powerValues(thisTrial) = P3(idx);
+
+	end
+
+	function [idx,val,delta]=findNearest(in,value)
+		%find nearest value in a vector, if more than 1 index return the first	
+		[~,idx] = min(abs(in - value));
+		val = in(idx);
+		delta = abs(value - val);
 	end
 		
 end
