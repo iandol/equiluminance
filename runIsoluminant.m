@@ -165,7 +165,8 @@ try
 		fixedColor = ana.colorFixed;
 		backColor = modColor;
 		centerColor = fixedColor;
-		fprintf('modColor=%s | fixColor=%s\n',num2str(modColor),num2str(fixedColor));
+		fprintf('--->>> modColor=%s | fixColor=%s\n',num2str(modColor),num2str(fixedColor));
+		edfMessage(eL,['MSG:modColor=' num2str(modColor)]);
 		
 		ana.trial(iii).n = iii;
 		ana.trial(iii).mColor = modColor;
@@ -288,7 +289,7 @@ end
 
 	function updatePlot(thisTrial)
 		ifi = sM.screenVals.ifi;
-		t = [0:ifi:ifi*(ana.trial(thisTrial).totalFrames-1)];
+		t = 0:ifi:ifi*(ana.trial(thisTrial).totalFrames-1);
 		hold(ana.plotAxis1,'on');
 		plot(ana.plotAxis1,t,ana.trial(thisTrial).pupil);
 		calculatePower(thisTrial)
@@ -307,8 +308,7 @@ end
 		P3=P2(1:L(thisTrial)/2+1);
 		P3(2:end-1) = 2*P3(2:end-1);
 		f=Fs*(0:(L(thisTrial)/2))/L(thisTrial);
-		%figure;plot(f,P3);
-		idx = analysisCore.findNearest(f, ana.frequency);
+		idx = findNearest(f, ana.frequency);
 		powerValues(thisTrial) = P3(idx);
 
 	end
