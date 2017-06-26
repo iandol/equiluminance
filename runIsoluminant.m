@@ -6,7 +6,11 @@ ana.version = Screen('Version');
 ana.computer = Screen('Computer');
 
 %===================experiment parameters===================
-ana.screenID = max(Screen('Screens'));%-1;
+if ana.debug
+	ana.screenID = 0;
+else
+	ana.screenID = max(Screen('Screens'));%-1;
+end
 
 %===================Make a name for this run===================
 pf='IsoLum_';
@@ -41,10 +45,13 @@ try
 	sM.backgroundColour = ana.backgroundColor;
 	sM.open; % OPEN THE SCREEN
 	
+	Screen('Preference', 'TextRenderer', 1)
+	Screen('TextFont',sM.win,'Fixed')
+	
 	%============================SET UP VARIABLES=====================================
-	ana.nTrials = (sum(ana.colorEnd)-sum(ana.colorStart))/sum(ana.colorStep)+1; %
-	ana.onFrames = round((1/ana.frequency) * sM.screenVals.fps); % video frames for each color
-	fprintf("\n--->>> ISOLUM Number of Trials: %i; Number of Frames for Flip: %i\n",ana.nTrials, ana.onFrames);
+	ana.nTrials = abs((sum(ana.colorEnd)-sum(ana.colorStart))/sum(ana.colorStep)) + 1; %
+	ana.onFrames = round((1/ana.frequency) * sM.screenVals.fps) / 2; % video frames for each color
+	fprintf("\n--->>> ISOLUM # Trials: %i; # Frames Flip: %i; FPS: \n",ana.nTrials, ana.onFrames, sM.screenVals.fps);
 	
 	diameter = ceil(ana.circleDiameter*sM.ppd);
 	circleRect = [0,0,diameter,diameter];
@@ -73,6 +80,7 @@ try
 	setup(eL); % do setup and calibration
 	WaitSecs('YieldSecs',0.25);
 	getSample(eL); %make sure everything is in memory etc.
+	fprintf('EL setup complete\n');
 	
 	
 	% initialise our trial variables
@@ -99,8 +107,8 @@ try
 		statusMessage(eL,'INITIATE FIXATION...');
 		fixated = '';
 		ListenChar(2);
-		%drawCross(sM,0.3,[0 0 0 1],ana.fixX,ana.fixY);
-		drawSpot(sM,0.25,[1 1 1 1])
+		drawCross(sM,0.3,[0 0 0 1],ana.fixX,ana.fixY);
+		%drawSpot(sM,0.25,[1 1 1 1])
 		Screen('Flip',sM.win); %flip the buffer
 		syncTime(eL);
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
@@ -152,10 +160,12 @@ try
 		ii = 1;
 		toggle = 0;
 		thisPupil = [];
-		modColor = ana.colorStart + ana.colorStep .* iii;
+		modColor = ana.colorStart + (ana.colorStep .* (iii-1));
+		modColor(modColor < 0) = 0; modColor(modColor > 1) = 1;
 		fixedColor = ana.colorFixed;
 		backColor = modColor;
 		centerColor = fixedColor;
+		fprintf('modColor=%s | fixColor=%s\n',num2str(modColor),num2str(fixedColor));
 		
 		ana.trial(iii).n = iii;
 		ana.trial(iii).mColor = modColor;
@@ -207,7 +217,7 @@ try
 		
 		% check if we lost fixation
 		if ~strcmpi(fixated,'fix')
-			fprintf('===>>> BROKE FIXATION Trial = %i (%i secs)\n', iii, tEnd-tStart);
+			fprintf('===>>> BROKE FIXATION Trial = %i (%i secs)\n\n', iii, tEnd-tStart);
 			statusMessage(eL,'Subject Broke Fixation!');
 			edfMessage(eL,'TRIAL_RESULT -1');
 			edfMessage(eL,'MSG:BreakFix');
@@ -216,7 +226,7 @@ try
 			setOffline(eL);
 			continue
 		else
-			fprintf('===>>> SUCCESS: Trial = %i (%i secs)\n', iii, tEnd-tStart);
+			fprintf('===>>> SUCCESS: Trial = %i (%i secs)\n\n', iii, tEnd-tStart);
 			ana.trial(iii).success = true;
 			stopRecording(eL);
 			edfMessage(eL,'TRIAL_RESULT 1');
@@ -247,8 +257,8 @@ try
 			end
 			WaitSecs('YieldSecs',0.015);
 		end
-
 		ListenChar(0);
+		
 		if iii > ana.nTrials; breakLoop = true; end
 		
 	end % while ~breakLoop
