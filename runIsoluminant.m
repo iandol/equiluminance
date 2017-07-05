@@ -44,21 +44,22 @@ try
 	end
 	sM.backgroundColour = ana.backgroundColor;
 	sM.open; % OPEN THE SCREEN
+	fprintf('\n--->>> ISOLUM Opened Screen %i : %s\n', sM.win, sM.fullName);
 	
-	Screen('Preference', 'TextRenderer', 1)
-	Screen('TextFont',sM.win,'Fixed')
+	Screen('Preference', 'DefaultFontName','DejaVu Sans');
 	
 	%============================SET UP VARIABLES=====================================
 	ana.nTrials = abs((sum(ana.colorEnd)-sum(ana.colorStart))/sum(ana.colorStep)) + 1; %
 	ana.onFrames = round((1/ana.frequency) * sM.screenVals.fps) / 2; % video frames for each color
-	fprintf("\n--->>> ISOLUM # Trials: %i; # Frames Flip: %i; FPS: \n",ana.nTrials, ana.onFrames, sM.screenVals.fps);
-	
+	fprintf('--->>> ISOLUM # Trials: %i; # Frames Flip: %i; FPS: %i \n',ana.nTrials, ana.onFrames, sM.screenVals.fps);
+	WaitSecs('YieldSecs',0.25);
 	diameter = ceil(ana.circleDiameter*sM.ppd);
 	circleRect = [0,0,diameter,diameter];
 	circleRect = CenterRectOnPoint(circleRect, sM.xCenter, sM.yCenter);
 	
 	%==============================setup eyelink==========================
 	ana.strictFixation = true;
+	fprintf('--->>> ISOLUM eL setup starting...\n');
 	eL = eyelinkManager('IP',[]);
 	%eL.verbose = true;
 	eL.isDummy = ana.isDummy; %use dummy or real eyelink?
@@ -78,10 +79,9 @@ try
 		ana.firstFixTime, ana.firstFixDiameter, ana.strictFixation);
 	initialise(eL, sM); %use sM to pass screen values to eyelink
 	setup(eL); % do setup and calibration
-	WaitSecs('YieldSecs',0.25);
+	fprintf('--->>> ISOLUM eL setup complete: %s\n', eL.fullName);
+	WaitSecs('YieldSecs',0.5);
 	getSample(eL); %make sure everything is in memory etc.
-	fprintf('EL setup complete\n');
-	
 	
 	% initialise our trial variables
 	tL = timeLogger();
@@ -97,7 +97,7 @@ try
 	
 	while ~breakLoop
 		%=========================MAINTAIN INITIAL FIXATION==========================
-		fprintf('===>>> START Trial = %i\n', iii);
+		fprintf('===>>> ISOLUM START Trial = %i\n', iii);
 		resetFixation(eL);
 		trackerClearScreen(eL);
 		trackerDrawFixation(eL); %draw fixation window on eyelink computer
@@ -108,7 +108,6 @@ try
 		fixated = '';
 		ListenChar(2);
 		drawCross(sM,0.3,[0 0 0 1],ana.fixX,ana.fixY);
-		%drawSpot(sM,0.25,[1 1 1 1])
 		Screen('Flip',sM.win); %flip the buffer
 		syncTime(eL);
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
@@ -119,17 +118,20 @@ try
 				rchar = KbName(keyCode); if iscell(rchar);rchar=rchar{1};end
 				switch lower(rchar)
 					case {'c'}
+						fprintf('===>>> ISOLUM recalibrate pressed\n');
 						fixated = 'breakfix';
 						stopRecording(eL);
 						setOffline(eL);
 						trackerSetup(eL);
 						WaitSecs('YieldSecs',2);
 					case {'d'}
+						fprintf('===>>> ISOLUM drift correct pressed\n');
 						fixated = 'breakfix';
 						stopRecording(eL);
 						driftCorrection(eL);
 						WaitSecs('YieldSecs',2);
 					case {'escape'}
+						fprintf('===>>> ISOLUM escape pressed\n');
 						fixated = 'breakfix';
 						breakLoop = true;
 				end
@@ -149,7 +151,10 @@ try
 		end
 		
 		%if we lost fixation then
-		if ~strcmpi(fixated,'fix'); continue; end
+		if ~strcmpi(fixated,'fix')
+			fprintf('===>>> BROKE INITIATE: will retry...\n');
+			continue
+		end
 		
 		%=========================Our actual stimulus drawing loop==========================
 		edfMessage(eL,'END_FIX');
@@ -165,7 +170,7 @@ try
 		fixedColor = ana.colorFixed;
 		backColor = modColor;
 		centerColor = fixedColor;
-		fprintf('--->>> modColor=%s | fixColor=%s\n',num2str(modColor),num2str(fixedColor));
+		fprintf('===>>> modColor=%s | fixColor=%s\n',num2str(modColor),num2str(fixedColor));
 		edfMessage(eL,['MSG:modColor=' num2str(modColor)]);
 		
 		ana.trial(iii).n = iii;
@@ -192,6 +197,7 @@ try
 			
 			Screen('FillRect', sM.win, backColor, sM.winRect);
 			Screen('FillOval', sM.win, centerColor, circleRect);
+			Screen('DrawText', sM.win, 'HELLO!!!')
 			drawCross(sM,0.3,[0 0 0 1], ana.fixX, ana.fixY);
 			[tL.vbl(tick),tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);
 			tL.stimTime(tick) = toggle;
@@ -273,7 +279,8 @@ try
 		cd(ana.ResultDir);
 	end
 	close(eL);
-	ana.plotAxis = [];
+	ana.plotAxis1 = [];
+	ana.plotAxis2 = [];
 	fprintf('==>> SAVE %s, to: %s\n', ana.nameExp, pwd);
 	save([ana.nameExp '.mat'],'ana','eL', 'sM', 'tL');
 	cd(oldDir)
