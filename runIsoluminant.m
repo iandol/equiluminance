@@ -300,14 +300,14 @@ end
 		
 		Fs = sM.screenVals.fps;            % Sampling frequency                  
 		T = sM.screenVals.ifi;             % Sampling period       
-		L(thisTrial)=length(ana.trial(thisTrial).pupil);
-		t = (0:L(thisTrial)-1)*T;
 		P=ana.trial(thisTrial).pupil;
+		L=length(P);
+		t = (0:L-1)*T;
 		P1=fft(P);
-		P2 = abs(P1/L(thisTrial));
-		P3=P2(1:L(thisTrial)/2+1);
+		P2 = abs(P1/L);
+		P3=P2(1:L/2+1);
 		P3(2:end-1) = 2*P3(2:end-1);
-		f=Fs*(0:(L(thisTrial)/2))/L(thisTrial);
+		f=Fs*(0:(L/2))/L;
 		idx = findNearest(f, ana.frequency);
 		powerValues(thisTrial) = P3(idx);
 
