@@ -82,7 +82,7 @@ classdef pupilPower < analysisCore
 			subplot(311)
 			stairs(self.trlColor(:,tColor1),'color',plotColor)
 			xlim([0 numTrials+1])
-			xlabel('Trial')
+			xlabel('Trial #')
 			ylim([colorDown1-step1 colorUp1+step1])
 			set(gca,'ytick',colorDown1-step1:2*step1:colorUp1+step1)
 			ylabel('Color')
@@ -92,16 +92,23 @@ classdef pupilPower < analysisCore
 			subplot(312)
 			plot(self.powerValues)
 			xlim([0 numTrials+1])
+			xlabel('Trial #')
 			ylabel('PupilPower')           
 			title(tit);
 			box on; grid on;
 			
 			subplot(313)
+			names = {};
 			for i = 1: length(self.rawPupil)
 				hold on
 				plot(self.rawTimes{i}, self.rawPupil{i})
+				names{i} = ['Trial' num2str(i)];
 			end
-			
+			xlabel('Time (s)')
+			ylabel('Pupil Diameter')
+			title('Raw Pupil Plots')
+			legend(names)
+			box on; grid on;
 		end
 		
 	end
