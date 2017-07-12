@@ -197,7 +197,7 @@ try
 			
 			Screen('FillRect', sM.win, backColor, sM.winRect);
 			Screen('FillOval', sM.win, centerColor, circleRect);
-			Screen('DrawText', sM.win, 'HELLO!!!')
+			%Screen('DrawText', sM.win, 'HELLO!!!')
 			drawCross(sM,0.3,[0 0 0 1], ana.fixX, ana.fixY);
 			[tL.vbl(tick),tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);
 			tL.stimTime(tick) = toggle;

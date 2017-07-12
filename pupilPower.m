@@ -101,13 +101,27 @@ classdef pupilPower < analysisCore
 			names = {};
 			for i = 1: length(self.rawPupil)
 				hold on
-				plot(self.rawTimes{i}, self.rawPupil{i})
-				names{i} = ['Trial' num2str(i)];
+				t = self.rawTimes{i}; 
+				p = self.rawPupil{i};
+				idx = t >= -0.5;
+				t = t(idx);
+				p = p(idx);
+				
+				idx = t < 0;
+				mn = median(p(idx));
+				p = p - mn;
+				plot(t, p)
+				names{i} = num2str(self.trlColor(i,:));
+				names{i} = regexprep(names{i},'\s+',' ');
 			end
 			xlabel('Time (s)')
 			ylabel('Pupil Diameter')
-			title('Raw Pupil Plots')
+			title(['Raw Pupil Plots for Frequency = ' num2str(self.metadata.ana.frequency)])
 			legend(names)
+			axv = axis;
+			f = round(self.metadata.ana.onFrames) * (1 / self.metadata.sM.screenVals.fps);
+			rectangle('Position',[0 axv(3) f 100], 'FaceColor',[0.8 0.8 0.8 0.5],'EdgeColor','none')
+			rectangle('Position',[f*2 axv(3) f 100], 'FaceColor',[0.8 0.8 0.8 0.5],'EdgeColor','none')
 			box on; grid on;
 		end
 		
