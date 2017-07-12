@@ -6,6 +6,7 @@ classdef pupilPower < analysisCore
 		pupilData@eyelinkAnalysis
 		%> plot verbosity
 		verbose = true
+		normaliseBaseline@logical = true
 	end
 	
 	%------------------VISIBLE PROPERTIES----------%
@@ -15,6 +16,8 @@ classdef pupilPower < analysisCore
 		trlColor
 		rawPupil@cell
 		rawTimes@cell
+		rawF@cell
+		rawP@cell
 		isParsed@logical = false
 	end
 	
@@ -79,8 +82,8 @@ classdef pupilPower < analysisCore
 			
 			numTrials = length(self.powerValues);
 			
-			subplot(311)
-			stairs(self.trlColor(:,tColor1),'color',plotColor)
+			subplot(411)
+			stairs(self.trlColor(:,tColor1),'color',plotColor,'LineWidth',2)
 			xlim([0 numTrials+1])
 			xlabel('Trial #')
 			ylim([colorDown1-step1 colorUp1+step1])
@@ -89,15 +92,15 @@ classdef pupilPower < analysisCore
 			title(tit);
 			box on; grid on;
 			
-			subplot(312)
-			plot(self.powerValues)
+			subplot(412)
+			plot(self.powerValues,'ko-','LineWidth',2)
 			xlim([0 numTrials+1])
 			xlabel('Trial #')
 			ylabel('PupilPower')           
 			title(tit);
 			box on; grid on;
 			
-			subplot(313)
+			subplot(413)
 			names = {};
 			for i = 1: length(self.rawPupil)
 				hold on
@@ -107,10 +110,13 @@ classdef pupilPower < analysisCore
 				t = t(idx);
 				p = p(idx);
 				
-				idx = t < 0;
-				mn = median(p(idx));
-				p = p - mn;
-				plot(t, p)
+				if self.normaliseBaseline
+					idx = t < 0;
+					mn = median(p(idx));
+					p = p - mn;
+				end
+				
+				plot(t, p, 'LineWidth', 1)
 				names{i} = num2str(self.trlColor(i,:));
 				names{i} = regexprep(names{i},'\s+',' ');
 			end
@@ -123,6 +129,20 @@ classdef pupilPower < analysisCore
 			rectangle('Position',[0 axv(3) f 100], 'FaceColor',[0.8 0.8 0.8 0.5],'EdgeColor','none')
 			rectangle('Position',[f*2 axv(3) f 100], 'FaceColor',[0.8 0.8 0.8 0.5],'EdgeColor','none')
 			box on; grid on;
+			
+			subplot(414)
+			for i = 1: length(self.rawF)
+				hold on
+				plot(self.rawF{i},self.rawP{i},'o-')
+				names{i} = num2str(self.trlColor(i,:));
+				names{i} = regexprep(names{i},'\s+',' ');
+			end
+			xlim([0 10])
+			xlabel('Frequency (Hz)')
+			ylabel('Power')
+			title(['Power Plots for Frequency = ' num2str(self.metadata.ana.frequency)])
+			box on; grid on;
+			
 		end
 		
 	end
@@ -159,8 +179,8 @@ classdef pupilPower < analysisCore
 		% ===================================================================
 		function calculate(self)
 			if ~self.isParsed; return; end
-			Fs1 = self.pupilData.sampleRate;            % Sampling frequency
-			T1 = 1/Fs1;             % Sampling period
+			Fs1 = self.pupilData.sampleRate; % Sampling frequency
+			T1 = 1/Fs1; % Sampling period
 			
 			thisTrials = self.pupilData.trials(self.pupilData.correct.idx);
 			numTrials=length(thisTrials); %Number of trials
@@ -174,18 +194,29 @@ classdef pupilPower < analysisCore
 				self.rawTimes{currentTrial} = thisTrials(currentTrial).times / 1e3;
 				p = self.rawPupil{currentTrial};
 				t = self.rawTimes{currentTrial};
+				
+				idx = t >= -0.5;
+				t = t(idx);
+				p = p(idx);
+				if self.normaliseBaseline
+					idx = t < 0;
+					mn = median(p(idx));
+					p = p - mn;
+				end
 				idx = t >= 0;
 				p = p(idx);
 				t = t(idx);
+				
 				L=length(p);
-				%t = (0:L-1)*T1;
 				P1 = fft(p);
 				P2 = abs(P1/L);
 				P3=P2(1:floor(L/2)+1);
 				P3(2:end-1) = 2*P3(2:end-1);
 				f=Fs1*(0:(L/2))/L;
 				idx = analysisCore.findNearest(f, self.metadata.ana.frequency);
-				self.powerValues(currentTrial) = P3(idx);                  %get the pupil power of tagging frequency
+				self.powerValues(currentTrial) = P3(idx); %get the pupil power of tagging frequency
+				self.rawF{currentTrial} = f;
+				self.rawP{currentTrial} = P3;
 			end
 			
 		end
