@@ -127,7 +127,12 @@ classdef pupilPower < analysisCore
 			axv = axis;
 			f = round(self.metadata.ana.onFrames) * (1 / self.metadata.sM.screenVals.fps);
 			rectangle('Position',[0 axv(3) f 100], 'FaceColor',[0.8 0.8 0.8 0.5],'EdgeColor','none')
+			if self.metadata.ana.trialDuration * self.metadata.ana.frequency > 1
 			rectangle('Position',[f*2 axv(3) f 100], 'FaceColor',[0.8 0.8 0.8 0.5],'EdgeColor','none')
+			end
+			if self.metadata.ana.trialDuration * self.metadata.ana.frequency > 2
+				rectangle('Position',[f*4 axv(3) f 100], 'FaceColor',[0.8 0.8 0.8 0.5],'EdgeColor','none')
+			end
 			box on; grid on;
 			
 			subplot(414)
@@ -198,11 +203,13 @@ classdef pupilPower < analysisCore
 				idx = t >= -0.5;
 				t = t(idx);
 				p = p(idx);
+				
 				if self.normaliseBaseline
 					idx = t < 0;
 					mn = median(p(idx));
 					p = p - mn;
 				end
+				
 				idx = t >= 0;
 				p = p(idx);
 				t = t(idx);

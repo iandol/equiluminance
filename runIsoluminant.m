@@ -22,8 +22,11 @@ ana.nameExp = regexprep(nameExp,' ','_');
 cla(ana.plotAxis1);
 cla(ana.plotAxis2);
 
+xxx = 0;
+
 try
 	PsychDefaultSetup(2);
+	xxx = xxx + 1;
 	Screen('Preference', 'SkipSyncTests', 0);
 	%===================open our screen====================
 	sM = screenManager();
@@ -44,7 +47,7 @@ try
 	end
 	sM.backgroundColour = ana.backgroundColor;
 	sM.open; % OPEN THE SCREEN
-	fprintf('\n--->>> ISOLUM Opened Screen %i : %s\n', sM.win, sM.fullName);
+	fprintf('\n--->>> %i ISOLUM Opened Screen %i : %s\n', xxx, sM.win, sM.fullName);
 	
 	Screen('Preference', 'DefaultFontName','DejaVu Sans');
 	
@@ -82,6 +85,7 @@ try
 	fprintf('--->>> ISOLUM eL setup complete: %s\n', eL.fullName);
 	WaitSecs('YieldSecs',0.5);
 	getSample(eL); %make sure everything is in memory etc.
+	eL.verbose = true;
 	
 	% initialise our trial variables
 	tL = timeLogger();
@@ -97,7 +101,7 @@ try
 	
 	while ~breakLoop
 		%=========================MAINTAIN INITIAL FIXATION==========================
-		fprintf('===>>> ISOLUM START Trial = %i\n', iii);
+		fprintf('===>>> ISOLUM START Trial = %i\n', iii);eL.verbose = false;
 		resetFixation(eL);
 		trackerClearScreen(eL);
 		trackerDrawFixation(eL); %draw fixation window on eyelink computer
@@ -197,7 +201,6 @@ try
 			
 			Screen('FillRect', sM.win, backColor, sM.winRect);
 			Screen('FillOval', sM.win, centerColor, circleRect);
-			%Screen('DrawText', sM.win, 'HELLO!!!')
 			drawCross(sM,0.3,[0 0 0 1], ana.fixX, ana.fixY);
 			[tL.vbl(tick),tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);
 			tL.stimTime(tick) = toggle;
@@ -271,10 +274,12 @@ try
 	end % while ~breakLoop
 	
 	%===============================Clean up============================
-	close(sM);
-	ListenChar(0);ShowCursor;Priority(0);Screen('CloseAll');
+	Screen('DrawText', sM.win, 'FINISHED!!!')
+	Screen('Flip',sM.win)
+	WaitSecs('YieldSecs', 1);
+	close(sM); breakLoop = true;
+	ListenChar(0);ShowCursor;Priority(0);
 	
-	oldDir = pwd;
 	if exist(ana.ResultDir,'dir') > 0
 		cd(ana.ResultDir);
 	end
@@ -283,10 +288,6 @@ try
 	ana.plotAxis2 = [];
 	fprintf('==>> SAVE %s, to: %s\n', ana.nameExp, pwd);
 	save([ana.nameExp '.mat'],'ana','eL', 'sM', 'tL');
-	cd(oldDir)
-	tL.printRunLog;
-	clear ana eL sM tL
-	
 	
 catch ME
 	close(sM);
