@@ -133,7 +133,7 @@ try
 		trackerClearScreen(eL);
 		trackerDrawFixation(eL); %draw fixation window on eyelink computer
 		edfMessage(eL,'V_RT MESSAGE END_FIX END_RT');  %this 3 lines set the trial info for the eyelink
-		edfMessage(eL,['TRIALID ' num2str(seq.thisRun)]);  %obj.getTaskIndex gives us which trial we're at
+		edfMessage(eL,['TRIALID ' num2str(seq.outIndex(seq.thisRun))]);  %obj.getTaskIndex gives us which trial we're at
 		startRecording(eL);
 		statusMessage(eL,'INITIATE FIXATION...');
 		fixated = '';
@@ -196,8 +196,11 @@ try
 		centerColor = fixedColor;
 		fprintf('===>>> modColor=%s | fixColor=%s\n',num2str(modColor),num2str(fixedColor));
 		edfMessage(eL,['MSG:modColor=' num2str(modColor)]);
+		edfMessage(eL,['MSG:variable=' num2str(seq.outIndex(seq.thisRun))]);
+		edfMessage(eL,['MSG:thisRun=' num2str(seq.thisRun)]);
 		
 		ana.trial(seq.thisRun).n = seq.thisRun;
+		ana.trial(seq.thisRun).variable = seq.outIndex(seq.thisRun);
 		ana.trial(seq.thisRun).mColor = modColor;
 		ana.trial(seq.thisRun).fColor = fixedColor;
 		ana.trial(seq.thisRun).pupil = [];
