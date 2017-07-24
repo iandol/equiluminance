@@ -1,6 +1,6 @@
 function runIsoluminant(ana)
 
-fprintf('\n--->>> runIsoluminant Started!\n');
+fprintf('\n--->>> runIsoluminant Started: ana UUID = %s!\n',ana.uuid);
 
 %===================Initiate out metadata===================
 ana.date = datestr(datetime);
@@ -38,6 +38,7 @@ try
 	sM.pixelsPerCm = ana.pixelsPerCm;
 	sM.distance = ana.distance;
 	sM.debug = ana.debug;
+	sM.verbosityLevel = 4;
 	if exist(ana.gammaTable, 'file')
 		load(ana.gammaTable);
 		if isa(c,'calibrateLuminance')
@@ -53,13 +54,15 @@ try
 	fprintf('\n--->>> runIsoluminant Opened Screen %i : %s\n', sM.win, sM.fullName);
 	
 	if IsLinux
-		Screen('Preference', 'DefaultFontName','DejaVu Sans');
+		Screen('Preference', 'TextRenderer', 1);
+		Screen('Preference', 'DefaultFontName', 'DejaVu Sans');
 	end
 	
 	%============================SET UP VARIABLES=====================================
 	
 	len = 0;
-	for i = 1:3
+	r = cell(3,1);
+	for i = 1:length(r)
 		step = (ana.colorEnd(i) - ana.colorStart(i)) / ana.colorStep;
 		r{i} = [ana.colorStart(i) : step : ana.colorEnd(i)]';
 		if length(r{i}) > len; len = length(r{i}); end
@@ -81,7 +84,6 @@ try
 	seq.nBlocks = ana.trialNumber;
 	seq.initialise();
 	ana.nTrials = seq.nRuns;
-	%ana.nTrials = abs((sum(ana.colorEnd)-sum(ana.colorStart))/sum(ana.colorStep)) + 1; %
 	ana.onFrames = round(((1/ana.frequency) * sM.screenVals.fps) / 2); % video frames for each color
 	fprintf('--->>> runIsoluminant # Trials: %i; # Frames Flip: %i; FPS: %i \n',seq.nRuns, ana.onFrames, sM.screenVals.fps);
 	WaitSecs('YieldSecs',0.25);
@@ -91,9 +93,8 @@ try
 	
 	%==============================setup eyelink==========================
 	ana.strictFixation = true;
-	fprintf('--->>> runIsoluminant eL setup starting...\n');
 	eL = eyelinkManager('IP',[]);
-	%eL.verbose = true;
+	fprintf('--->>> runIsoluminant eL setup starting: %s\n', eL.fullName);
 	eL.isDummy = ana.isDummy; %use dummy or real eyelink?
 	eL.name = ana.nameExp;
 	eL.saveFile = [ana.nameExp '.edf'];
@@ -109,6 +110,10 @@ try
 	% X, Y, FixInitTime, FixTime, Radius, StrictFix
 	updateFixationValues(eL, ana.fixX, ana.fixY, ana.firstFixInit,...
 		ana.firstFixTime, ana.firstFixDiameter, ana.strictFixation);
+	
+	%sM.verbose = true; eL.verbose = true; sM.verbosityLevel = 10; eL.verbosityLevel = 4; %force lots of log output
+	
+	
 	initialise(eL, sM); %use sM to pass screen values to eyelink
 	setup(eL); % do setup and calibration
 	fprintf('--->>> runIsoluminant eL setup complete: %s\n', eL.fullName);
@@ -128,7 +133,8 @@ try
 	
 	while seq.thisRun <= seq.nRuns && ~breakLoop
 		%=========================MAINTAIN INITIAL FIXATION==========================
-		fprintf('===>>> runIsoluminant START Trial = %i / %i\n', seq.thisRun, seq.nRuns);
+		fprintf('===>>> runIsoluminant START Trial = %i / %i | %s, %s\n', seq.thisRun, seq.nRuns, sM.fullName, eL.fullName);
+		%testWindowOpen(sM);
 		resetFixation(eL);
 		trackerClearScreen(eL);
 		trackerDrawFixation(eL); %draw fixation window on eyelink computer
@@ -138,10 +144,10 @@ try
 		statusMessage(eL,'INITIATE FIXATION...');
 		fixated = '';
 		ListenChar(2);
-		drawCross(sM,0.3,[0 0 0 1],ana.fixX,ana.fixY);
-		Screen('Flip',sM.win); %flip the buffer
+		fprintf('===>>> runIsoluminant initiating fixation to start run...\n');
 		syncTime(eL);
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
+			drawCross(sM,0.3,[0 0 0 1],ana.fixX,ana.fixY);
 			getSample(eL);
 			fixated=testSearchHoldFixation(eL,'fix','breakfix');
 			[keyIsDown, ~, keyCode] = KbCheck(-1);
@@ -149,25 +155,25 @@ try
 				rchar = KbName(keyCode); if iscell(rchar);rchar=rchar{1};end
 				switch lower(rchar)
 					case {'c'}
-						fprintf('===>>> runIsoluminant recalibrate pressed\n');
+						fprintf('===>>> runIsoluminant recalibrate pressed!\n');
 						fixated = 'breakfix';
 						stopRecording(eL);
 						setOffline(eL);
 						trackerSetup(eL);
 						WaitSecs('YieldSecs',2);
 					case {'d'}
-						fprintf('===>>> runIsoluminant drift correct pressed\n');
+						fprintf('===>>> runIsoluminant drift correct pressed!\n');
 						fixated = 'breakfix';
 						stopRecording(eL);
 						driftCorrection(eL);
 						WaitSecs('YieldSecs',2);
 					case {'escape'}
-						fprintf('===>>> runIsoluminant escape pressed\n');
+						fprintf('===>>> runIsoluminant escape pressed!\n');
 						fixated = 'breakfix';
 						breakLoop = true;
 				end
 			end
-			WaitSecs('YieldSecs', sM.screenVals.ifi);
+			Screen('Flip',sM.win); %flip the buffer
 		end
 		ListenChar(0);
 		if strcmpi(fixated,'breakfix')
@@ -180,6 +186,8 @@ try
 			WaitSecs('YieldSecs',0.1);
 			continue
 		end
+		
+		%sM.verbose = false; eL.verbose = false; sM.verbosityLevel = 4; eL.verbosityLevel = 4; %force lots of log output
 		
 		%=========================Our actual stimulus drawing loop==========================
 		edfMessage(eL,'END_FIX');
@@ -297,10 +305,10 @@ try
 	end % while ~breakLoop
 	
 	%===============================Clean up============================
-	fprintf('===>>> runIsoluminant Finished Trials: %i\n',seq.nRuns);
+	fprintf('===>>> runIsoluminant Finished Trials: %i\n',seq.thisRun);
 	Screen('DrawText', sM.win, '===>>> FINISHED!!!');
 	Screen('Flip',sM.win);
-	WaitSecs('YieldSecs', 1);
+	WaitSecs('YieldSecs', 2);
 	close(sM); breakLoop = true;
 	ListenChar(0);ShowCursor;Priority(0);
 	
