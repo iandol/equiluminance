@@ -168,7 +168,7 @@ try
 						driftCorrection(eL);
 						WaitSecs('YieldSecs',2);
 					case {'escape'}
-						fprintf('===>>> runIsoluminant escape pressed!\n');
+						fprintf('===>>> runIsoluminant escape pressed!!!\n');
 						fixated = 'breakfix';
 						breakLoop = true;
 				end
@@ -283,15 +283,18 @@ try
 				rchar = KbName(keyCode); if iscell(rchar);rchar=rchar{1};end
 				switch lower(rchar)
 					case {'c'}
+						fprintf('===>>> runIsoluminant recalibrate pressed!\n');
 						stopRecording(eL);
 						setOffline(eL);
 						trackerSetup(eL);
 						WaitSecs('YieldSecs',2);
 					case {'d'}
+						fprintf('===>>> runIsoluminant drift correct pressed!\n');
 						stopRecording(eL);
 						driftCorrection(eL);
 						WaitSecs('YieldSecs',2);
 					case {'escape'}
+						fprintf('===>>> runIsoluminant escape pressed!!!\n');
 						trackerClearScreen(eL);
 						stopRecording(eL);
 						setOffline(eL);
