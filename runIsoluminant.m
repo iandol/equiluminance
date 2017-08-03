@@ -1,5 +1,12 @@
 function runIsoluminant(ana)
 
+global lJ
+
+if ~exist('lJ','var') || isempty(lJ)
+    lJ = sendSerial;
+    lJ.open 
+end
+
 fprintf('\n--->>> runIsoluminant Started: ana UUID = %s!\n',ana.uuid);
 
 %===================Initiate out metadata===================
@@ -102,8 +109,8 @@ try
 	eL.sampleRate = 1000;
 	eL.remoteCalibration = false; % manual calibration?
 	eL.calibrationStyle = 'HV5'; % calibration style
-	eL.modify.calibrationtargetcolour = [0 0 0];
-	eL.modify.calibrationtargetsize = 0.5;
+	eL.modify.calibrationtargetcolour = [1 1 1];
+	eL.modify.calibrationtargetsize = 1;
 	eL.modify.calibrationtargetwidth = 0.05;
 	eL.modify.waitformodereadytime = 500;
 	eL.modify.devicenumber = -1; % -1 = use any keyboard
@@ -147,7 +154,7 @@ try
 		fprintf('===>>> runIsoluminant initiating fixation to start run...\n');
 		syncTime(eL);
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
-			drawCross(sM,0.3,[0 0 0 1],ana.fixX,ana.fixY);
+			drawCross(sM,0.3,[1 1 1 1],ana.fixX,ana.fixY);
 			getSample(eL);
 			fixated=testSearchHoldFixation(eL,'fix','breakfix');
 			[keyIsDown, ~, keyCode] = KbCheck(-1);
@@ -232,7 +239,7 @@ try
 			
 			Screen('FillRect', sM.win, backColor, sM.winRect);
 			Screen('FillOval', sM.win, centerColor, circleRect);
-			drawCross(sM,0.3,[0 0 0 1], ana.fixX, ana.fixY);
+			drawCross(sM,0.3,[1 1 1 1], ana.fixX, ana.fixY);
 			[tL.vbl(tick),tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);
 			tL.stimTime(tick) = toggle;
 			tL.tick = tick;
@@ -267,6 +274,7 @@ try
 			setOffline(eL);
 		else
 			fprintf('===>>> SUCCESS: Trial = %i (%i secs)\n\n', seq.thisRun, tEnd-tStart);
+            lJ.timedTTL(2,150)
 			ana.trial(seq.thisRun).success = true;
 			stopRecording(eL);
 			edfMessage(eL,'TRIAL_RESULT 1');
@@ -345,6 +353,7 @@ end
 		plot(ana.plotAxis1,t,ana.trial(thisTrial).pupil);
 		calculatePower(thisTrial)
 		plot(ana.plotAxis2,powerValues,'k-o');
+        drawnow
 	end
 
 	function calculatePower(thisTrial)
