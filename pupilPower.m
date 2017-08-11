@@ -24,13 +24,14 @@ classdef pupilPower < analysisCore
         meanF
         rawP@cell
         meanP
-        isParsed@logical = false
+        isLoaded@logical = false
+        isCalculated@logical = false
     end
     
     %------------------PRIVATE PROPERTIES----------%
     properties (SetAccess = private, GetAccess = private)
         %> allowed properties passed to object upon construction, see parseArgs
-        allowedProperties@char = 'pupilData'
+        allowedProperties@char = 'pupilData|normaliseBaseline'
     end
     
     %=======================================================================
@@ -63,7 +64,7 @@ classdef pupilPower < analysisCore
             if ~exist('force','var') || isempty(force); force = false; end
             self.load(force);
             self.calculate();
-            self.plot()
+            self.plot();
         end
         
         % ===================================================================
@@ -73,9 +74,8 @@ classdef pupilPower < analysisCore
         %> @return
         % ===================================================================
         function plot(self)
-            if ~self.isParsed; return; end
+            if ~self.isCalculated; return; end
             tit = ['Fixed Colour = ' num2str(self.metadata.ana.colorFixed)];
-            if ~self.isParsed; return; end
             colorChange=self.metadata.ana.colorEnd-self.metadata.ana.colorStart;
             tColor=find(colorChange~=0); %get the position of not zero
             step=abs(colorChange(tColor)/self.metadata.ana.colorStep);
@@ -178,15 +178,15 @@ classdef pupilPower < analysisCore
         % ===================================================================
         function load(self, force)
             if ~exist('force','var') || isempty(force); force = false; end
-            if self.isParsed && ~force; return; end
+            if self.isLoaded && ~force; return; end
             try
                 self.pupilData=eyelinkAnalysis;
                 parseSimple(self.pupilData);
                 [~,fn] = fileparts(self.pupilData.file);
                 self.metadata = load([self.pupilData.dir,fn,'.mat']); %load .mat of same filename with .edf
-                self.isParsed = true;
+                self.isLoaded = true;
             catch
-                self.isParsed = false;
+                self.isLoaded = false;
             end
         end
         
@@ -197,7 +197,7 @@ classdef pupilPower < analysisCore
         %> @return
         % ===================================================================
         function calculate(self)
-            if ~self.isParsed; return; end
+            if ~self.isLoaded; return; end
             Fs1 = self.pupilData.sampleRate; % Sampling frequency
             T1 = 1/Fs1; % Sampling period
             thisTrials = self.pupilData.trials(self.pupilData.correct.idx);
@@ -265,6 +265,7 @@ classdef pupilPower < analysisCore
             for i=1:size(self.powerValues,1)
                 self.varPowerValues(i,1)=sqrt(sum((self.powerValues(i,:)-self.meanPowerValues(i)).^2)/(size(self.powerValues,2)*(size(self.powerValues,2)-1)));
             end
+            self.isCalculated = true;
         end
         
         % ===================================================================
