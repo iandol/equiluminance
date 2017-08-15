@@ -3,7 +3,7 @@ function runIsoluminant(ana)
 global lJ
 
 if ~exist('lJ','var') || isempty(lJ)
-    lJ = sendSerial;
+    lJ = arduinoManager;
     lJ.open 
 end
 
