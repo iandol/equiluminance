@@ -45,6 +45,8 @@ try
 	sM.pixelsPerCm = ana.pixelsPerCm;
 	sM.distance = ana.distance;
 	sM.debug = ana.debug;
+	sM.blend = 1;
+	sM.bitDepth = 'FloatingPoint32BitIfPossible';
 	sM.verbosityLevel = 4;
 	if exist(ana.gammaTable, 'file')
 		load(ana.gammaTable);
@@ -64,6 +66,16 @@ try
 		Screen('Preference', 'TextRenderer', 1);
 		Screen('Preference', 'DefaultFontName', 'DejaVu Sans');
 	end
+	
+	%===========================set up stimuli====================
+	circle1 = discStimulus;
+	circle2 = discStimulus;
+	circle1.sigma = ana.sigma1;
+	circle2.sigma = ana.sigma2;
+	circle1.size = ana.circleDiameter;
+	circle2.size = ana.backgroundDiameter;
+	setup(circle1,sM);
+	setup(circle2,sM);
 	
 	%============================SET UP VARIABLES=====================================
 	
@@ -94,9 +106,6 @@ try
 	ana.onFrames = round(((1/ana.frequency) * sM.screenVals.fps) / 2); % video frames for each color
 	fprintf('--->>> runIsoluminant # Trials: %i; # Frames Flip: %i; FPS: %i \n',seq.nRuns, ana.onFrames, sM.screenVals.fps);
 	WaitSecs('YieldSecs',0.25);
-	diameter = ceil(ana.circleDiameter*sM.ppd);
-	circleRect = [0,0,diameter,diameter];
-	circleRect = CenterRectOnPoint(circleRect, sM.xCenter, sM.yCenter);
 	
 	%==============================setup eyelink==========================
 	ana.strictFixation = true;
@@ -237,9 +246,16 @@ try
 				end
 			end
 			
-			Screen('FillRect', sM.win, backColor, sM.winRect);
-			Screen('FillOval', sM.win, centerColor, circleRect);
+			circle1.colourOut = centerColor;
+			circle2.colourOut = backColor;
+			circle2.draw(); %background circle draw first!
+			circle1.draw();
+			
+			%Screen('FillRect', sM.win, backColor, sM.winRect);
+			%Screen('FillOval', sM.win, centerColor, circleRect);
 			drawCross(sM,0.3,[1 1 1 1], ana.fixX, ana.fixY);
+			finishDrawing(sM);
+			
 			[tL.vbl(tick),tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);
 			tL.stimTime(tick) = toggle;
 			tL.tick = tick;
@@ -336,7 +352,9 @@ try
 		fprintf('==>> SAVE %s, to: %s\n', ana.nameExp, pwd);
 		save([ana.nameExp '.mat'],'ana', 'seq', 'eL', 'sM', 'tL');
 	end
-	tL.printRunLog;
+	if IsWin	
+		tL.printRunLog;
+	end
 	clear ana seq eL sM tL
 
 catch ME

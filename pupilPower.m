@@ -200,12 +200,12 @@ classdef pupilPower < analysisCore
             if ~self.isLoaded; return; end
             Fs1 = self.pupilData.sampleRate; % Sampling frequency
             T1 = 1/Fs1; % Sampling period
+            
             thisTrials = self.pupilData.trials(self.pupilData.correct.idx);
-            for i=1:length(self.metadata.seq.outIndex)
-                
+            
+            for i=1:length(thisTrials)
                 self.SortedPupil(1).anaTrials(self.metadata.seq.outIndex(i),ceil(i/max(self.metadata.seq.outIndex)))=self.metadata.ana.trial(i);
                 self.SortedPupil(1).pupilTrials(self.metadata.seq.outIndex(i),ceil(i/max(self.metadata.seq.outIndex)))=thisTrials(i);
-                
             end
             
             thisTrials = self.SortedPupil.pupilTrials;
@@ -213,7 +213,7 @@ classdef pupilPower < analysisCore
             numBlocks=size(thisTrials,2); %Number of Blocks
             
             for currentTrial=1:numTrials
-                k=1;                F=[];                P=[];    Pu=[];  Ti=[];
+                k=1;	F=[];	P=[];	Pu=[];	Ti=[];
                 for currentBlock=1:numBlocks
                     self.rawPupil{currentTrial,currentBlock} = thisTrials(currentTrial,currentBlock).pa;
                     self.rawTimes{currentTrial,currentBlock} = thisTrials(currentTrial,currentBlock).times / 1e3;
