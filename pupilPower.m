@@ -129,12 +129,15 @@ classdef pupilPower < analysisCore
                 end
                 
                 plot(t, p,'color', traceColor(i*traceColor_step,:), 'LineWidth', 1)
+                if isempty(t)==0
                 names{i} = num2str(trlColor(i,:));
                 names{i} = regexprep(names{i},'\s+',' ');
+                end
             end
             xlabel('Time (s)')
             ylabel('Pupil Diameter')
             title(['Raw Pupil Plots for Frequency = ' num2str(self.metadata.ana.frequency)])
+            names(cellfun(@isempty,names))=[];
             legend(names,'Location','bestoutside')
             axv = axis;
             f = round(self.metadata.ana.onFrames) * (1 / self.metadata.sM.screenVals.fps);
@@ -152,12 +155,15 @@ classdef pupilPower < analysisCore
                 hold on
                 plot(self.meanF{i},self.meanP{i},'color', traceColor(i*traceColor_step,:),...
                     'Marker','o');
+                 if isempty(self.meanF{i})==0
                 names{i} = num2str(trlColor(i,:));
                 names{i} = regexprep(names{i},'\s+',' ');
+                 end
             end
             xlim([0 10])
             xlabel('Frequency (Hz)')
             ylabel('Power')
+             names(cellfun(@isempty,names))=[];
             legend(names,'Location','bestoutside');
             title(['Power Plots for Frequency = ' num2str(self.metadata.ana.frequency)])
             box on; grid on;
@@ -200,12 +206,19 @@ classdef pupilPower < analysisCore
             if ~self.isLoaded; return; end
             Fs1 = self.pupilData.sampleRate; % Sampling frequency
             T1 = 1/Fs1; % Sampling period
-            
             thisTrials = self.pupilData.trials(self.pupilData.correct.idx);
-            
             for i=1:length(thisTrials)
-                self.SortedPupil(1).anaTrials(self.metadata.seq.outIndex(i),ceil(i/max(self.metadata.seq.outIndex)))=self.metadata.ana.trial(i);
-                self.SortedPupil(1).pupilTrials(self.metadata.seq.outIndex(i),ceil(i/max(self.metadata.seq.outIndex)))=thisTrials(i);
+                
+                self.SortedPupil(1).anaTrials(self.metadata.seq.outIndex(i),ceil(i/self.metadata.seq.minBlocks))=self.metadata.ana.trial(i);
+                self.SortedPupil(1).pupilTrials(self.metadata.seq.outIndex(i),ceil(i/self.metadata.seq.minBlocks))=thisTrials(i);
+                idx=self.SortedPupil(1).pupilTrials(self.metadata.seq.outIndex(i),ceil(i/self.metadata.seq.minBlocks)).times>=-500;
+                self.SortedPupil(1).pupilTrials(self.metadata.seq.outIndex(i),ceil(i/self.metadata.seq.minBlocks)).times=self.SortedPupil(1).pupilTrials(self.metadata.seq.outIndex(i),ceil(i/self.metadata.seq.minBlocks)).times(idx);
+                self.SortedPupil(1).pupilTrials(self.metadata.seq.outIndex(i),ceil(i/self.metadata.seq.minBlocks)).gx=self.SortedPupil(1).pupilTrials(self.metadata.seq.outIndex(i),ceil(i/self.metadata.seq.minBlocks)).gx(idx);
+                self.SortedPupil(1).pupilTrials(self.metadata.seq.outIndex(i),ceil(i/self.metadata.seq.minBlocks)).gy=self.SortedPupil(1).pupilTrials(self.metadata.seq.outIndex(i),ceil(i/self.metadata.seq.minBlocks)).gy(idx);
+                self.SortedPupil(1).pupilTrials(self.metadata.seq.outIndex(i),ceil(i/self.metadata.seq.minBlocks)).hx=self.SortedPupil(1).pupilTrials(self.metadata.seq.outIndex(i),ceil(i/self.metadata.seq.minBlocks)).hx(idx);
+                self.SortedPupil(1).pupilTrials(self.metadata.seq.outIndex(i),ceil(i/self.metadata.seq.minBlocks)).hy=self.SortedPupil(1).pupilTrials(self.metadata.seq.outIndex(i),ceil(i/self.metadata.seq.minBlocks)).hy(idx);
+                self.SortedPupil(1).pupilTrials(self.metadata.seq.outIndex(i),ceil(i/self.metadata.seq.minBlocks)).pa=self.SortedPupil(1).pupilTrials(self.metadata.seq.outIndex(i),ceil(i/self.metadata.seq.minBlocks)).pa(idx);
+                
             end
             
             thisTrials = self.SortedPupil.pupilTrials;
@@ -213,8 +226,10 @@ classdef pupilPower < analysisCore
             numBlocks=size(thisTrials,2); %Number of Blocks
             
             for currentTrial=1:numTrials
-                k=1;	F=[];	P=[];	Pu=[];	Ti=[];
+                if isempty(self.SortedPupil.pupilTrials(currentTrial).variable)==0
+                k=1;                F=[];                P=[];    Pu=[];  Ti=[];
                 for currentBlock=1:numBlocks
+                    if isempty(self.SortedPupil.pupilTrials(currentTrial,currentBlock).variable)==0
                     self.rawPupil{currentTrial,currentBlock} = thisTrials(currentTrial,currentBlock).pa;
                     self.rawTimes{currentTrial,currentBlock} = thisTrials(currentTrial,currentBlock).times / 1e3;
                     p = self.rawPupil{currentTrial,currentBlock};
@@ -247,24 +262,36 @@ classdef pupilPower < analysisCore
                     rawFramef(k)=size(self.rawF{currentTrial,currentBlock},2);
                     rawFramePupil(k)=size(self.rawPupil{currentTrial,currentBlock},2);
                     k=k+1;
-                end
+                    end
+                                   end
                 rawFramefMin(currentTrial)=min(rawFramef);
                 rawFramePupilMin(currentTrial)=min(rawFramePupil);
                 for currentBlock=1:numBlocks
+                    if isempty(self.SortedPupil.pupilTrials(currentTrial,currentBlock).variable)==0
                     F(1,currentBlock,:)=self.rawF{currentTrial,currentBlock}(1,1:rawFramefMin(currentTrial));
                     P(1,currentBlock,:)=self.rawP{currentTrial,currentBlock}(1,1:rawFramefMin(currentTrial));
                     Pu(1,currentBlock,:)=self.rawPupil{currentTrial,currentBlock}(1,1:rawFramePupilMin(currentTrial));
                     Ti(1,currentBlock,:)=self.rawTimes{currentTrial,currentBlock}(1,1:rawFramePupilMin(currentTrial));
-                end
+                    end
+                end                
                 self.meanF{currentTrial,1}=squeeze(mean(F,2));
                 self.meanP{currentTrial,1}=squeeze(mean(P,2));
                 self.meanPupil{currentTrial,1}=squeeze(mean(Pu,2));
                 self.meanTimes{currentTrial,1}=squeeze(mean(Ti,2));
+                end
             end
-            self.meanPowerValues=mean(self.powerValues,2);
+            powerValues=self.powerValues;
+            powerValues(powerValues==0)=NaN;
+            self.meanPowerValues=nanmean(powerValues,2);
             for i=1:size(self.powerValues,1)
-                self.varPowerValues(i,1)=sqrt(sum((self.powerValues(i,:)-self.meanPowerValues(i)).^2)/(size(self.powerValues,2)*(size(self.powerValues,2)-1)));
+                if self.powerValues(i,size(self.powerValues,2))==0
+                    n=size(self.powerValues,2)-1;
+                else
+                    n=size(self.powerValues,2);
+                end
+                self.varPowerValues(i,1)=sqrt(sum((self.powerValues(i,:)-self.meanPowerValues(i)).^2)/(n*(n-1)));
             end
+                self.varPowerValues(self.varPowerValues==inf)=0;            
             self.isCalculated = true;
         end
         
