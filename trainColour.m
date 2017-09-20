@@ -60,7 +60,7 @@ try
 	end
 	sM.backgroundColour = ana.backgroundColor;
 	sM.open; % OPEN THE SCREEN
-	fprintf('\n--->>> runIsoluminant Opened Screen %i : %s\n', sM.win, sM.fullName);
+	fprintf('\n--->>> Train Opened Screen %i : %s\n', sM.win, sM.fullName);
 	
 	if IsLinux
 		Screen('Preference', 'TextRenderer', 1);
@@ -72,50 +72,39 @@ try
 	circle2 = discStimulus;
 	circle1.sigma = ana.sigma1;
 	circle2.sigma = ana.sigma2;
-	circle1.size = ana.circleDiameter;
-	circle2.size = ana.backgroundDiameter;
+	circle1.size = ana.circle1Diameter;
+	circle2.size = ana.circle2Diameter;
+	circle1.colour = ana.colour1;
+	circle2.colour = ana.colour2;
+	circle1.xPosition = ana.positionXY(1);
+	circle2.xPosition = ana.positionXY(1);
+	yPosition = ana.positionXY(2);
 	setup(circle1,sM);
 	setup(circle2,sM);
 	
 	%============================SET UP VARIABLES=====================================
 	
-	len = 0;
-	r = cell(3,1);
-	for i = 1:length(r)
-		step = (ana.colorEnd(i) - ana.colorStart(i)) / ana.colorStep;
-		r{i} = [ana.colorStart(i) : step : ana.colorEnd(i)]';
-		if length(r{i}) > len; len = length(r{i}); end
-	end
-	for i = 1:length(r)
-		if isempty(r{i})
-			r{i} = zeros(len,1);
-		end
-	end
-	vals = cell(len,1);
-	for i = 1:len
-		vals{i} = [r{1}(i) r{2}(i) r{3}(i)];
-	end
+	vals = [-yPosition +yPosition];
 	
 	seq = stimulusSequence;
-	seq.nVar(1).name = 'colour';
+	seq.nVar(1).name = 'yPosition';
 	seq.nVar(1).stimulus = 1;
 	seq.nVar(1).values = vals;
 	seq.nBlocks = ana.trialNumber;
 	seq.initialise();
 	ana.nTrials = seq.nRuns;
-	ana.onFrames = round(((1/ana.frequency) * sM.screenVals.fps) / 2); % video frames for each color
-	fprintf('--->>> runIsoluminant # Trials: %i; # Frames Flip: %i; FPS: %i \n',seq.nRuns, ana.onFrames, sM.screenVals.fps);
+	fprintf('--->>> Train # Trials: %i; # FPS: %i \n',seq.nRuns, sM.screenVals.fps);
 	WaitSecs('YieldSecs',0.25);
 	
 	%==============================setup eyelink==========================
 	ana.strictFixation = true;
 	eL = eyelinkManager('IP',[]);
-	fprintf('--->>> runIsoluminant eL setup starting: %s\n', eL.fullName);
+	fprintf('--->>> Train eL setup starting: %s\n', eL.fullName);
 	eL.isDummy = ana.isDummy; %use dummy or real eyelink?
 	eL.name = ana.nameExp;
 	eL.saveFile = [ana.nameExp '.edf'];
 	eL.recordData = true; %save EDF file
-	eL.sampleRate = 1000;
+	eL.sampleRate = 250;
 	eL.remoteCalibration = false; % manual calibration?
 	eL.calibrationStyle = 'HV5'; % calibration style
 	eL.modify.calibrationtargetcolour = [1 1 1];
@@ -132,7 +121,7 @@ try
 	
 	initialise(eL, sM); %use sM to pass screen values to eyelink
 	setup(eL); % do setup and calibration
-	fprintf('--->>> runIsoluminant eL setup complete: %s\n', eL.fullName);
+	fprintf('--->>> Train eL setup complete: %s\n', eL.fullName);
 	WaitSecs('YieldSecs',0.5);
 	getSample(eL); %make sure everything is in memory etc.
 	
@@ -149,9 +138,10 @@ try
 	
 	while seq.thisRun <= seq.nRuns && ~breakLoop
 		%=========================MAINTAIN INITIAL FIXATION==========================
-		fprintf('===>>> runIsoluminant START Trial = %i / %i | %s, %s\n', seq.thisRun, seq.nRuns, sM.fullName, eL.fullName);
-		%testWindowOpen(sM);
+		fprintf('===>>> Train START Trial = %i / %i | %s, %s\n', seq.thisRun, seq.nRuns, sM.fullName, eL.fullName);
 		resetFixation(eL);
+		updateFixationValues(eL, ana.fixX, ana.fixY, ana.firstFixInit,...
+		ana.firstFixTime, ana.firstFixDiameter, ana.strictFixation);
 		trackerClearScreen(eL);
 		trackerDrawFixation(eL); %draw fixation window on eyelink computer
 		edfMessage(eL,'V_RT MESSAGE END_FIX END_RT');  %this 3 lines set the trial info for the eyelink
@@ -160,7 +150,7 @@ try
 		statusMessage(eL,'INITIATE FIXATION...');
 		fixated = '';
 		ListenChar(2);
-		fprintf('===>>> runIsoluminant initiating fixation to start run...\n');
+		fprintf('===>>> Train initiating fixation to start run...\n');
 		syncTime(eL);
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
 			drawCross(sM,0.3,[1 1 1 1],ana.fixX,ana.fixY);
@@ -171,20 +161,20 @@ try
 				rchar = KbName(keyCode); if iscell(rchar);rchar=rchar{1};end
 				switch lower(rchar)
 					case {'c'}
-						fprintf('===>>> runIsoluminant recalibrate pressed!\n');
+						fprintf('===>>> Train recalibrate pressed!\n');
 						fixated = 'breakfix';
 						stopRecording(eL);
 						setOffline(eL);
 						trackerSetup(eL);
 						WaitSecs('YieldSecs',2);
 					case {'d'}
-						fprintf('===>>> runIsoluminant drift correct pressed!\n');
+						fprintf('===>>> Train drift correct pressed!\n');
 						fixated = 'breakfix';
 						stopRecording(eL);
 						driftCorrection(eL);
 						WaitSecs('YieldSecs',2);
 					case {'escape'}
-						fprintf('===>>> runIsoluminant escape pressed!!!\n');
+						fprintf('===>>> Train escape pressed!!!\n');
 						fixated = 'breakfix';
 						breakLoop = true;
 				end
@@ -307,18 +297,18 @@ try
 				rchar = KbName(keyCode); if iscell(rchar);rchar=rchar{1};end
 				switch lower(rchar)
 					case {'c'}
-						fprintf('===>>> runIsoluminant recalibrate pressed!\n');
+						fprintf('===>>> Train recalibrate pressed!\n');
 						stopRecording(eL);
 						setOffline(eL);
 						trackerSetup(eL);
 						WaitSecs('YieldSecs',2);
 					case {'d'}
-						fprintf('===>>> runIsoluminant drift correct pressed!\n');
+						fprintf('===>>> Train drift correct pressed!\n');
 						stopRecording(eL);
 						driftCorrection(eL);
 						WaitSecs('YieldSecs',2);
 					case {'escape'}
-						fprintf('===>>> runIsoluminant escape pressed!!!\n');
+						fprintf('===>>> Train escape pressed!!!\n');
 						trackerClearScreen(eL);
 						stopRecording(eL);
 						setOffline(eL);
@@ -332,7 +322,7 @@ try
 	end % while ~breakLoop
 	
 	%===============================Clean up============================
-	fprintf('===>>> runIsoluminant Finished Trials: %i\n',seq.thisRun);
+	fprintf('===>>> Train Finished Trials: %i\n',seq.thisRun);
 	Screen('DrawText', sM.win, '===>>> FINISHED!!!');
 	Screen('Flip',sM.win);
 	WaitSecs('YieldSecs', 2);
