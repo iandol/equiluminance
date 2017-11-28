@@ -1,4 +1,4 @@
-function trainColour(ana)
+function trainColourCore(ana)
 
 global lJ
 
@@ -76,18 +76,20 @@ try
 	circle2.size = ana.circle2Diameter;
 	circle1.colour = ana.colour1;
 	circle2.colour = ana.colour2;
-	circle1.xPosition = ana.positionXY(1);
-	circle2.xPosition = ana.positionXY(1);
-	yPosition = ana.positionXY(2);
+	
+	vals = [-ana.positionXY(1) +ana.positionXY(1)];
+	circle1.xPosition = vals(1);
+	circle2.xPosition = vals(2);
+	circle1.yPosition = ana.positionXY(2);
+	circle2.yPosition = ana.positionXY(2);
+	
 	setup(circle1,sM);
 	setup(circle2,sM);
 	
 	%============================SET UP VARIABLES=====================================
 	
-	vals = [-yPosition +yPosition];
-	
 	seq = stimulusSequence;
-	seq.nVar(1).name = 'yPosition';
+	seq.nVar(1).name = 'xPosition';
 	seq.nVar(1).stimulus = 1;
 	seq.nVar(1).values = vals;
 	seq.nBlocks = ana.trialNumber;
@@ -126,6 +128,7 @@ try
 	getSample(eL); %make sure everything is in memory etc.
 	
 	% initialise our trial variables
+	ana.trialDuration = 1;
 	tL = timeLogger();
 	tL.screenLog.beforeDisplay = GetSecs();
 	tL.screenLog.stimTime(1) = 1;
@@ -201,22 +204,18 @@ try
 		
 		i=1;
 		ii = 1;
-		toggle = 0;
 		thisPupil = [];
-		modColor = seq.outValues{seq.thisRun}{1};
-		modColor(modColor < 0) = 0; modColor(modColor > 1) = 1;
-		fixedColor = ana.colorFixed;
-		backColor = modColor;
-		centerColor = fixedColor;
-		fprintf('===>>> modColor=%s | fixColor=%s\n',num2str(modColor),num2str(fixedColor));
-		edfMessage(eL,['MSG:modColor=' num2str(modColor)]);
-		edfMessage(eL,['MSG:variable=' num2str(seq.outIndex(seq.thisRun))]);
-		edfMessage(eL,['MSG:thisRun=' num2str(seq.thisRun)]);
+		xPos = seq.outValues{seq.thisRun};
+		circle1.xPositionOut = xPos;
+		circle2.xPositionOut = -xPos;
+		
+		fprintf('===>>> Position1=%s | Position2=%s\n',num2str(circle1.xPositionOut),num2str(circle2.xPositionOut));
+		%edfMessage(eL,['MSG:modColor=' num2str(modColor)]);
+		%edfMessage(eL,['MSG:variable=' num2str(seq.outIndex(seq.thisRun))]);
+		%edfMessage(eL,['MSG:thisRun=' num2str(seq.thisRun)]);
 		
 		ana.trial(seq.thisRun).n = seq.thisRun;
 		ana.trial(seq.thisRun).variable = seq.outIndex(seq.thisRun);
-		ana.trial(seq.thisRun).mColor = modColor;
-		ana.trial(seq.thisRun).fColor = fixedColor;
 		ana.trial(seq.thisRun).pupil = [];
 		ana.trial(seq.thisRun).frameN = [];
 		
@@ -225,19 +224,7 @@ try
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		while GetSecs < tStart + ana.trialDuration
-			if i > ana.onFrames
-				toggle = mod(toggle+1,2); %switch the toggle 0 or 1
-				ana.trial(seq.thisRun).frameN = [ana.trial(seq.thisRun).frameN i];
-				i = 1; %reset out counter
-				if toggle
-					backColor = fixedColor; centerColor = modColor;
-				else
-					backColor = modColor; centerColor = fixedColor;
-				end
-			end
 			
-			circle1.colourOut = centerColor;
-			circle2.colourOut = backColor;
 			circle2.draw(); %background circle draw first!
 			circle1.draw();
 			
@@ -247,7 +234,7 @@ try
 			finishDrawing(sM);
 			
 			[tL.vbl(tick),tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);
-			tL.stimTime(tick) = toggle;
+			tL.stimTime(tick) = 1;
 			tL.tick = tick;
 			tick = tick + 1;
 			i = i + 1;
@@ -256,6 +243,38 @@ try
 			thisPupil(ii) = eL.pupil;
 			ii = ii + 1;
 			if ~isFixated(eL)
+				fixated = 'breakfix';
+				break %break the while loop
+			end
+		end
+		
+		resetFixation(eL);
+		updateFixationValues(eL, xPos, circle1.yPosition, ana.firstFixInit,...
+		ana.firstFixTime, ana.firstFixDiameter, ana.strictFixation);
+		trackerClearScreen(eL);
+		trackerDrawFixation(eL); %draw fixation window on eyelink computer
+	
+		while GetSecs < tStart + ana.trialDuration
+			
+			circle2.draw(); %background circle draw first!
+			circle1.draw();
+			
+			%Screen('FillRect', sM.win, backColor, sM.winRect);
+			%Screen('FillOval', sM.win, centerColor, circleRect);
+			drawCross(sM,0.3,[1 1 1 1], ana.fixX, ana.fixY);
+			finishDrawing(sM);
+			
+			[tL.vbl(tick),tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);
+			tL.stimTime(tick) = 1;
+			tL.tick = tick;
+			tick = tick + 1;
+			i = i + 1;
+
+			getSample(eL);
+			thisPupil(ii) = eL.pupil;
+			ii = ii + 1;
+			fixated=testSearchHoldFixation(eL,'fix','breakfix');
+			if strcmp(fixated,'breakfix')
 				fixated = 'breakfix';
 				break %break the while loop
 			end
