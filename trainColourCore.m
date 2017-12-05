@@ -2,10 +2,13 @@ function trainColourCore(ana)
 
 global lJ
 
-if ~exist('lJ','var') || isempty(lJ)
-    lJ = arduinoManager;
-    lJ.open 
+if exist('lJ','var') & isa(lJ,'arduinoManager')
+	lJ.close
+	clear lJ
 end
+
+aM = arduinoManager;
+aM.open;
 
 fprintf('\n--->>> trainColour Started: ana UUID = %s!\n',ana.uuid);
 
@@ -47,7 +50,6 @@ try
 	sM.debug = ana.debug;
 	sM.blend = 1;
 	sM.bitDepth = 'FloatingPoint32BitIfPossible';
-	sM.verbosityLevel = 4;
 	if exist(ana.gammaTable, 'file')
 		load(ana.gammaTable);
 		if isa(c,'calibrateLuminance')
@@ -60,12 +62,7 @@ try
 	end
 	sM.backgroundColour = ana.backgroundColor;
 	sM.open; % OPEN THE SCREEN
-	fprintf('\n--->>> Train Opened Screen %i : %s\n', sM.win, sM.fullName);
-	
-	if IsLinux
-		Screen('Preference', 'TextRenderer', 1);
-		Screen('Preference', 'DefaultFontName', 'DejaVu Sans');
-	end
+	fprintf('\n--->>> ColourTrain Opened Screen %i : %s\n', sM.win, sM.fullName);
 	
 	%===========================set up stimuli====================
 	circle1 = discStimulus;
@@ -129,6 +126,10 @@ try
 	
 	% initialise our trial variables
 	ana.trialDuration = 1;
+	ana.nSuccess = 0;
+	ana.nFixBreak = 0;
+	ana.nInitiateBreak = 0;
+	tReaction = 0;
 	tL = timeLogger();
 	tL.screenLog.beforeDisplay = GetSecs();
 	tL.screenLog.stimTime(1) = 1;
@@ -141,10 +142,10 @@ try
 	
 	while seq.thisRun <= seq.nRuns && ~breakLoop
 		%=========================MAINTAIN INITIAL FIXATION==========================
-		fprintf('===>>> Train START Trial = %i / %i | %s, %s\n', seq.thisRun, seq.nRuns, sM.fullName, eL.fullName);
+		fprintf('\n===>>> Train START Trial = %i / %i | %s, %s\n', seq.thisRun, seq.nRuns, sM.fullName, eL.fullName);
 		resetFixation(eL);
 		updateFixationValues(eL, ana.fixX, ana.fixY, ana.firstFixInit,...
-		ana.firstFixTime, ana.firstFixDiameter, ana.strictFixation);
+			ana.firstFixTime, ana.firstFixDiameter, ana.strictFixation);
 		trackerClearScreen(eL);
 		trackerDrawFixation(eL); %draw fixation window on eyelink computer
 		edfMessage(eL,'V_RT MESSAGE END_FIX END_RT');  %this 3 lines set the trial info for the eyelink
@@ -156,7 +157,7 @@ try
 		fprintf('===>>> Train initiating fixation to start run...\n');
 		syncTime(eL);
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
-			drawCross(sM,0.3,[1 1 1 1],ana.fixX,ana.fixY);
+			drawCross(sM,0.4,[1 1 1 1],ana.fixX,ana.fixY);
 			getSample(eL);
 			fixated=testSearchHoldFixation(eL,'fix','breakfix');
 			[keyIsDown, ~, keyCode] = KbCheck(-1);
@@ -189,9 +190,11 @@ try
 			fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', seq.thisRun);
 			statusMessage(eL,'Subject Broke Initial Fixation!');
 			edfMessage(eL,'MSG:BreakInitialFix');
+			ana.nInitiateBreak = ana.nInitiateBreak + 1;
 			resetFixation(eL);
 			stopRecording(eL);
 			setOffline(eL);
+			updatePlot(seq.thisRun);
 			WaitSecs('YieldSecs',0.1);
 			continue
 		end
@@ -209,7 +212,7 @@ try
 		circle1.xPositionOut = xPos;
 		circle2.xPositionOut = -xPos;
 		
-		fprintf('===>>> Position1=%s | Position2=%s\n',num2str(circle1.xPositionOut),num2str(circle2.xPositionOut));
+		fprintf('===>>> Target Position=%s | Foil Position=%s\n',num2str(circle1.xPositionOut),num2str(circle2.xPositionOut));
 		%edfMessage(eL,['MSG:modColor=' num2str(modColor)]);
 		%edfMessage(eL,['MSG:variable=' num2str(seq.outIndex(seq.thisRun))]);
 		%edfMessage(eL,['MSG:thisRun=' num2str(seq.thisRun)]);
@@ -227,10 +230,7 @@ try
 			
 			circle2.draw(); %background circle draw first!
 			circle1.draw();
-			
-			%Screen('FillRect', sM.win, backColor, sM.winRect);
-			%Screen('FillOval', sM.win, centerColor, circleRect);
-			drawCross(sM,0.3,[1 1 1 1], ana.fixX, ana.fixY);
+			drawCross(sM,0.4,[1 1 1 1], ana.fixX, ana.fixY);
 			finishDrawing(sM);
 			
 			[tL.vbl(tick),tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);
@@ -238,7 +238,7 @@ try
 			tL.tick = tick;
 			tick = tick + 1;
 			i = i + 1;
-
+			
 			getSample(eL);
 			thisPupil(ii) = eL.pupil;
 			ii = ii + 1;
@@ -248,35 +248,36 @@ try
 			end
 		end
 		
-		resetFixation(eL);
-		updateFixationValues(eL, xPos, circle1.yPosition, ana.firstFixInit,...
-		ana.firstFixTime, ana.firstFixDiameter, ana.strictFixation);
-		trackerClearScreen(eL);
-		trackerDrawFixation(eL); %draw fixation window on eyelink computer
-	
-		while GetSecs < tStart + ana.trialDuration
+		if ~strcmpi(fixated,'breakfix')
+			% X, Y, FixInitTime, FixTime, Radius, StrictFix
+			updateFixationValues(eL, xPos, circle1.yPosition, 1, 0.5, 6, ana.strictFixation);
+			resetFixation(eL);
+			trackerClearScreen(eL);
+			trackerDrawFixation(eL); %draw fixation window on eyelink computer
 			
-			circle2.draw(); %background circle draw first!
-			circle1.draw();
-			
-			%Screen('FillRect', sM.win, backColor, sM.winRect);
-			%Screen('FillOval', sM.win, centerColor, circleRect);
-			drawCross(sM,0.3,[1 1 1 1], ana.fixX, ana.fixY);
-			finishDrawing(sM);
-			
-			[tL.vbl(tick),tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);
-			tL.stimTime(tick) = 1;
-			tL.tick = tick;
-			tick = tick + 1;
-			i = i + 1;
-
-			getSample(eL);
-			thisPupil(ii) = eL.pupil;
-			ii = ii + 1;
-			fixated=testSearchHoldFixation(eL,'fix','breakfix');
-			if strcmp(fixated,'breakfix')
-				fixated = 'breakfix';
-				break %break the while loop
+			tStart = GetSecs; vbl = tStart;
+			while GetSecs < tStart + 2
+				getSample(eL);
+				circle2.draw(); %background circle draw first!
+				circle1.draw();
+				drawEyePosition(eL);
+				
+				finishDrawing(sM);
+				
+				[tL.vbl(tick),tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);
+				tL.stimTime(tick) = -1;
+				tL.tick = tick;
+				tick = tick + 1;
+				i = i + 1;
+				
+				fixated=testSearchHoldFixation(eL,'fix','breakfix');
+				if strcmpi(fixated,'breakfix') || strcmpi(fixated,'fix')
+					tFix = GetSecs;
+					tReaction =  tFix - tStart;
+					break %break the while loop
+				end
+				thisPupil(ii) = eL.pupil;
+				ii = ii + 1;
 			end
 		end
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -289,24 +290,36 @@ try
 		ana.trial(seq.thisRun).totalFrames = ii-1;
 		
 		% check if we lost fixation
-		if ~strcmpi(fixated,'fix')
-			fprintf('===>>> BROKE FIXATION Trial = %i (%i secs)\n\n', seq.thisRun, tEnd-tStart);
-			statusMessage(eL,'Subject Broke Fixation!');
-			edfMessage(eL,'TRIAL_RESULT -1');
-			edfMessage(eL,'MSG:BreakFix');
-			resetFixation(eL);
-			stopRecording(eL);
-			setOffline(eL);
-		else
-			fprintf('===>>> SUCCESS: Trial = %i (%i secs)\n\n', seq.thisRun, tEnd-tStart);
-            lJ.timedTTL(2,150)
+		if strcmpi(fixated,'fix')
+			aM.timedTTL(2)
+			fprintf('===>>> SUCCESS: Trial = %i (total:%.3g | reaction:%.3g)\n', seq.thisRun, tEnd-tStart, tReaction);
+			ana.nSuccess = ana.nSuccess + 1;
 			ana.trial(seq.thisRun).success = true;
+			ana.trial(seq.thisRun).reactionTime = tReaction;
 			stopRecording(eL);
 			edfMessage(eL,'TRIAL_RESULT 1');
 			setOffline(eL);
 			updatePlot(seq.thisRun);
 			updateTask(seq,true); %updates our current run number
 			iii = seq.thisRun;
+			if ana.debug
+				Screen('DrawText', sM.win, '===>>> CORRECT!!!', 0, 0);
+				Screen('Flip',sM.win);
+			end
+		else
+			fprintf('===>>> BROKE FIXATION Trial = %i (total:%.3g | reaction:%.3g)\n', seq.thisRun, tEnd-tStart, tReaction);
+			statusMessage(eL,'Subject Broke Fixation!');
+			edfMessage(eL,'TRIAL_RESULT -1');
+			edfMessage(eL,'MSG:BreakFix');
+			resetFixation(eL);
+			stopRecording(eL);
+			setOffline(eL);
+			ana.nFixBreak = ana.nFixBreak + 1;
+			updatePlot(seq.thisRun);
+			if ana.debug
+				Screen('DrawText', sM.win, '===>>> BREAK FIX!!!', 0, 0);
+				Screen('Flip',sM.win);
+			end
 		end
 		
 		ListenChar(2);
@@ -342,11 +355,12 @@ try
 	
 	%===============================Clean up============================
 	fprintf('===>>> Train Finished Trials: %i\n',seq.thisRun);
-	Screen('DrawText', sM.win, '===>>> FINISHED!!!');
+	Screen('DrawText', sM.win, '===>>> FINISHED!!!', 0, 0);
 	Screen('Flip',sM.win);
 	WaitSecs('YieldSecs', 2);
 	close(sM); breakLoop = true;
 	ListenChar(0);ShowCursor;Priority(0);
+	aM.close;
 	
 	if exist(ana.ResultDir,'dir') > 0
 		cd(ana.ResultDir);
@@ -355,56 +369,34 @@ try
 	stopRecording(eL);
 	setOffline(eL);
 	close(eL);
-	if ~isempty(ana.nameExp) || ~strcmpi(ana.nameExp,'debug')
+	if ~isempty(ana.nameExp) && isempty(regexpi(ana.nameExp,'debug'))
 		ana.plotAxis1 = [];
 		ana.plotAxis2 = [];
 		fprintf('==>> SAVE %s, to: %s\n', ana.nameExp, pwd);
 		save([ana.nameExp '.mat'],'ana', 'seq', 'eL', 'sM', 'tL');
 	end
-	if IsWin	
+	if IsWin
 		tL.printRunLog;
 	end
 	clear ana seq eL sM tL
-
+	
 catch ME
 	if exist('eL','var'); close(eL); end
 	if exist('sM','var'); close(sM); end
+	if exist('aM','var'); close(aM); end
 	ListenChar(0);ShowCursor;Priority(0);Screen('CloseAll');
 	getReport(ME)
 end
 
 	function updatePlot(thisTrial)
-		ifi = sM.screenVals.ifi;
-		t = 0:ifi:ifi*(ana.trial(thisTrial).totalFrames-1);
-		hold(ana.plotAxis1,'on');
-		plot(ana.plotAxis1,t,ana.trial(thisTrial).pupil);
-		calculatePower(thisTrial)
-		plot(ana.plotAxis2,powerValues,'k-o');
-        drawnow
+		c = categorical({'BreakInit','BreakFix','Success'});
+		bar(ana.plotAxis1,c,[ana.nInitiateBreak, ana.nFixBreak, ana.nSuccess]);
+		hold(ana.plotAxis2,'on');
+		total = ana.nSuccess + ana.nInitiateBreak + ana.nFixBreak;
+		performance = 100 * (ana.nSuccess / total);
+		if isinf(performance);performance = 1; end
+		plot(ana.plotAxis2,thisTrial,performance,'-ok','MarkerFaceColor',[1,0,0]);
+		drawnow
 	end
 
-	function calculatePower(thisTrial)
-		
-		Fs = sM.screenVals.fps;            % Sampling frequency                  
-		T = sM.screenVals.ifi;             % Sampling period       
-		P=ana.trial(thisTrial).pupil;
-		L=length(P);
-		t = (0:L-1)*T;
-		P1=fft(P);
-		P2 = abs(P1/L);
-		P3=P2(1:L/2+1);
-		P3(2:end-1) = 2*P3(2:end-1);
-		f=Fs*(0:(L/2))/L;
-		idx = findNearest(f, ana.frequency);
-		powerValues(thisTrial) = P3(idx);
-
-	end
-
-	function [idx,val,delta]=findNearest(in,value)
-		%find nearest value in a vector, if more than 1 index return the first	
-		[~,idx] = min(abs(in - value));
-		val = in(idx);
-		delta = abs(value - val);
-	end
-		
 end
