@@ -2,7 +2,7 @@ function trainColourCore(ana)
 
 global lJ
 
-if exist('lJ','var') & isa(lJ,'arduinoManager')
+if exist('lJ','var') && isa(lJ,'arduinoManager')
 	lJ.close
 	clear lJ
 end
@@ -103,9 +103,9 @@ try
 	eL.name = ana.nameExp;
 	eL.saveFile = [ana.nameExp '.edf'];
 	eL.recordData = true; %save EDF file
-	eL.sampleRate = 250;
+	eL.sampleRate = ana.sampleRate;
 	eL.remoteCalibration = false; % manual calibration?
-	eL.calibrationStyle = 'HV5'; % calibration style
+	eL.calibrationStyle = ana.calibrationStyle; % calibration style
 	eL.modify.calibrationtargetcolour = [1 1 1];
 	eL.modify.calibrationtargetsize = 1;
 	eL.modify.calibrationtargetwidth = 0.05;
@@ -116,7 +116,6 @@ try
 		ana.firstFixTime, ana.firstFixDiameter, ana.strictFixation);
 	
 	%sM.verbose = true; eL.verbose = true; sM.verbosityLevel = 10; eL.verbosityLevel = 4; %force lots of log output
-	
 	
 	initialise(eL, sM); %use sM to pass screen values to eyelink
 	setup(eL); % do setup and calibration
@@ -226,7 +225,7 @@ try
 		
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-		while GetSecs < tStart + ana.trialDuration
+		while GetSecs < tStart + ana.delayToChoice
 			
 			circle2.draw(); %background circle draw first!
 			circle1.draw();
@@ -291,7 +290,7 @@ try
 		
 		% check if we lost fixation
 		if strcmpi(fixated,'fix')
-			aM.timedTTL(2)
+			aM.timedTTL(2, ana.Rewardms)
 			fprintf('===>>> SUCCESS: Trial = %i (total:%.3g | reaction:%.3g)\n', seq.thisRun, tEnd-tStart, tReaction);
 			ana.nSuccess = ana.nSuccess + 1;
 			ana.trial(seq.thisRun).success = true;
@@ -311,7 +310,6 @@ try
 			statusMessage(eL,'Subject Broke Fixation!');
 			edfMessage(eL,'TRIAL_RESULT -1');
 			edfMessage(eL,'MSG:BreakFix');
-			resetFixation(eL);
 			stopRecording(eL);
 			setOffline(eL);
 			ana.nFixBreak = ana.nFixBreak + 1;
