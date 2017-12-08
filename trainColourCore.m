@@ -37,6 +37,7 @@ end
 
 cla(ana.plotAxis1);
 cla(ana.plotAxis2);
+cla(ana.plotAxis3);
 
 try
 	PsychDefaultSetup(2);
@@ -49,7 +50,7 @@ try
 	sM.distance = ana.distance;
 	sM.debug = ana.debug;
 	sM.blend = 1;
-	sM.bitDepth = 'FloatingPoint32BitIfPossible';
+	sM.bitDepth = 'FloatingPoint32Bit';
 	if exist(ana.gammaTable, 'file')
 		load(ana.gammaTable);
 		if isa(c,'calibrateLuminance')
@@ -128,6 +129,8 @@ try
 	ana.nSuccess = 0;
 	ana.nFixBreak = 0;
 	ana.nInitiateBreak = 0;
+	ana.nTotal = 0;
+	ana.runningPerformance = [];
 	tReaction = 0;
 	tL = timeLogger();
 	tL.screenLog.beforeDisplay = GetSecs();
@@ -189,6 +192,8 @@ try
 			fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', seq.thisRun);
 			statusMessage(eL,'Subject Broke Initial Fixation!');
 			edfMessage(eL,'MSG:BreakInitialFix');
+			ana.nTotal = ana.nTotal + 1;
+			ana.runningPerformance(ana.nTotal) = -1;
 			ana.nInitiateBreak = ana.nInitiateBreak + 1;
 			resetFixation(eL);
 			stopRecording(eL);
@@ -222,7 +227,7 @@ try
 		ana.trial(seq.thisRun).frameN = [];
 		
 		tStart = GetSecs; vbl = tStart;if isempty(tL.vbl);tL.vbl(1) = tStart;tL.startTime = tStart; end
-		
+
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		while GetSecs < tStart + ana.delayToChoice
@@ -233,7 +238,7 @@ try
 			finishDrawing(sM);
 			
 			[tL.vbl(tick),tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);
-			tL.stimTime(tick) = 1;
+			tL.stimTime(tick) = 0.5;
 			tL.tick = tick;
 			tick = tick + 1;
 			i = i + 1;
@@ -249,7 +254,9 @@ try
 		
 		if ~strcmpi(fixated,'breakfix')
 			% X, Y, FixInitTime, FixTime, Radius, StrictFix
-			updateFixationValues(eL, xPos, circle1.yPosition, 1, 0.5, 6, ana.strictFixation);
+			updateFixationValues(eL, xPos, circle1.yPosition,...
+				ana.targetInitiation, ana.targetMaintain,...
+				ana.targetDiameter, ana.strictFixation);
 			resetFixation(eL);
 			trackerClearScreen(eL);
 			trackerDrawFixation(eL); %draw fixation window on eyelink computer
@@ -259,12 +266,11 @@ try
 				getSample(eL);
 				circle2.draw(); %background circle draw first!
 				circle1.draw();
-				drawEyePosition(eL);
 				
 				finishDrawing(sM);
 				
 				[tL.vbl(tick),tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);
-				tL.stimTime(tick) = -1;
+				tL.stimTime(tick) = 1;
 				tL.tick = tick;
 				tick = tick + 1;
 				i = i + 1;
@@ -283,16 +289,22 @@ try
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		
 		sM.drawBackground();
-		tEnd=Screen('Flip',sM.win);
-		
+		[tL.vbl(tick),tL.show(tick),tL.flip(tick),tL.miss(tick)]=Screen('Flip',sM.win);
+		tL.stimTime(tick) = -1;
+		tL.tick = tick;
+		tick = tick + 1;
+		tEnd = tL.vbl(end);
+				
 		ana.trial(seq.thisRun).pupil = thisPupil;
 		ana.trial(seq.thisRun).totalFrames = ii-1;
 		
-		% check if we lost fixation
+		% check if we got fixation
 		if strcmpi(fixated,'fix')
 			aM.timedTTL(2, ana.Rewardms)
 			fprintf('===>>> SUCCESS: Trial = %i (total:%.3g | reaction:%.3g)\n', seq.thisRun, tEnd-tStart, tReaction);
 			ana.nSuccess = ana.nSuccess + 1;
+			ana.nTotal = ana.nTotal + 1;
+			ana.runningPerformance(ana.nTotal) = 1;
 			ana.trial(seq.thisRun).success = true;
 			ana.trial(seq.thisRun).reactionTime = tReaction;
 			stopRecording(eL);
@@ -313,11 +325,14 @@ try
 			stopRecording(eL);
 			setOffline(eL);
 			ana.nFixBreak = ana.nFixBreak + 1;
+			ana.nTotal = ana.nTotal + 1;
+			ana.runningPerformance(ana.nTotal) = 0;
 			updatePlot(seq.thisRun);
 			if ana.debug
 				Screen('DrawText', sM.win, '===>>> BREAK FIX!!!', 0, 0);
 				Screen('Flip',sM.win);
 			end
+			WaitSecs('YieldSecs',ana.punishTime);
 		end
 		
 		ListenChar(2);
@@ -389,11 +404,22 @@ end
 	function updatePlot(thisTrial)
 		c = categorical({'BreakInit','BreakFix','Success'});
 		bar(ana.plotAxis1,c,[ana.nInitiateBreak, ana.nFixBreak, ana.nSuccess]);
+		
 		hold(ana.plotAxis2,'on');
 		total = ana.nSuccess + ana.nInitiateBreak + ana.nFixBreak;
 		performance = 100 * (ana.nSuccess / total);
 		if isinf(performance);performance = 1; end
 		plot(ana.plotAxis2,thisTrial,performance,'-ok','MarkerFaceColor',[1,0,0]);
+		
+		if ana.nTotal >= 10
+			hold(ana.plotAxis3,'on');
+			recentList = ana.runningPerformance(end-9:end);
+			bI = sum(recentList == -1);
+			bF = sum(recentList == 0);
+			cT = sum(recentList == 1);
+			performance = 100 * ( cT / (cT+bF+bI) );
+			plot(ana.plotAxis3,ana.nTotal,performance,'-ok','MarkerFaceColor',[1,0,0]);
+		end
 		drawnow
 	end
 
