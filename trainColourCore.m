@@ -260,7 +260,7 @@ try
 			resetFixation(eL);
 			trackerClearScreen(eL);
 			trackerDrawFixation(eL); %draw fixation window on eyelink computer
-			
+			statusMessage(eL,'Saccade to Target...');
 			tStart = GetSecs; vbl = tStart;
 			while GetSecs < tStart + 2
 				getSample(eL);
@@ -294,6 +294,8 @@ try
 		tL.tick = tick;
 		tick = tick + 1;
 		tEnd = tL.vbl(end);
+		
+		trackerClearScreen(eL);
 				
 		ana.trial(seq.thisRun).pupil = thisPupil;
 		ana.trial(seq.thisRun).totalFrames = ii-1;
@@ -301,6 +303,7 @@ try
 		% check if we got fixation
 		if strcmpi(fixated,'fix')
 			aM.timedTTL(2, ana.Rewardms)
+			trackerDrawText(eL,'CORRECT!');
 			fprintf('===>>> SUCCESS: Trial = %i (total:%.3g | reaction:%.3g)\n', seq.thisRun, tEnd-tStart, tReaction);
 			ana.nSuccess = ana.nSuccess + 1;
 			ana.nTotal = ana.nTotal + 1;
@@ -317,9 +320,10 @@ try
 				Screen('DrawText', sM.win, '===>>> CORRECT!!!', 0, 0);
 				Screen('Flip',sM.win);
 			end
+			waitTime = ana.trialDelay;
 		else
 			fprintf('===>>> BROKE FIXATION Trial = %i (total:%.3g | reaction:%.3g)\n', seq.thisRun, tEnd-tStart, tReaction);
-			statusMessage(eL,'Subject Broke Fixation!');
+			trackerDrawText(eL,'BREAK FIX!');
 			edfMessage(eL,'TRIAL_RESULT -1');
 			edfMessage(eL,'MSG:BreakFix');
 			stopRecording(eL);
@@ -332,11 +336,11 @@ try
 				Screen('DrawText', sM.win, '===>>> BREAK FIX!!!', 0, 0);
 				Screen('Flip',sM.win);
 			end
-			WaitSecs('YieldSecs',ana.punishTime);
+			waitTime = ana.punishDelay;
 		end
 		
 		ListenChar(2);
-		while GetSecs < tEnd + 0.5
+		while GetSecs < tEnd + waitTime
 			[keyIsDown, ~, keyCode] = KbCheck(-1);
 			if keyIsDown == 1
 				rchar = KbName(keyCode); if iscell(rchar);rchar=rchar{1};end
@@ -409,7 +413,7 @@ end
 		total = ana.nSuccess + ana.nInitiateBreak + ana.nFixBreak;
 		performance = 100 * (ana.nSuccess / total);
 		if isinf(performance);performance = 1; end
-		plot(ana.plotAxis2,thisTrial,performance,'-ok','MarkerFaceColor',[1,0,0]);
+		plot(ana.plotAxis2,thisTrial,performance,'ko-','MarkerFaceColor',[1,0,0]);
 		
 		if ana.nTotal >= 10
 			hold(ana.plotAxis3,'on');
@@ -418,7 +422,7 @@ end
 			bF = sum(recentList == 0);
 			cT = sum(recentList == 1);
 			performance = 100 * ( cT / (cT+bF+bI) );
-			plot(ana.plotAxis3,ana.nTotal,performance,'-ok','MarkerFaceColor',[1,0,0]);
+			plot(ana.plotAxis3,ana.nTotal,performance,'ko-','MarkerFaceColor',[1,0,0]);
 		end
 		drawnow
 	end
