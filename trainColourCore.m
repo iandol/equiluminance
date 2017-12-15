@@ -3,12 +3,11 @@ function trainColourCore(ana)
 global lJ
 
 if exist('lJ','var') && isa(lJ,'arduinoManager')
-	lJ.close
-	clear lJ
+	lJ.close;
 end
 
-aM = arduinoManager;
-aM.open;
+lJ = arduinoManager;
+lJ.open;
 
 fprintf('\n--->>> trainColour Started: ana UUID = %s!\n',ana.uuid);
 
@@ -213,8 +212,20 @@ try
 		ii = 1;
 		thisPupil = [];
 		xPos = seq.outValues{seq.thisRun};
+		yPos = circle1.yPosition;
 		circle1.xPositionOut = xPos;
 		circle2.xPositionOut = -xPos;
+		
+		%this allows the tracker to draw the stimulus positions
+		stimulusPositions(1).x = xPos;
+		stimulusPositions(1).y = yPos;
+		stimulusPositions(1).size = circle1.size;
+		stimulusPositions(1).selected = true;
+		stimulusPositions(2).x = -xPos;
+		stimulusPositions(2).y = yPos;
+		stimulusPositions(2).size = circle2.size;
+		stimulusPositions(2).selected = false;
+		trackerDrawStimuli(eL,stimulusPositions);
 		
 		fprintf('===>>> Target Position=%s | Foil Position=%s\n',num2str(circle1.xPositionOut),num2str(circle2.xPositionOut));
 		%edfMessage(eL,['MSG:modColor=' num2str(modColor)]);
@@ -253,12 +264,13 @@ try
 		end
 		
 		if ~strcmpi(fixated,'breakfix')
+			resetFixation(eL);
 			% X, Y, FixInitTime, FixTime, Radius, StrictFix
-			updateFixationValues(eL, xPos, circle1.yPosition,...
+			updateFixationValues(eL, xPos, yPos,...
 				ana.targetInitiation, ana.targetMaintain,...
 				ana.targetDiameter, ana.strictFixation);
-			resetFixation(eL);
-			trackerClearScreen(eL);
+			fprintf('===>>> FIXX=%d | FIXY=%d\n',eL.fixationX,eL.fixationY);
+			trackerDrawStimuli(eL,stimulusPositions,true);
 			trackerDrawFixation(eL); %draw fixation window on eyelink computer
 			statusMessage(eL,'Saccade to Target...');
 			tStart = GetSecs; vbl = tStart;
@@ -302,7 +314,7 @@ try
 		
 		% check if we got fixation
 		if strcmpi(fixated,'fix')
-			aM.timedTTL(2, ana.Rewardms)
+			lJ.timedTTL(2, ana.Rewardms)
 			trackerDrawText(eL,'CORRECT!');
 			fprintf('===>>> SUCCESS: Trial = %i (total:%.3g | reaction:%.3g)\n', seq.thisRun, tEnd-tStart, tReaction);
 			ana.nSuccess = ana.nSuccess + 1;
@@ -377,7 +389,7 @@ try
 	WaitSecs('YieldSecs', 2);
 	close(sM); breakLoop = true;
 	ListenChar(0);ShowCursor;Priority(0);
-	aM.close;
+	close(lJ);
 	
 	if exist(ana.ResultDir,'dir') > 0
 		cd(ana.ResultDir);
@@ -400,7 +412,7 @@ try
 catch ME
 	if exist('eL','var'); close(eL); end
 	if exist('sM','var'); close(sM); end
-	if exist('aM','var'); close(aM); end
+	if exist('aM','var'); close(lJ); end
 	ListenChar(0);ShowCursor;Priority(0);Screen('CloseAll');
 	getReport(ME)
 end
