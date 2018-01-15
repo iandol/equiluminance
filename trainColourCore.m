@@ -106,6 +106,7 @@ try
 	eL.sampleRate = ana.sampleRate;
 	eL.remoteCalibration = false; % manual calibration?
 	eL.calibrationStyle = ana.calibrationStyle; % calibration style
+	eL.exclusionZone = ana.exclusionZone;
 	eL.modify.calibrationtargetcolour = [1 1 1];
 	eL.modify.calibrationtargetsize = 1;
 	eL.modify.calibrationtargetwidth = 0.05;
@@ -124,6 +125,11 @@ try
 	getSample(eL); %make sure everything is in memory etc.
 	
 	% initialise our trial variables
+	plotVals.t1 = [];
+	plotVals.p1 = [];
+	plotVals.p2 = [];
+	plotVals.t2 = [];
+	plotVals.p3 = [];
 	ana.trialDuration = 1;
 	ana.nSuccess = 0;
 	ana.nFixBreak = 0;
@@ -137,6 +143,7 @@ try
 	powerValues = [];
 	breakLoop = false;
 	ana.trial = struct();
+	excludedN = 0;
 	tick = 1;
 	halfisi = sM.screenVals.halfisi;
 	Priority(MaxPriority(sM.win));
@@ -148,6 +155,7 @@ try
 		updateFixationValues(eL, ana.fixX, ana.fixY, ana.firstFixInit,...
 			ana.firstFixTime, ana.firstFixDiameter, ana.strictFixation);
 		trackerClearScreen(eL);
+		%trackerDrawExclusion(eL);
 		trackerDrawFixation(eL); %draw fixation window on eyelink computer
 		edfMessage(eL,'V_RT MESSAGE END_FIX END_RT');  %this 3 lines set the trial info for the eyelink
 		edfMessage(eL,['TRIALID ' num2str(seq.outIndex(seq.thisRun))]);  %obj.getTaskIndex gives us which trial we're at
@@ -237,11 +245,18 @@ try
 		ana.trial(seq.thisRun).pupil = [];
 		ana.trial(seq.thisRun).frameN = [];
 		
+		if length(ana.delayToChoice) == 2
+			delayToChoice = (rand * (ana.delayToChoice(2)-ana.delayToChoice(1))) + ana.delayToChoice(1);
+		else
+			delayToChoice = ana.delayToChoice;
+		end
+		fprintf('===>>> Delay to Choice is: %.2g\n',delayToChoice);
+		
 		tStart = GetSecs; vbl = tStart;if isempty(tL.vbl);tL.vbl(1) = tStart;tL.startTime = tStart; end
 
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-		while GetSecs < tStart + ana.delayToChoice
+		while GetSecs < tStart + delayToChoice
 			
 			circle2.draw(); %background circle draw first!
 			circle1.draw();
@@ -271,6 +286,7 @@ try
 				ana.targetDiameter, ana.strictFixation);
 			fprintf('===>>> FIXX=%d | FIXY=%d\n',eL.fixationX,eL.fixationY);
 			trackerDrawStimuli(eL,stimulusPositions,true);
+			%trackerDrawExclusion(eL);
 			trackerDrawFixation(eL); %draw fixation window on eyelink computer
 			statusMessage(eL,'Saccade to Target...');
 			tStart = GetSecs; vbl = tStart;
@@ -289,8 +305,10 @@ try
 				
 				fixated=testSearchHoldFixation(eL,'fix','breakfix');
 				if strcmpi(fixated,'breakfix') || strcmpi(fixated,'fix')
-					tFix = GetSecs;
-					tReaction =  tFix - tStart;
+					tFix = GetSecs; tReaction =  tFix - tStart;
+					break %break the while loop
+				elseif strcmp(fixated,'EXCLUDED!')
+					tFix = GetSecs; 	tReaction =  tFix - tStart;
 					break %break the while loop
 				end
 				thisPupil(ii) = eL.pupil;
@@ -312,9 +330,10 @@ try
 		ana.trial(seq.thisRun).pupil = thisPupil;
 		ana.trial(seq.thisRun).totalFrames = ii-1;
 		
-		% check if we got fixation
+		%=========================================check if we got fixation
 		if strcmpi(fixated,'fix')
 			lJ.timedTTL(2, ana.Rewardms)
+			Beeper(1000,0.1,0.2);
 			trackerDrawText(eL,'CORRECT!');
 			fprintf('===>>> SUCCESS: Trial = %i (total:%.3g | reaction:%.3g)\n', seq.thisRun, tEnd-tStart, tReaction);
 			ana.nSuccess = ana.nSuccess + 1;
@@ -334,12 +353,21 @@ try
 			end
 			waitTime = ana.trialDelay;
 		else
-			fprintf('===>>> BROKE FIXATION Trial = %i (total:%.3g | reaction:%.3g)\n', seq.thisRun, tEnd-tStart, tReaction);
-			trackerDrawText(eL,'BREAK FIX!');
-			edfMessage(eL,'TRIAL_RESULT -1');
-			edfMessage(eL,'MSG:BreakFix');
+			if strcmpi(fixated,'breakfix')
+				fprintf('===>>> BROKE FIXATION Trial = %i (total:%.3g | reaction:%.3g)\n', seq.thisRun, tEnd-tStart, tReaction);
+				trackerDrawText(eL,'BREAK FIX!');
+				edfMessage(eL,'TRIAL_RESULT -1');
+				edfMessage(eL,'MSG:BreakFix');
+			elseif strcmp(fixated,'EXCLUDED!')
+				excludedN = excludedN + 1;
+				fprintf('===>>> EXCLUSION ZONE Trial = %i > %i (total:%.3g | reaction:%.3g)\n', seq.thisRun, excludedN, tEnd-tStart, tReaction);
+				trackerDrawText(eL,'BREAK FIX (EXCLUSION)!');
+				edfMessage(eL,'TRIAL_RESULT -1');
+				edfMessage(eL,'MSG:BreakFixExclusion');
+			end
 			stopRecording(eL);
 			setOffline(eL);
+			Beeper(180,1,2);
 			ana.nFixBreak = ana.nFixBreak + 1;
 			ana.nTotal = ana.nTotal + 1;
 			ana.runningPerformance(ana.nTotal) = 0;
@@ -349,6 +377,9 @@ try
 				Screen('Flip',sM.win);
 			end
 			waitTime = ana.punishDelay;
+			if strcmp(fixated,'EXCLUDED!')
+				waitTime = waitTime + 2;
+			end
 		end
 		
 		ListenChar(2);
@@ -421,20 +452,28 @@ end
 		c = categorical({'BreakInit','BreakFix','Success'});
 		bar(ana.plotAxis1,c,[ana.nInitiateBreak, ana.nFixBreak, ana.nSuccess]);
 		
+		p1 = 100 * (ana.nSuccess / (ana.nSuccess + ana.nInitiateBreak + ana.nFixBreak));
+		p2 = 100 * (ana.nSuccess / (ana.nSuccess + ana.nFixBreak));
+		if isinf(p1);p1 = 1; end; if isinf(p2);p2 = 1; end
+		plotVals.t1(end+1) = thisTrial;
+		plotVals.p1(end+1) = p1;
+		plotVals.p2(end+1) = p2;
+		plot(ana.plotAxis2,plotVals.t1,plotVals.p1,'go-');
 		hold(ana.plotAxis2,'on');
-		total = ana.nSuccess + ana.nInitiateBreak + ana.nFixBreak;
-		performance = 100 * (ana.nSuccess / total);
-		if isinf(performance);performance = 1; end
-		plot(ana.plotAxis2,thisTrial,performance,'ko-','MarkerFaceColor',[1,0,0]);
+		plot(ana.plotAxis2,plotVals.t1,plotVals.p2,'ko-','MarkerFaceColor',[1,0,0]);
+		hold(ana.plotAxis2,'off');
+		ylim(ana.plotAxis2,[0 100])
 		
 		if ana.nTotal >= 10
-			hold(ana.plotAxis3,'on');
 			recentList = ana.runningPerformance(end-9:end);
 			bI = sum(recentList == -1);
 			bF = sum(recentList == 0);
 			cT = sum(recentList == 1);
 			performance = 100 * ( cT / (cT+bF+bI) );
-			plot(ana.plotAxis3,ana.nTotal,performance,'ko-','MarkerFaceColor',[1,0,0]);
+			plotVals.t2(end+1) = ana.nTotal;
+			plotVals.p3(end+1) = performance;
+			plot(ana.plotAxis3,plotVals.t2,plotVals.p3,'ko-','MarkerFaceColor',[1,0,0]);
+			ylim(ana.plotAxis3,[0 100]);
 		end
 		drawnow
 	end
