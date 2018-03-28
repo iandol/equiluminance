@@ -4,9 +4,10 @@ global lJ
 
 if exist('lJ','var') && isa(lJ,'arduinoManager')
 	lJ.close;
+	clear lJ
 end
 
-lJ = arduinoManager;
+lJ = arduinoManager('port','/dev/ttyACM1');
 lJ.open;
 
 fprintf('\n--->>> trainColour Started: ana UUID = %s!\n',ana.uuid);
@@ -279,6 +280,7 @@ try
 		end
 		
 		if ~strcmpi(fixated,'breakfix')
+			if (rand <= 0.2); lJ.timedTTL(2, 50); end
 			resetFixation(eL);
 			% X, Y, FixInitTime, FixTime, Radius, StrictFix
 			updateFixationValues(eL, xPos, yPos,...
@@ -286,16 +288,16 @@ try
 				ana.targetDiameter, ana.strictFixation);
 			fprintf('===>>> FIXX=%d | FIXY=%d\n',eL.fixationX,eL.fixationY);
 			trackerDrawStimuli(eL,stimulusPositions,true);
-			%trackerDrawExclusion(eL);
 			trackerDrawFixation(eL); %draw fixation window on eyelink computer
 			statusMessage(eL,'Saccade to Target...');
 			tStart = GetSecs; vbl = tStart;
 			while GetSecs < tStart + 2
-				getSample(eL);
+				
 				circle2.draw(); %background circle draw first!
 				circle1.draw();
 				
 				finishDrawing(sM);
+				getSample(eL);
 				
 				[tL.vbl(tick),tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);
 				tL.stimTime(tick) = 1;
@@ -324,8 +326,6 @@ try
 		tL.tick = tick;
 		tick = tick + 1;
 		tEnd = tL.vbl(end);
-		
-		trackerClearScreen(eL);
 				
 		ana.trial(seq.thisRun).pupil = thisPupil;
 		ana.trial(seq.thisRun).totalFrames = ii-1;
