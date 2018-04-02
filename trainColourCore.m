@@ -7,7 +7,7 @@ if exist('lJ','var') && isa(lJ,'arduinoManager')
 	clear lJ
 end
 
-lJ = arduinoManager('port','/dev/ttyACM1');
+lJ = arduinoManager('port',ana.arduinoPort);
 lJ.open;
 
 fprintf('\n--->>> trainColour Started: ana UUID = %s!\n',ana.uuid);
