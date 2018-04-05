@@ -68,29 +68,50 @@ try
 	%===========================set up stimuli====================
 	circle1 = discStimulus;
 	circle2 = discStimulus;
+	circle3 = discStimulus;
+	circle4 = discStimulus;
 	circle1.sigma = ana.sigma1;
 	circle2.sigma = ana.sigma2;
+	circle3.sigma = ana.sigma1;
+	circle4.sigma = ana.sigma2;
 	circle1.size = ana.circle1Diameter;
 	circle2.size = ana.circle2Diameter;
-	circle1.colour = ana.colour1;
-	circle2.colour = ana.colour2;
+	circle3.size = ana.circle1Diameter;
+	circle4.size = ana.circle2Diameter;
 	
-	vals = [-ana.positionXY(1) +ana.positionXY(1)];
+	circle1.colour = ana.colour1 * ana.contrast1;
+	circle2.colour = ana.colour2 * ana.contrast2;
+	circle3.colour = ana.colour1 * ana.contrast2;
+	circle4.colour = ana.colour2 * ana.contrast2;
+	
+	vals = [-ana.positionXY(1) +ana.positionXY(1) -ana.positionXY(2) +ana.positionXY(2)];
 	circle1.xPosition = vals(1);
 	circle2.xPosition = vals(2);
-	circle1.yPosition = ana.positionXY(2);
-	circle2.yPosition = ana.positionXY(2);
+	circle3.xPosition = vals(1);
+	circle4.xPosition = vals(2);
+	circle1.yPosition = vals(3);
+	circle2.yPosition = vals(3);
+	circle3.yPosition = vals(4);
+	circle4.yPosition = vals(4);
 	
-	setup(circle1,sM);
-	setup(circle2,sM);
+	metaStim = metaStimulus('stimuli',{circle1,circle2,circle3,circle4},'screen',sM);
+	
+	setup(metaStim);
 	
 	%============================SET UP VARIABLES=====================================
 	
-	seq = stimulusSequence;
+	seq = stimulusSequence();
 	seq.nVar(1).name = 'xPosition';
 	seq.nVar(1).stimulus = 1;
-	seq.nVar(1).values = vals;
+	seq.nVar(1).values = vals(1:2);
+	seq.nVar(2).name = 'yPosition';
+	seq.nVar(2).stimulus = 1;
+	seq.nVar(2).values = vals(3:4);
+	seq.nVar(3).name = 'colour';
+	seq.nVar(3).stimulus = 1;
+	seq.nVar(3).values = {ana.colour1,ana.colour2};
 	seq.nBlocks = ana.trialNumber;
+	seq.fps = sM.screenVals.fps;
 	seq.initialise();
 	ana.nTrials = seq.nRuns;
 	fprintf('--->>> Train # Trials: %i; # FPS: %i \n',seq.nRuns, sM.screenVals.fps);
@@ -217,13 +238,21 @@ try
 		edfMessage(eL,'END_FIX');
 		statusMessage(eL,'Show Stimulus...');
 		
-		i=1;
-		ii = 1;
-		thisPupil = [];
-		xPos = seq.outValues{seq.thisRun};
-		yPos = circle1.yPosition;
+
+		xPos = seq.outValues{seq.thisRun,1};
+		yPos = seq.outValues{seq.thisRun,2};
+		thisColour = seq.outValues{seq.thisRun,3};
+		
 		circle1.xPositionOut = xPos;
+		circle1.yPositionOut = yPos;
 		circle2.xPositionOut = -xPos;
+		circle2.yPositionOut = yPos;
+		circle3.xPositionOut = xPos;
+		circle3.yPositionOut = -yPos;
+		circle4.xPositionOut = -xPos;
+		circle4.yPositionOut = -yPos;
+		
+		circle1.colourOut = thisColour * ana.contrast1;
 		
 		%this allows the tracker to draw the stimulus positions
 		stimulusPositions(1).x = xPos;
@@ -234,12 +263,19 @@ try
 		stimulusPositions(2).y = yPos;
 		stimulusPositions(2).size = circle2.size;
 		stimulusPositions(2).selected = false;
+		stimulusPositions(3).x = xPos;
+		stimulusPositions(3).y = -yPos;
+		stimulusPositions(3).size = circle2.size;
+		stimulusPositions(3).selected = false;
+		stimulusPositions(4).x = -xPos;
+		stimulusPositions(4).y = -yPos;
+		stimulusPositions(4).size = circle2.size;
+		stimulusPositions(4).selected = false;
 		trackerDrawStimuli(eL,stimulusPositions);
 		
 		fprintf('===>>> Target Position=%s | Foil Position=%s\n',num2str(circle1.xPositionOut),num2str(circle2.xPositionOut));
-		%edfMessage(eL,['MSG:modColor=' num2str(modColor)]);
-		%edfMessage(eL,['MSG:variable=' num2str(seq.outIndex(seq.thisRun))]);
-		%edfMessage(eL,['MSG:thisRun=' num2str(seq.thisRun)]);
+		edfMessage(eL,['MSG:variable=' num2str(seq.outIndex(seq.thisRun))]);
+		edfMessage(eL,['MSG:thisRun=' num2str(seq.thisRun)]);
 		
 		ana.trial(seq.thisRun).n = seq.thisRun;
 		ana.trial(seq.thisRun).variable = seq.outIndex(seq.thisRun);
@@ -259,8 +295,7 @@ try
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		while GetSecs < tStart + delayToChoice
 			
-			circle2.draw(); %background circle draw first!
-			circle1.draw();
+			metaStim.draw();
 			drawCross(sM,0.4,[1 1 1 1], ana.fixX, ana.fixY);
 			finishDrawing(sM);
 			
@@ -268,11 +303,8 @@ try
 			tL.stimTime(tick) = 0.5;
 			tL.tick = tick;
 			tick = tick + 1;
-			i = i + 1;
 			
 			getSample(eL);
-			thisPupil(ii) = eL.pupil;
-			ii = ii + 1;
 			if ~isFixated(eL)
 				fixated = 'breakfix';
 				break %break the while loop
@@ -280,12 +312,12 @@ try
 		end
 		
 		if ~strcmpi(fixated,'breakfix')
-			if (rand <= 0.2); lJ.timedTTL(2, 50); end
+			if (rand <= ana.fixOnlyReward/100); lJ.timedTTL(2, 50); end
 			resetFixation(eL);
 			% X, Y, FixInitTime, FixTime, Radius, StrictFix
 			updateFixationValues(eL, xPos, yPos,...
 				ana.targetInitiation, ana.targetMaintain,...
-				ana.targetDiameter, ana.strictFixation);
+				ana.targetDiameter/2, ana.strictFixation);
 			fprintf('===>>> FIXX=%d | FIXY=%d\n',eL.fixationX,eL.fixationY);
 			trackerDrawStimuli(eL,stimulusPositions,true);
 			trackerDrawFixation(eL); %draw fixation window on eyelink computer
@@ -293,8 +325,7 @@ try
 			tStart = GetSecs; vbl = tStart;
 			while GetSecs < tStart + 2
 				
-				circle2.draw(); %background circle draw first!
-				circle1.draw();
+				metaStim.draw(); 
 				
 				finishDrawing(sM);
 				getSample(eL);
@@ -303,7 +334,6 @@ try
 				tL.stimTime(tick) = 1;
 				tL.tick = tick;
 				tick = tick + 1;
-				i = i + 1;
 				
 				fixated=testSearchHoldFixation(eL,'fix','breakfix');
 				if strcmpi(fixated,'breakfix') || strcmpi(fixated,'fix')
@@ -313,8 +343,6 @@ try
 					tFix = GetSecs; 	tReaction =  tFix - tStart;
 					break %break the while loop
 				end
-				thisPupil(ii) = eL.pupil;
-				ii = ii + 1;
 			end
 		end
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -326,9 +354,7 @@ try
 		tL.tick = tick;
 		tick = tick + 1;
 		tEnd = tL.vbl(end);
-				
-		ana.trial(seq.thisRun).pupil = thisPupil;
-		ana.trial(seq.thisRun).totalFrames = ii-1;
+		
 		
 		%=========================================check if we got fixation
 		if strcmpi(fixated,'fix')
@@ -371,6 +397,9 @@ try
 			ana.nFixBreak = ana.nFixBreak + 1;
 			ana.nTotal = ana.nTotal + 1;
 			ana.runningPerformance(ana.nTotal) = 0;
+			seq.verbose = true;
+			resetRun(seq) %randomise within block
+			seq.verbose = false;
 			updatePlot(seq.thisRun);
 			if ana.debug
 				Screen('DrawText', sM.win, '===>>> BREAK FIX!!!', 0, 0);
@@ -383,7 +412,7 @@ try
 		end
 		
 		ListenChar(2);
-		while GetSecs < tEnd + waitTime
+		while GetSecs < (tEnd + waitTime) && ~breakLoop
 			[keyIsDown, ~, keyCode] = KbCheck(-1);
 			if keyIsDown == 1
 				rchar = KbName(keyCode); if iscell(rchar);rchar=rchar{1};end
@@ -408,6 +437,7 @@ try
 				end
 			end
 			WaitSecs('YieldSecs',sM.screenVals.ifi);
+			
 		end
 		ListenChar(0);
 		
