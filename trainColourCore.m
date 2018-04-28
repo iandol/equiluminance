@@ -70,6 +70,10 @@ try
 	circle2 = discStimulus;
 	circle3 = discStimulus;
 	circle4 = discStimulus;
+    circle1.name = 'target';
+    circle2.name = 'circle2';
+    circle3.name = 'circle3';
+    circle4.name = 'circle4';
 	circle1.sigma = ana.sigma1;
 	circle2.sigma = ana.sigma2;
 	circle3.sigma = ana.sigma1;
@@ -78,11 +82,29 @@ try
 	circle2.size = ana.circle2Diameter;
 	circle3.size = ana.circle1Diameter;
 	circle4.size = ana.circle2Diameter;
-	
-	circle1.colour = ana.colour1 * ana.contrast1;
-	circle2.colour = ana.colour2 * ana.contrast2;
-	circle3.colour = ana.colour1 * ana.contrast2;
-	circle4.colour = ana.colour2 * ana.contrast2;
+    
+    if ana.DKL
+        cM = colourManager();
+        cM.backgroundColour = ana.backgroundColor; 
+        cM.verbose = true;
+        disp(circle1.fullName);
+        ana.rgb1 = cM.DKLtoRGB([ana.colour1(1) ana.colour1(2) ana.contrast1]);
+        disp(circle2.fullName);
+        ana.rgb1b = cM.DKLtoRGB([ana.colour1(1)/ana.radiusDivisor ana.colour1(2) ana.contrast2]);
+        disp(circle3.fullName);
+        ana.rgb2 = cM.DKLtoRGB([ana.colour2(1) ana.colour2(2) ana.contrast1]);
+        disp(circle4.fullName);
+        ana.rgb2b = cM.DKLtoRGB([ana.colour2(1)/ana.radiusDivisor ana.colour2(2) ana.contrast2]);
+        circle1.colour = ana.rgb1;
+        circle2.colour = ana.rgb2b;
+        circle3.colour = ana.rgb2b;
+        circle4.colour = ana.rgb1b;
+    else
+        circle1.colour = ana.colour1 * ana.contrast1;
+        circle2.colour = ana.colour2 * ana.contrast2;
+        circle3.colour = ana.colour1 * ana.contrast2;
+        circle4.colour = ana.colour2 * ana.contrast2;
+    end
 	
 	vals = [-ana.positionXY(1) +ana.positionXY(1) -ana.positionXY(2) +ana.positionXY(2)];
 	circle1.xPosition = vals(1);
@@ -252,7 +274,22 @@ try
 		circle4.xPositionOut = -xPos;
 		circle4.yPositionOut = -yPos;
 		
-		circle1.colourOut = thisColour * ana.contrast1;
+        if ana.DKL
+            if thisColour == ana.colour1
+                circle1.colourOut = ana.rgb1;
+                circle2.colourOut = ana.rgb2b;
+                circle3.colourOut = ana.rgb2b;
+                circle4.colourOut = ana.rgb1b;
+            else
+                circle1.colourOut = ana.rgb2;
+                circle2.colourOut = ana.rgb1b;
+                circle3.colourOut = ana.rgb1b;
+                circle4.colourOut = ana.rgb2b;
+            end
+        else
+            circle1.colourOut = thisColour * ana.contrast1;
+        end
+        
 		
 		%this allows the tracker to draw the stimulus positions
 		stimulusPositions(1).x = xPos;
