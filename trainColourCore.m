@@ -50,7 +50,7 @@ try
 	sM.distance = ana.distance;
 	sM.debug = ana.debug;
 	sM.blend = 1;
-	sM.bitDepth = 'FloatingPoint32Bit';
+	sM.bitDepth = 'EnableBits++Bits++Output'; %EnableBits++Bits++Output EnableBits++Color++Output FloatingPoint32Bit
 	if exist(ana.gammaTable, 'file')
 		load(ana.gammaTable);
 		if isa(c,'calibrateLuminance')
@@ -70,10 +70,10 @@ try
 	circle2 = discStimulus;
 	circle3 = discStimulus;
 	circle4 = discStimulus;
-    circle1.name = 'target';
-    circle2.name = 'circle2';
-    circle3.name = 'circle3';
-    circle4.name = 'circle4';
+	circle1.name = 'target';
+	circle2.name = 'circle2';
+	circle3.name = 'circle3';
+	circle4.name = 'circle4';
 	circle1.sigma = ana.sigma1;
 	circle2.sigma = ana.sigma2;
 	circle3.sigma = ana.sigma1;
@@ -82,29 +82,29 @@ try
 	circle2.size = ana.circle2Diameter;
 	circle3.size = ana.circle1Diameter;
 	circle4.size = ana.circle2Diameter;
-    
-    if ana.DKL
-        cM = colourManager();
-        cM.backgroundColour = ana.backgroundColor; 
-        cM.verbose = true;
-        disp(circle1.fullName);
-        ana.rgb1 = cM.DKLtoRGB([ana.colour1(1) ana.colour1(2) ana.contrast1]);
-        disp(circle2.fullName);
-        ana.rgb1b = cM.DKLtoRGB([ana.colour1(1)/ana.radiusDivisor ana.colour1(2) ana.contrast2]);
-        disp(circle3.fullName);
-        ana.rgb2 = cM.DKLtoRGB([ana.colour2(1) ana.colour2(2) ana.contrast1]);
-        disp(circle4.fullName);
-        ana.rgb2b = cM.DKLtoRGB([ana.colour2(1)/ana.radiusDivisor ana.colour2(2) ana.contrast2]);
-        circle1.colour = ana.rgb1;
-        circle2.colour = ana.rgb2b;
-        circle3.colour = ana.rgb2b;
-        circle4.colour = ana.rgb1b;
-    else
-        circle1.colour = ana.colour1 * ana.contrast1;
-        circle2.colour = ana.colour2 * ana.contrast2;
-        circle3.colour = ana.colour1 * ana.contrast2;
-        circle4.colour = ana.colour2 * ana.contrast2;
-    end
+	
+	if ana.DKL
+		cM = colourManager();
+		cM.backgroundColour = ana.backgroundColor;
+		cM.verbose = true;
+		disp(circle1.fullName);
+		ana.rgb1 = cM.DKLtoRGB([ana.colour1(1) ana.colour1(2) ana.contrast1]);
+		disp(circle2.fullName);
+		ana.rgb1b = cM.DKLtoRGB([ana.colour1(1)/ana.radiusDivisor ana.colour1(2) ana.contrast2]);
+		disp(circle3.fullName);
+		ana.rgb2 = cM.DKLtoRGB([ana.colour2(1) ana.colour2(2) ana.contrast1]);
+		disp(circle4.fullName);
+		ana.rgb2b = cM.DKLtoRGB([ana.colour2(1)/ana.radiusDivisor ana.colour2(2) ana.contrast2]);
+		circle1.colour = ana.rgb1;
+		circle2.colour = ana.rgb2b;
+		circle3.colour = ana.rgb2b;
+		circle4.colour = ana.rgb1b;
+	else
+		circle1.colour = ana.colour1 * ana.contrast1;
+		circle2.colour = ana.colour2 * ana.contrast2;
+		circle3.colour = ana.colour1 * ana.contrast2;
+		circle4.colour = ana.colour2 * ana.contrast2;
+	end
 	
 	vals = [-ana.positionXY(1) +ana.positionXY(1) -ana.positionXY(2) +ana.positionXY(2)];
 	circle1.xPosition = vals(1);
@@ -121,7 +121,6 @@ try
 	setup(metaStim);
 	
 	%============================SET UP VARIABLES=====================================
-	
 	seq = stimulusSequence();
 	seq.nVar(1).name = 'xPosition';
 	seq.nVar(1).stimulus = 1;
@@ -135,6 +134,7 @@ try
 	seq.nBlocks = ana.trialNumber;
 	seq.fps = sM.screenVals.fps;
 	seq.initialise();
+	drawnow;
 	ana.nTrials = seq.nRuns;
 	fprintf('--->>> Train # Trials: %i; # FPS: %i \n',seq.nRuns, sM.screenVals.fps);
 	WaitSecs('YieldSecs',0.25);
@@ -168,7 +168,16 @@ try
 	WaitSecs('YieldSecs',0.5);
 	getSample(eL); %make sure everything is in memory etc.
 	
-	% initialise our trial variables
+	
+	%=======================set up the triggers===========================
+	if ana.sendTrigger == true
+		dPP = plusplusManager;
+		dPP.sM = sM;
+		dPP.sendStrobe(0);
+		flip(sM); flip(sM);
+	end
+	
+	%====================initialise our trial variables====================
 	plotVals.t1 = [];
 	plotVals.p1 = [];
 	plotVals.p2 = [];
@@ -192,9 +201,15 @@ try
 	halfisi = sM.screenVals.halfisi;
 	Priority(MaxPriority(sM.win));
 	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	%=====================START HERE====================
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	while seq.thisRun <= seq.nRuns && ~breakLoop
 		%=========================MAINTAIN INITIAL FIXATION==========================
 		fprintf('\n===>>> Train START Trial = %i / %i | %s, %s\n', seq.thisRun, seq.nRuns, sM.fullName, eL.fullName);
+		
+		if ana.sendTrigger == true;sendStrobe(dPP,0);flip(sM);flip(sM);end
+		
 		resetFixation(eL);
 		updateFixationValues(eL, ana.fixX, ana.fixY, ana.firstFixInit,...
 			ana.firstFixTime, ana.firstFixDiameter, ana.strictFixation);
@@ -207,8 +222,11 @@ try
 		statusMessage(eL,'INITIATE FIXATION...');
 		fixated = '';
 		ListenChar(2);
-		fprintf('===>>> Train initiating fixation to start run...\n');
+		
+		if ana.sendTrigger == true;sendStrobe(dPP,248);flip(sM);end
+		
 		syncTime(eL);
+		
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
 			drawCross(sM,0.4,[1 1 1 1],ana.fixX,ana.fixY);
 			getSample(eL);
@@ -240,15 +258,21 @@ try
 		end
 		ListenChar(0);
 		if strcmpi(fixated,'breakfix')
-			fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', seq.thisRun);
+			sM.drawBackground;
+			if ana.sendTrigger == true;sendStrobe(dPP,249);flip(sM);end
+			if ana.sendTrigger == true;sendStrobe(dPP,255);flip(sM);flip(sM);end %STIM OFF
+			
 			statusMessage(eL,'Subject Broke Initial Fixation!');
 			edfMessage(eL,'MSG:BreakInitialFix');
-			ana.nTotal = ana.nTotal + 1;
-			ana.runningPerformance(ana.nTotal) = -1;
-			ana.nInitiateBreak = ana.nInitiateBreak + 1;
 			resetFixation(eL);
 			stopRecording(eL);
 			setOffline(eL);
+			
+			ana.nTotal = ana.nTotal + 1;
+			ana.runningPerformance(ana.nTotal) = -1;
+			ana.nInitiateBreak = ana.nInitiateBreak + 1;
+			
+			fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', seq.thisRun);
 			updatePlot(seq.thisRun);
 			WaitSecs('YieldSecs',0.1);
 			continue
@@ -260,7 +284,6 @@ try
 		edfMessage(eL,'END_FIX');
 		statusMessage(eL,'Show Stimulus...');
 		
-
 		xPos = seq.outValues{seq.thisRun,1};
 		yPos = seq.outValues{seq.thisRun,2};
 		thisColour = seq.outValues{seq.thisRun,3};
@@ -274,22 +297,21 @@ try
 		circle4.xPositionOut = -xPos;
 		circle4.yPositionOut = -yPos;
 		
-        if ana.DKL
-            if thisColour == ana.colour1
-                circle1.colourOut = ana.rgb1;
-                circle2.colourOut = ana.rgb2b;
-                circle3.colourOut = ana.rgb2b;
-                circle4.colourOut = ana.rgb1b;
-            else
-                circle1.colourOut = ana.rgb2;
-                circle2.colourOut = ana.rgb1b;
-                circle3.colourOut = ana.rgb1b;
-                circle4.colourOut = ana.rgb2b;
-            end
-        else
-            circle1.colourOut = thisColour * ana.contrast1;
-        end
-        
+		if ana.DKL
+			if thisColour == ana.colour1
+				circle1.colourOut = ana.rgb1;
+				circle2.colourOut = ana.rgb2b;
+				circle3.colourOut = ana.rgb2b;
+				circle4.colourOut = ana.rgb1b;
+			else
+				circle1.colourOut = ana.rgb2;
+				circle2.colourOut = ana.rgb1b;
+				circle3.colourOut = ana.rgb1b;
+				circle4.colourOut = ana.rgb2b;
+			end
+		else
+			circle1.colourOut = thisColour * ana.contrast1;
+		end
 		
 		%this allows the tracker to draw the stimulus positions
 		stimulusPositions(1).x = xPos;
@@ -326,8 +348,10 @@ try
 		end
 		fprintf('===>>> Delay to Choice is: %.2g\n',delayToChoice);
 		
+		if ana.sendTrigger == true;sendStrobe(dPP,seq.outIndex(seq.thisRun));flip(sM);end
+		
 		tStart = GetSecs; vbl = tStart;if isempty(tL.vbl);tL.vbl(1) = tStart;tL.startTime = tStart; end
-
+		
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		while GetSecs < tStart + delayToChoice
@@ -359,10 +383,13 @@ try
 			trackerDrawStimuli(eL,stimulusPositions,true);
 			trackerDrawFixation(eL); %draw fixation window on eyelink computer
 			statusMessage(eL,'Saccade to Target...');
+			
+			if ana.sendTrigger == true;sendStrobe(dPP,250);flip(sM);end %START CHOICE
+			
 			tStart = GetSecs; vbl = tStart;
 			while GetSecs < tStart + 2
 				
-				metaStim.draw(); 
+				metaStim.draw();
 				
 				finishDrawing(sM);
 				getSample(eL);
@@ -373,7 +400,11 @@ try
 				tick = tick + 1;
 				
 				fixated=testSearchHoldFixation(eL,'fix','breakfix');
-				if strcmpi(fixated,'breakfix') || strcmpi(fixated,'fix')
+				if strcmpi(fixated,'breakfix') 
+					if ana.sendTrigger == true;sendStrobe(dPP,253);flip(sM);end %BREAK CHOICE
+					tFix = GetSecs; tReaction =  tFix - tStart;
+					break %break the while loop
+				elseif strcmpi(fixated,'fix')
 					tFix = GetSecs; tReaction =  tFix - tStart;
 					break %break the while loop
 				elseif strcmp(fixated,'EXCLUDED!')
@@ -381,10 +412,13 @@ try
 					break %break the while loop
 				end
 			end
+		else
+			if ana.sendTrigger == true;sendStrobe(dPP,253);flip(sM);end %BREAK CHOICE
 		end
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		
+		if ana.sendTrigger == true;sendStrobe(dPP,255);flip(sM);end %STIM OFF
 		sM.drawBackground();
 		[tL.vbl(tick),tL.show(tick),tL.flip(tick),tL.miss(tick)]=Screen('Flip',sM.win);
 		tL.stimTime(tick) = -1;
@@ -395,6 +429,7 @@ try
 		
 		%=========================================check if we got fixation
 		if strcmpi(fixated,'fix')
+			if ana.sendTrigger == true;sendStrobe(dPP,251);flip(sM);end %CORRECT
 			lJ.timedTTL(2, ana.Rewardms)
 			Beeper(1000,0.1,0.2);
 			trackerDrawText(eL,'CORRECT!');
@@ -416,6 +451,7 @@ try
 			end
 			waitTime = ana.trialDelay;
 		else
+			if ana.sendTrigger == true;sendStrobe(dPP,252);flip(sM);end %INCORRECT
 			if strcmpi(fixated,'breakfix')
 				fprintf('===>>> BROKE FIXATION Trial = %i (total:%.3g | reaction:%.3g)\n', seq.thisRun, tEnd-tStart, tReaction);
 				trackerDrawText(eL,'BREAK FIX!');
@@ -435,7 +471,7 @@ try
 			ana.nTotal = ana.nTotal + 1;
 			ana.runningPerformance(ana.nTotal) = 0;
 			seq.verbose = true;
-			resetRun(seq) %randomise within block
+			resetRun(seq); %randomise within block
 			seq.verbose = false;
 			updatePlot(seq.thisRun);
 			if ana.debug
