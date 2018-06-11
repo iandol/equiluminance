@@ -50,7 +50,11 @@ try
 	sM.distance = ana.distance;
 	sM.debug = ana.debug;
 	sM.blend = 1;
-	sM.bitDepth = 'EnableBits++Bits++Output'; %EnableBits++Bits++Output EnableBits++Color++Output FloatingPoint32Bit
+	if sM.debug
+		sM.bitDepth = '8bit';
+	else
+		sM.bitDepth = 'EnableBits++Bits++Output'; %EnableBits++Bits++Output EnableBits++Color++Output FloatingPoint32Bit
+	end
 	if exist(ana.gammaTable, 'file')
 		load(ana.gammaTable);
 		if isa(c,'calibrateLuminance')
@@ -91,19 +95,21 @@ try
 		ana.rgb1 = cM.DKLtoRGB([ana.colour1(1) ana.colour1(2) ana.contrast1]);
 		disp(circle2.fullName);
 		ana.rgb1b = cM.DKLtoRGB([ana.colour1(1)/ana.radiusDivisor ana.colour1(2) ana.contrast2]);
+		ana.rgb1c = cM.DKLtoRGB([ana.colour1(1)/ana.radiusDivisor ana.colour1(2) ana.contrast3]);
 		disp(circle3.fullName);
 		ana.rgb2 = cM.DKLtoRGB([ana.colour2(1) ana.colour2(2) ana.contrast1]);
 		disp(circle4.fullName);
 		ana.rgb2b = cM.DKLtoRGB([ana.colour2(1)/ana.radiusDivisor ana.colour2(2) ana.contrast2]);
+		ana.rgb2c = cM.DKLtoRGB([ana.colour2(1)/ana.radiusDivisor ana.colour2(2) ana.contrast3]);
 		circle1.colour = ana.rgb1;
 		circle2.colour = ana.rgb2b;
-		circle3.colour = ana.rgb2b;
+		circle3.colour = ana.rgb2c;
 		circle4.colour = ana.rgb1b;
 	else
 		circle1.colour = ana.colour1 * ana.contrast1;
 		circle2.colour = ana.colour2 * ana.contrast2;
 		circle3.colour = ana.colour1 * ana.contrast2;
-		circle4.colour = ana.colour2 * ana.contrast2;
+		circle4.colour = ana.colour2 * ana.contrast3;
 	end
 	
 	vals = [-ana.positionXY(1) +ana.positionXY(1) -ana.positionXY(2) +ana.positionXY(2)];
@@ -290,23 +296,27 @@ try
 		
 		circle1.xPositionOut = xPos;
 		circle1.yPositionOut = yPos;
-		circle2.xPositionOut = -xPos;
-		circle2.yPositionOut = yPos;
-		circle3.xPositionOut = xPos;
-		circle3.yPositionOut = -yPos;
-		circle4.xPositionOut = -xPos;
-		circle4.yPositionOut = -yPos;
+		
+		%we randomise the remaining circle positions
+		rList = randsample(3,3);
+		rPos = [-xPos yPos; xPos -yPos; -xPos -yPos];
+		circle2.xPositionOut = rPos(rList(1),1);
+		circle2.yPositionOut = rPos(rList(1),2);
+		circle3.xPositionOut = rPos(rList(2),1);
+		circle3.yPositionOut = rPos(rList(2),2);
+		circle4.xPositionOut = rPos(rList(3),1);
+		circle4.yPositionOut = rPos(rList(3),2);
 		
 		if ana.DKL
 			if thisColour == ana.colour1
 				circle1.colourOut = ana.rgb1;
 				circle2.colourOut = ana.rgb2b;
-				circle3.colourOut = ana.rgb2b;
+				circle3.colourOut = ana.rgb2c;
 				circle4.colourOut = ana.rgb1b;
 			else
 				circle1.colourOut = ana.rgb2;
 				circle2.colourOut = ana.rgb1b;
-				circle3.colourOut = ana.rgb1b;
+				circle3.colourOut = ana.rgb1c;
 				circle4.colourOut = ana.rgb2b;
 			end
 		else
@@ -318,17 +328,17 @@ try
 		stimulusPositions(1).y = yPos;
 		stimulusPositions(1).size = circle1.size;
 		stimulusPositions(1).selected = true;
-		stimulusPositions(2).x = -xPos;
-		stimulusPositions(2).y = yPos;
+		stimulusPositions(2).x = rPos(rList(1),1);
+		stimulusPositions(2).y = rPos(rList(1),2);
 		stimulusPositions(2).size = circle2.size;
 		stimulusPositions(2).selected = false;
-		stimulusPositions(3).x = xPos;
-		stimulusPositions(3).y = -yPos;
-		stimulusPositions(3).size = circle2.size;
+		stimulusPositions(3).x = rPos(rList(2),1);
+		stimulusPositions(3).y = rPos(rList(2),2);
+		stimulusPositions(3).size = circle3.size;
 		stimulusPositions(3).selected = false;
-		stimulusPositions(4).x = -xPos;
-		stimulusPositions(4).y = -yPos;
-		stimulusPositions(4).size = circle2.size;
+		stimulusPositions(4).x = rPos(rList(3),1);
+		stimulusPositions(4).y = rPos(rList(3),2);
+		stimulusPositions(4).size = circle4.size;
 		stimulusPositions(4).selected = false;
 		trackerDrawStimuli(eL,stimulusPositions);
 		
