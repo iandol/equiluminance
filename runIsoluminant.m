@@ -1,11 +1,11 @@
 function runIsoluminant(ana)
 
-global lJ
+global rM
 
-if ~exist('lJ','var') || isempty(lJ)
-    lJ = arduinoManager;
-    lJ.open 
+if ~exist('rM','var') || isempty(rM)
+    rM = arduinoManager;
 end
+open(rM) %open our reward manager
 
 fprintf('\n--->>> runIsoluminant Started: ana UUID = %s!\n',ana.uuid);
 
@@ -103,7 +103,7 @@ try
 	seq.nBlocks = ana.trialNumber;
 	seq.initialise();
 	ana.nTrials = seq.nRuns;
-	ana.onFrames = round(((1/ana.frequency) * sM.screenVals.fps) / 2); % video frames for each color
+	ana.onFrames = round(((1/ana.frequency) * sM.screenVals.fps)); % video frames for each color
 	fprintf('--->>> runIsoluminant # Trials: %i; # Frames Flip: %i; FPS: %i \n',seq.nRuns, ana.onFrames, sM.screenVals.fps);
 	WaitSecs('YieldSecs',0.25);
 	
@@ -154,8 +154,8 @@ try
 		resetFixation(eL);
 		trackerClearScreen(eL);
 		trackerDrawFixation(eL); %draw fixation window on eyelink computer
-		edfMessage(eL,'V_RT MESSAGE END_FIX END_RT');  %this 3 lines set the trial info for the eyelink
-		edfMessage(eL,['TRIALID ' num2str(seq.outIndex(seq.thisRun))]);  %obj.getTaskIndex gives us which trial we're at
+		trackerMessage(eL,'V_RT MESSAGE END_FIX END_RT');  %this 3 lines set the trial info for the eyelink
+		trackerMessage(eL,['TRIALID ' num2str(seq.outIndex(seq.thisRun))]);  %obj.getTaskIndex gives us which trial we're at
 		startRecording(eL);
 		statusMessage(eL,'INITIATE FIXATION...');
 		fixated = '';
@@ -163,7 +163,7 @@ try
 		fprintf('===>>> runIsoluminant initiating fixation to start run...\n');
 		syncTime(eL);
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
-			drawCross(sM,0.3,[1 1 1 1],ana.fixX,ana.fixY);
+			drawCross(sM, 0.3, [1 1 1 1], ana.fixX, ana.fixY);
 			getSample(eL);
 			fixated=testSearchHoldFixation(eL,'fix','breakfix');
 			[keyIsDown, ~, keyCode] = KbCheck(-1);
@@ -195,7 +195,7 @@ try
 		if strcmpi(fixated,'breakfix')
 			fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', seq.thisRun);
 			statusMessage(eL,'Subject Broke Initial Fixation!');
-			edfMessage(eL,'MSG:BreakInitialFix');
+			trackerMessage(eL,'MSG:BreakInitialFix');
 			resetFixation(eL);
 			stopRecording(eL);
 			setOffline(eL);
@@ -206,22 +206,22 @@ try
 		%sM.verbose = false; eL.verbose = false; sM.verbosityLevel = 4; eL.verbosityLevel = 4; %force lots of log output
 		
 		%=========================Our actual stimulus drawing loop==========================
-		edfMessage(eL,'END_FIX');
+		trackerMessage(eL,'END_FIX');
 		statusMessage(eL,'Show Stimulus...');
 		
 		i=1;
 		ii = 1;
 		toggle = 0;
 		thisPupil = [];
-		modColor = seq.outValues{seq.thisRun}{1};
+		modColor = seq.outValues{seq.thisRun};
 		modColor(modColor < 0) = 0; modColor(modColor > 1) = 1;
 		fixedColor = ana.colorFixed;
 		backColor = modColor;
 		centerColor = fixedColor;
-		fprintf('===>>> modColor=%s | fixColor=%s\n',num2str(modColor),num2str(fixedColor));
-		edfMessage(eL,['MSG:modColor=' num2str(modColor)]);
-		edfMessage(eL,['MSG:variable=' num2str(seq.outIndex(seq.thisRun))]);
-		edfMessage(eL,['MSG:thisRun=' num2str(seq.thisRun)]);
+		fprintf('===>>> modColor=%s | fixColor=%s @ %i frames\n',num2str(modColor),num2str(fixedColor),ana.onFrames);
+		trackerMessage(eL,['MSG:modColor=' num2str(modColor)]);
+		trackerMessage(eL,['MSG:variable=' num2str(seq.outIndex(seq.thisRun))]);
+		trackerMessage(eL,['MSG:thisRun=' num2str(seq.thisRun)]);
 		
 		ana.trial(seq.thisRun).n = seq.thisRun;
 		ana.trial(seq.thisRun).variable = seq.outIndex(seq.thisRun);
@@ -253,7 +253,7 @@ try
 			
 			%Screen('FillRect', sM.win, backColor, sM.winRect);
 			%Screen('FillOval', sM.win, centerColor, circleRect);
-			drawCross(sM,0.3,[1 1 1 1], ana.fixX, ana.fixY);
+			drawCross(sM, 0.3, [1 1 1 1], ana.fixX, ana.fixY);
 			finishDrawing(sM);
 			
 			[tL.vbl(tick),tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);
@@ -283,17 +283,17 @@ try
 		if ~strcmpi(fixated,'fix')
 			fprintf('===>>> BROKE FIXATION Trial = %i (%i secs)\n\n', seq.thisRun, tEnd-tStart);
 			statusMessage(eL,'Subject Broke Fixation!');
-			edfMessage(eL,'TRIAL_RESULT -1');
-			edfMessage(eL,'MSG:BreakFix');
+			trackerMessage(eL,'TRIAL_RESULT -1');
+			trackerMessage(eL,'MSG:BreakFix');
 			resetFixation(eL);
 			stopRecording(eL);
 			setOffline(eL);
 		else
 			fprintf('===>>> SUCCESS: Trial = %i (%i secs)\n\n', seq.thisRun, tEnd-tStart);
-            lJ.timedTTL(2,150)
+            rM.timedTTL(2,150)
 			ana.trial(seq.thisRun).success = true;
 			stopRecording(eL);
-			edfMessage(eL,'TRIAL_RESULT 1');
+			trackerMessage(eL,'TRIAL_RESULT 1');
 			setOffline(eL);
 			updatePlot(seq.thisRun);
 			updateTask(seq,true); %updates our current run number
