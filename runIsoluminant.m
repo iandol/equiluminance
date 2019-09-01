@@ -147,15 +147,15 @@ try
 	halfisi = sM.screenVals.halfisi;
 	Priority(MaxPriority(sM.win));
 	
-	while seq.thisRun <= seq.nRuns && ~breakLoop
+	while ~seq.taskFinished && ~breakLoop
 		%=========================MAINTAIN INITIAL FIXATION==========================
-		fprintf('===>>> runIsoluminant START Trial = %i / %i | %s, %s\n', seq.thisRun, seq.nRuns, sM.fullName, eL.fullName);
+		fprintf('===>>> runIsoluminant START Run = %i / %i (%i:%i) | %s, %s\n', seq.totalRuns, seq.nRuns, seq.thisBlock, seq.thisRun, sM.fullName, eL.fullName);
 		%testWindowOpen(sM);
 		resetFixation(eL);
 		trackerClearScreen(eL);
 		trackerDrawFixation(eL); %draw fixation window on eyelink computer
 		trackerMessage(eL,'V_RT MESSAGE END_FIX END_RT');  %this 3 lines set the trial info for the eyelink
-		trackerMessage(eL,['TRIALID ' num2str(seq.outIndex(seq.thisRun))]);  %obj.getTaskIndex gives us which trial we're at
+		trackerMessage(eL,['TRIALID ' num2str(seq.outIndex(seq.totalRuns))]);  %obj.getTaskIndex gives us which trial we're at
 		startRecording(eL);
 		statusMessage(eL,'INITIATE FIXATION...');
 		fixated = '';
@@ -164,9 +164,11 @@ try
 		syncTime(eL);
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
 			drawCross(sM, 0.3, [1 1 1 1], ana.fixX, ana.fixY);
+            drawPhotoDiodeSquare(sM,[0 0 0 1]);
 			getSample(eL);
 			fixated=testSearchHoldFixation(eL,'fix','breakfix');
-			[keyIsDown, ~, keyCode] = KbCheck(-1);
+			Screen('Flip',sM.win); %flip the buffer
+            [keyIsDown, ~, keyCode] = KbCheck(-1);
 			if keyIsDown == 1
 				rchar = KbName(keyCode); if iscell(rchar);rchar=rchar{1};end
 				switch lower(rchar)
@@ -183,23 +185,23 @@ try
 						stopRecording(eL);
 						driftCorrection(eL);
 						WaitSecs('YieldSecs',2);
-					case {'escape'}
-						fprintf('===>>> runIsoluminant escape pressed!!!\n');
+					case {'q'}
+						fprintf('===>>> runIsoluminant Q pressed!!!\n');
 						fixated = 'breakfix';
 						breakLoop = true;
 				end
 			end
-			Screen('Flip',sM.win); %flip the buffer
 		end
 		ListenChar(0);
 		if strcmpi(fixated,'breakfix')
-			fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', seq.thisRun);
+			fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', seq.totalRuns);
 			statusMessage(eL,'Subject Broke Initial Fixation!');
 			trackerMessage(eL,'MSG:BreakInitialFix');
 			resetFixation(eL);
 			stopRecording(eL);
 			setOffline(eL);
-			WaitSecs('YieldSecs',0.1);
+            Screen('Flip',sM.win); %flip the buffer
+			WaitSecs('YieldSecs',0.2);
 			continue
 		end
 		
@@ -213,22 +215,22 @@ try
 		ii = 1;
 		toggle = 0;
 		thisPupil = [];
-		modColor = seq.outValues{seq.thisRun};
+		modColor = seq.outValues{seq.totalRuns};
 		modColor(modColor < 0) = 0; modColor(modColor > 1) = 1;
 		fixedColor = ana.colorFixed;
 		backColor = modColor;
 		centerColor = fixedColor;
 		fprintf('===>>> modColor=%s | fixColor=%s @ %i frames\n',num2str(modColor),num2str(fixedColor),ana.onFrames);
 		trackerMessage(eL,['MSG:modColor=' num2str(modColor)]);
-		trackerMessage(eL,['MSG:variable=' num2str(seq.outIndex(seq.thisRun))]);
-		trackerMessage(eL,['MSG:thisRun=' num2str(seq.thisRun)]);
+		trackerMessage(eL,['MSG:variable=' num2str(seq.outIndex(seq.totalRuns))]);
+		trackerMessage(eL,['MSG:totalRuns=' num2str(seq.totalRuns)]);
 		
-		ana.trial(seq.thisRun).n = seq.thisRun;
-		ana.trial(seq.thisRun).variable = seq.outIndex(seq.thisRun);
-		ana.trial(seq.thisRun).mColor = modColor;
-		ana.trial(seq.thisRun).fColor = fixedColor;
-		ana.trial(seq.thisRun).pupil = [];
-		ana.trial(seq.thisRun).frameN = [];
+		ana.trial(seq.totalRuns).n = seq.totalRuns;
+		ana.trial(seq.totalRuns).variable = seq.outIndex(seq.totalRuns);
+		ana.trial(seq.totalRuns).mColor = modColor;
+		ana.trial(seq.totalRuns).fColor = fixedColor;
+		ana.trial(seq.totalRuns).pupil = [];
+		ana.trial(seq.totalRuns).frameN = [];
 		
 		tStart = GetSecs; vbl = tStart;if isempty(tL.vbl);tL.vbl(1) = tStart;tL.startTime = tStart; end
 		
@@ -237,7 +239,7 @@ try
 		while GetSecs < tStart + ana.trialDuration
 			if i > ana.onFrames
 				toggle = mod(toggle+1,2); %switch the toggle 0 or 1
-				ana.trial(seq.thisRun).frameN = [ana.trial(seq.thisRun).frameN i];
+				ana.trial(seq.totalRuns).frameN = [ana.trial(seq.totalRuns).frameN i];
 				i = 1; %reset out counter
 				if toggle
 					backColor = fixedColor; centerColor = modColor;
@@ -251,9 +253,8 @@ try
 			circle2.draw(); %background circle draw first!
 			circle1.draw();
 			
-			%Screen('FillRect', sM.win, backColor, sM.winRect);
-			%Screen('FillOval', sM.win, centerColor, circleRect);
 			drawCross(sM, 0.3, [1 1 1 1], ana.fixX, ana.fixY);
+            drawPhotoDiodeSquare(sM,[1 1 1 1]);
 			finishDrawing(sM);
 			
 			[tL.vbl(tick),tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);
@@ -276,12 +277,12 @@ try
 		sM.drawBackground();
 		tEnd=Screen('Flip',sM.win);
 		
-		ana.trial(seq.thisRun).pupil = thisPupil;
-		ana.trial(seq.thisRun).totalFrames = ii-1;
+		ana.trial(seq.totalRuns).pupil = thisPupil;
+		ana.trial(seq.totalRuns).totalFrames = ii-1;
 		
 		% check if we lost fixation
 		if ~strcmpi(fixated,'fix')
-			fprintf('===>>> BROKE FIXATION Trial = %i (%i secs)\n\n', seq.thisRun, tEnd-tStart);
+			fprintf('===>>> BROKE FIXATION Trial = %i (%i secs)\n\n', seq.totalRuns, tEnd-tStart);
 			statusMessage(eL,'Subject Broke Fixation!');
 			trackerMessage(eL,'TRIAL_RESULT -1');
 			trackerMessage(eL,'MSG:BreakFix');
@@ -289,15 +290,15 @@ try
 			stopRecording(eL);
 			setOffline(eL);
 		else
-			fprintf('===>>> SUCCESS: Trial = %i (%i secs)\n\n', seq.thisRun, tEnd-tStart);
+			fprintf('===>>> SUCCESS: Trial = %i (%i secs)\n\n', seq.totalRuns, tEnd-tStart);
             rM.timedTTL(2,150)
-			ana.trial(seq.thisRun).success = true;
+			ana.trial(seq.totalRuns).success = true;
 			stopRecording(eL);
 			trackerMessage(eL,'TRIAL_RESULT 1');
 			setOffline(eL);
-			updatePlot(seq.thisRun);
+			updatePlot(seq.totalRuns);
 			updateTask(seq,true); %updates our current run number
-			iii = seq.thisRun;
+			iii = seq.totalRuns;
 		end
 		
 		ListenChar(2);
@@ -317,7 +318,7 @@ try
 						stopRecording(eL);
 						driftCorrection(eL);
 						WaitSecs('YieldSecs',2);
-					case {'escape'}
+					case {'q'}
 						fprintf('===>>> runIsoluminant escape pressed!!!\n');
 						trackerClearScreen(eL);
 						stopRecording(eL);
@@ -332,7 +333,7 @@ try
 	end % while ~breakLoop
 	
 	%===============================Clean up============================
-	fprintf('===>>> runIsoluminant Finished Trials: %i\n',seq.thisRun);
+	fprintf('===>>> runIsoluminant Finished Trials: %i\n',seq.totalRuns);
 	Screen('DrawText', sM.win, '===>>> FINISHED!!!');
 	Screen('Flip',sM.win);
 	WaitSecs('YieldSecs', 2);
