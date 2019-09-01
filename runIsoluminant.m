@@ -129,6 +129,7 @@ try
 	
 	%sM.verbose = true; eL.verbose = true; sM.verbosityLevel = 10; eL.verbosityLevel = 4; %force lots of log output
 	
+	map = analysisCore.optimalColours(seq.minBlocks);
 	
 	initialise(eL, sM); %use sM to pass screen values to eyelink
 	setup(eL); % do setup and calibration
@@ -150,7 +151,6 @@ try
 	while ~seq.taskFinished && ~breakLoop
 		%=========================MAINTAIN INITIAL FIXATION==========================
 		fprintf('===>>> runIsoluminant START Run = %i / %i (%i:%i) | %s, %s\n', seq.totalRuns, seq.nRuns, seq.thisBlock, seq.thisRun, sM.fullName, eL.fullName);
-		%testWindowOpen(sM);
 		resetFixation(eL);
 		trackerClearScreen(eL);
 		trackerDrawFixation(eL); %draw fixation window on eyelink computer
@@ -208,9 +208,6 @@ try
 		%sM.verbose = false; eL.verbose = false; sM.verbosityLevel = 4; eL.verbosityLevel = 4; %force lots of log output
 		
 		%=========================Our actual stimulus drawing loop==========================
-		trackerMessage(eL,'END_FIX');
-		statusMessage(eL,'Show Stimulus...');
-		
 		i=1;
 		ii = 1;
 		toggle = 0;
@@ -232,6 +229,8 @@ try
 		ana.trial(seq.totalRuns).pupil = [];
 		ana.trial(seq.totalRuns).frameN = [];
 		
+		statusMessage(eL,'Show Stimulus...');
+		trackerMessage(eL,'END_FIX');
 		tStart = GetSecs; vbl = tStart;if isempty(tL.vbl);tL.vbl(1) = tStart;tL.startTime = tStart; end
 		
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -274,7 +273,6 @@ try
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		
-		sM.drawBackground();
 		tEnd=Screen('Flip',sM.win);
 		
 		ana.trial(seq.totalRuns).pupil = thisPupil;
@@ -302,7 +300,7 @@ try
 		end
 		
 		ListenChar(2);
-		while GetSecs < tEnd + 0.5
+		while GetSecs < tEnd + ana.trialInterval
 			[keyIsDown, ~, keyCode] = KbCheck(-1);
 			if keyIsDown == 1
 				rchar = KbName(keyCode); if iscell(rchar);rchar=rchar{1};end
@@ -319,7 +317,7 @@ try
 						driftCorrection(eL);
 						WaitSecs('YieldSecs',2);
 					case {'q'}
-						fprintf('===>>> runIsoluminant escape pressed!!!\n');
+						fprintf('===>>> runIsoluminant quit pressed!!!\n');
 						trackerClearScreen(eL);
 						stopRecording(eL);
 						setOffline(eL);
@@ -366,12 +364,16 @@ catch ME
 end
 
 	function updatePlot(thisTrial)
+		v = ana.trial(thisTrial).variable;
 		ifi = sM.screenVals.ifi;
 		t = 0:ifi:ifi*(ana.trial(thisTrial).totalFrames-1);
 		hold(ana.plotAxis1,'on');
-		plot(ana.plotAxis1,t,ana.trial(thisTrial).pupil);
+		plot(ana.plotAxis1,t,ana.trial(thisTrial).pupil,'Color',map(v,:));
 		calculatePower(thisTrial)
-		plot(ana.plotAxis2,powerValues,'k-o');
+		hold(ana.plotAxis2,'on');
+		plot(ana.plotAxis2,thisTrial,powerValues(thisTrial),'k-o','MarkerSize',12,...
+			'MarkerEdgeColor',map(v,:),'MarkerFaceColor',map(v,:),...
+			'DisplayName',num2str(ana.trial(thisTrial).variable));
         drawnow
 	end
 
