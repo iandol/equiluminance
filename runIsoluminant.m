@@ -138,14 +138,15 @@ try
 	getSample(eL); %make sure everything is in memory etc.
 	
 	% initialise our trial variables
-	tL = timeLogger();
+	tL				= timeLogger();
 	tL.screenLog.beforeDisplay = GetSecs();
 	tL.screenLog.stimTime(1) = 1;
-	powerValues = [];
-	breakLoop = false;
-	ana.trial = struct();
-	tick = 1;
-	halfisi = sM.screenVals.halfisi;
+	powerValues		= [];
+	powerValuesV	= cell(1,seq.minBlocks);
+	breakLoop		= false;
+	ana.trial		= struct();
+	tick			= 1;
+	halfisi			= sM.screenVals.halfisi;
 	Priority(MaxPriority(sM.win));
 	
 	while ~seq.taskFinished && ~breakLoop
@@ -161,7 +162,7 @@ try
 		fixated = '';
 		ListenChar(2);
 		fprintf('===>>> runIsoluminant initiating fixation to start run...\n');
-		syncTime(eL);
+		%syncTime(eL);
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
 			drawCross(sM, 0.3, [1 1 1 1], ana.fixX, ana.fixY);
             drawPhotoDiodeSquare(sM,[0 0 0 1]);
@@ -278,29 +279,8 @@ try
 		ana.trial(seq.totalRuns).pupil = thisPupil;
 		ana.trial(seq.totalRuns).totalFrames = ii-1;
 		
-		% check if we lost fixation
-		if ~strcmpi(fixated,'fix')
-			fprintf('===>>> BROKE FIXATION Trial = %i (%i secs)\n\n', seq.totalRuns, tEnd-tStart);
-			statusMessage(eL,'Subject Broke Fixation!');
-			trackerMessage(eL,'TRIAL_RESULT -1');
-			trackerMessage(eL,'MSG:BreakFix');
-			resetFixation(eL);
-			stopRecording(eL);
-			setOffline(eL);
-		else
-			fprintf('===>>> SUCCESS: Trial = %i (%i secs)\n\n', seq.totalRuns, tEnd-tStart);
-            rM.timedTTL(2,150)
-			ana.trial(seq.totalRuns).success = true;
-			stopRecording(eL);
-			trackerMessage(eL,'TRIAL_RESULT 1');
-			setOffline(eL);
-			updatePlot(seq.totalRuns);
-			updateTask(seq,true); %updates our current run number
-			iii = seq.totalRuns;
-		end
-		
 		ListenChar(2);
-		while GetSecs < tEnd + ana.trialInterval
+		while GetSecs < tEnd + ana.trialInterval / 2
 			[keyIsDown, ~, keyCode] = KbCheck(-1);
 			if keyIsDown == 1
 				rchar = KbName(keyCode); if iscell(rchar);rchar=rchar{1};end
@@ -328,6 +308,29 @@ try
 		end
 		ListenChar(0);
 		
+		WaitSecs('YieldSecs',ana.trialInterval / 2)
+		
+		% check if we lost fixation
+		if ~strcmpi(fixated,'fix')
+			fprintf('===>>> BROKE FIXATION Trial = %i (%i secs)\n\n', seq.totalRuns, tEnd-tStart);
+			statusMessage(eL,'Subject Broke Fixation!');
+			trackerMessage(eL,'TRIAL_RESULT -1');
+			trackerMessage(eL,'MSG:BreakFix');
+			resetFixation(eL);
+			stopRecording(eL);
+			setOffline(eL);
+		else
+			fprintf('===>>> SUCCESS: Trial = %i (%i secs)\n\n', seq.totalRuns, tEnd-tStart);
+            rM.timedTTL(2,150)
+			ana.trial(seq.totalRuns).success = true;
+			stopRecording(eL);
+			trackerMessage(eL,'TRIAL_RESULT 1');
+			setOffline(eL);
+			updatePlot(seq.totalRuns);
+			updateTask(seq,true); %updates our current run number
+			iii = seq.totalRuns;
+		end
+		
 	end % while ~breakLoop
 	
 	%===============================Clean up============================
@@ -348,6 +351,7 @@ try
 	if ~isempty(ana.nameExp) || ~strcmpi(ana.nameExp,'debug')
 		ana.plotAxis1 = [];
 		ana.plotAxis2 = [];
+		ana.plotAxis3 = [];
 		fprintf('==>> SAVE %s, to: %s\n', ana.nameExp, pwd);
 		save([ana.nameExp '.mat'],'ana', 'seq', 'eL', 'sM', 'tL');
 	end
@@ -369,29 +373,32 @@ end
 		t = 0:ifi:ifi*(ana.trial(thisTrial).totalFrames-1);
 		hold(ana.plotAxis1,'on');
 		plot(ana.plotAxis1,t,ana.trial(thisTrial).pupil,'Color',map(v,:));
+		xlim(ana.plotAxis1,[ 0 ana.trialDuration]);
 		calculatePower(thisTrial)
 		hold(ana.plotAxis2,'on');
-		plot(ana.plotAxis2,thisTrial,powerValues(thisTrial),'k-o','MarkerSize',12,...
+		plot(ana.plotAxis2,thisTrial,powerValues(thisTrial),'k-o','MarkerSize',8,...
 			'MarkerEdgeColor',map(v,:),'MarkerFaceColor',map(v,:),...
 			'DisplayName',num2str(ana.trial(thisTrial).variable));
+		plot(ana.plotAxis3,cellfun(@mean,powerValuesV),'k-o','MarkerSize',8)
         drawnow
+		
 	end
 
 	function calculatePower(thisTrial)
-		
+		v = ana.trial(thisTrial).variable;
 		Fs = sM.screenVals.fps;            % Sampling frequency                  
-		T = sM.screenVals.ifi;             % Sampling period       
-		P=ana.trial(thisTrial).pupil;
-		L=length(P);
-		t = (0:L-1)*T;
-		P1=fft(P);
+		T  = sM.screenVals.ifi;            % Sampling period       
+		P  = ana.trial(thisTrial).pupil;
+		L  = length(P);
+		t  = (0:L-1)*T;
+		P1 = fft(P);
 		P2 = abs(P1/L);
-		P3=P2(1:L/2+1);
+		P3 = P2(1:L/2+1);
 		P3(2:end-1) = 2*P3(2:end-1);
-		f=Fs*(0:(L/2))/L;
+		f  = Fs*(0:(L/2))/L;
 		idx = findNearest(f, ana.frequency);
 		powerValues(thisTrial) = P3(idx);
-
+		powerValuesV{v} = [powerValuesV{v} powerValues(thisTrial)];
 	end
 
 	function [idx,val,delta]=findNearest(in,value)

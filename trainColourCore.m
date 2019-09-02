@@ -1,14 +1,15 @@
 function trainColourCore(ana)
 
-global lJ
+global rM
 
-if exist('lJ','var') && isa(lJ,'arduinoManager')
-	lJ.close;
-	clear lJ
+if exist('rM','var') && isa(rM,'arduinoManager')
+	if ~rM.isOpen
+		rM.open();
+	end
+else
+	rM = arduinoManager('port',ana.arduinoPort);
+	rM.open;
 end
-
-lJ = arduinoManager('port',ana.arduinoPort);
-lJ.open;
 
 fprintf('\n--->>> trainColour Started: ana UUID = %s!\n',ana.uuid);
 
@@ -210,9 +211,9 @@ try
 	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	%=====================START HERE====================
 	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-	while seq.thisRun <= seq.nRuns && ~breakLoop
+	while seq.totalRuns <= seq.nRuns && ~breakLoop
 		%=========================MAINTAIN INITIAL FIXATION==========================
-		fprintf('\n===>>> Train START Trial = %i / %i | %s, %s\n', seq.thisRun, seq.nRuns, sM.fullName, eL.fullName);
+		fprintf('\n===>>> Train START Trial = %i / %i | %s, %s\n', seq.totalRuns, seq.nRuns, sM.fullName, eL.fullName);
 		
 		if ana.sendTrigger == true;sendStrobe(dPP,0);flip(sM);flip(sM);end
 		
@@ -223,7 +224,7 @@ try
 		%trackerDrawExclusion(eL);
 		trackerDrawFixation(eL); %draw fixation window on eyelink computer
 		edfMessage(eL,'V_RT MESSAGE END_FIX END_RT');  %this 3 lines set the trial info for the eyelink
-		edfMessage(eL,['TRIALID ' num2str(seq.outIndex(seq.thisRun))]);  %obj.getTaskIndex gives us which trial we're at
+		edfMessage(eL,['TRIALID ' num2str(seq.outIndex(seq.totalRuns))]);  %obj.getTaskIndex gives us which trial we're at
 		startRecording(eL);
 		statusMessage(eL,'INITIATE FIXATION...');
 		fixated = '';
@@ -254,8 +255,8 @@ try
 						stopRecording(eL);
 						driftCorrection(eL);
 						WaitSecs('YieldSecs',2);
-					case {'escape'}
-						fprintf('===>>> Train escape pressed!!!\n');
+					case {'q'}
+						fprintf('===>>> Train quit pressed!!!\n');
 						fixated = 'breakfix';
 						breakLoop = true;
 				end
@@ -278,8 +279,8 @@ try
 			ana.runningPerformance(ana.nTotal) = -1;
 			ana.nInitiateBreak = ana.nInitiateBreak + 1;
 			
-			fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', seq.thisRun);
-			updatePlot(seq.thisRun);
+			fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', seq.totalRuns);
+			updatePlot(seq.totalRuns);
 			WaitSecs('YieldSecs',0.1);
 			continue
 		end
@@ -290,9 +291,9 @@ try
 		edfMessage(eL,'END_FIX');
 		statusMessage(eL,'Show Stimulus...');
 		
-		xPos = seq.outValues{seq.thisRun,1};
-		yPos = seq.outValues{seq.thisRun,2};
-		thisColour = seq.outValues{seq.thisRun,3};
+		xPos = seq.outValues{seq.totalRuns,1};
+		yPos = seq.outValues{seq.totalRuns,2};
+		thisColour = seq.outValues{seq.totalRuns,3};
 		
 		circle1.xPositionOut = xPos;
 		circle1.yPositionOut = yPos;
@@ -343,13 +344,13 @@ try
 		trackerDrawStimuli(eL,stimulusPositions);
 		
 		fprintf('===>>> Target Position=%s | Foil Position=%s\n',num2str(circle1.xPositionOut),num2str(circle2.xPositionOut));
-		edfMessage(eL,['MSG:variable=' num2str(seq.outIndex(seq.thisRun))]);
-		edfMessage(eL,['MSG:thisRun=' num2str(seq.thisRun)]);
+		edfMessage(eL,['MSG:variable=' num2str(seq.outIndex(seq.totalRuns))]);
+		edfMessage(eL,['MSG:thisRun=' num2str(seq.totalRuns)]);
 		
-		ana.trial(seq.thisRun).n = seq.thisRun;
-		ana.trial(seq.thisRun).variable = seq.outIndex(seq.thisRun);
-		ana.trial(seq.thisRun).pupil = [];
-		ana.trial(seq.thisRun).frameN = [];
+		ana.trial(seq.totalRuns).n = seq.totalRuns;
+		ana.trial(seq.totalRuns).variable = seq.outIndex(seq.totalRuns);
+		ana.trial(seq.totalRuns).pupil = [];
+		ana.trial(seq.totalRuns).frameN = [];
 		
 		if length(ana.delayToChoice) == 2
 			delayToChoice = (rand * (ana.delayToChoice(2)-ana.delayToChoice(1))) + ana.delayToChoice(1);
@@ -358,7 +359,7 @@ try
 		end
 		fprintf('===>>> Delay to Choice is: %.2g\n',delayToChoice);
 		
-		if ana.sendTrigger == true;sendStrobe(dPP,seq.outIndex(seq.thisRun));flip(sM);end
+		if ana.sendTrigger == true;sendStrobe(dPP,seq.outIndex(seq.totalRuns));flip(sM);end
 		
 		tStart = GetSecs; vbl = tStart;if isempty(tL.vbl);tL.vbl(1) = tStart;tL.startTime = tStart; end
 		
@@ -383,7 +384,7 @@ try
 		end
 		
 		if ~strcmpi(fixated,'breakfix')
-			if (rand <= ana.fixOnlyReward/100); lJ.timedTTL(2, 50); end
+			if (rand <= ana.fixOnlyReward/100); rM.timedTTL(2, 50); end
 			resetFixation(eL);
 			% X, Y, FixInitTime, FixTime, Radius, StrictFix
 			updateFixationValues(eL, xPos, yPos,...
@@ -440,21 +441,21 @@ try
 		%=========================================check if we got fixation
 		if strcmpi(fixated,'fix')
 			if ana.sendTrigger == true;sendStrobe(dPP,251);flip(sM);end %CORRECT
-			lJ.timedTTL(2, ana.Rewardms)
+			rM.timedTTL(2, ana.Rewardms)
 			Beeper(1000,0.1,0.2);
 			trackerDrawText(eL,'CORRECT!');
-			fprintf('===>>> SUCCESS: Trial = %i (total:%.3g | reaction:%.3g)\n', seq.thisRun, tEnd-tStart, tReaction);
+			fprintf('===>>> SUCCESS: Trial = %i (total:%.3g | reaction:%.3g)\n', seq.totalRuns, tEnd-tStart, tReaction);
 			ana.nSuccess = ana.nSuccess + 1;
 			ana.nTotal = ana.nTotal + 1;
 			ana.runningPerformance(ana.nTotal) = 1;
-			ana.trial(seq.thisRun).success = true;
-			ana.trial(seq.thisRun).reactionTime = tReaction;
+			ana.trial(seq.totalRuns).success = true;
+			ana.trial(seq.totalRuns).reactionTime = tReaction;
 			stopRecording(eL);
 			edfMessage(eL,'TRIAL_RESULT 1');
 			setOffline(eL);
-			updatePlot(seq.thisRun);
+			updatePlot(seq.totalRuns);
 			updateTask(seq,true); %updates our current run number
-			iii = seq.thisRun;
+			iii = seq.totalRuns;
 			if ana.debug
 				Screen('DrawText', sM.win, '===>>> CORRECT!!!', 0, 0);
 				Screen('Flip',sM.win);
@@ -463,13 +464,13 @@ try
 		else
 			if ana.sendTrigger == true;sendStrobe(dPP,252);flip(sM);end %INCORRECT
 			if strcmpi(fixated,'breakfix')
-				fprintf('===>>> BROKE FIXATION Trial = %i (total:%.3g | reaction:%.3g)\n', seq.thisRun, tEnd-tStart, tReaction);
+				fprintf('===>>> BROKE FIXATION Trial = %i (total:%.3g | reaction:%.3g)\n', seq.totalRuns, tEnd-tStart, tReaction);
 				trackerDrawText(eL,'BREAK FIX!');
 				edfMessage(eL,'TRIAL_RESULT -1');
 				edfMessage(eL,'MSG:BreakFix');
 			elseif strcmp(fixated,'EXCLUDED!')
 				excludedN = excludedN + 1;
-				fprintf('===>>> EXCLUSION ZONE Trial = %i > %i (total:%.3g | reaction:%.3g)\n', seq.thisRun, excludedN, tEnd-tStart, tReaction);
+				fprintf('===>>> EXCLUSION ZONE Trial = %i > %i (total:%.3g | reaction:%.3g)\n', seq.totalRuns, excludedN, tEnd-tStart, tReaction);
 				trackerDrawText(eL,'BREAK FIX (EXCLUSION)!');
 				edfMessage(eL,'TRIAL_RESULT -1');
 				edfMessage(eL,'MSG:BreakFixExclusion');
@@ -483,7 +484,7 @@ try
 			seq.verbose = true;
 			resetRun(seq); %randomise within block
 			seq.verbose = false;
-			updatePlot(seq.thisRun);
+			updatePlot(seq.totalRuns);
 			if ana.debug
 				Screen('DrawText', sM.win, '===>>> BREAK FIX!!!', 0, 0);
 				Screen('Flip',sM.win);
@@ -527,13 +528,13 @@ try
 	end % while ~breakLoop
 	
 	%===============================Clean up============================
-	fprintf('===>>> Train Finished Trials: %i\n',seq.thisRun);
+	fprintf('===>>> Train Finished Trials: %i\n',seq.totalRuns);
 	Screen('DrawText', sM.win, '===>>> FINISHED!!!', 0, 0);
 	Screen('Flip',sM.win);
 	WaitSecs('YieldSecs', 2);
 	close(sM); breakLoop = true;
 	ListenChar(0);ShowCursor;Priority(0);
-	close(lJ);
+	close(rM);
 	
 	if exist(ana.ResultDir,'dir') > 0
 		cd(ana.ResultDir);
@@ -556,7 +557,6 @@ try
 catch ME
 	if exist('eL','var'); close(eL); end
 	if exist('sM','var'); close(sM); end
-	if exist('aM','var'); close(lJ); end
 	ListenChar(0);ShowCursor;Priority(0);Screen('CloseAll');
 	getReport(ME)
 end
