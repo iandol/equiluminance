@@ -2,10 +2,12 @@ function runIsoluminant(ana)
 
 global rM
 
-if ~exist('rM','var') || isempty(rM)
-    rM = arduinoManager;
+if ana.sendReward
+	if ~exist('rM','var') || isempty(rM)
+		 rM = arduinoManager;
+	end
+	open(rM) %open our reward manager
 end
-open(rM) %open our reward manager
 
 fprintf('\n--->>> runIsoluminant Started: ana UUID = %s!\n',ana.uuid);
 
@@ -321,7 +323,7 @@ try
 			setOffline(eL);
 		else
 			fprintf('===>>> SUCCESS: Trial = %i (%i secs)\n\n', seq.totalRuns, tEnd-tStart);
-            rM.timedTTL(2,150)
+         if ana.sendReward; rM.timedTTL(2,150); end
 			ana.trial(seq.totalRuns).success = true;
 			stopRecording(eL);
 			trackerMessage(eL,'TRIAL_RESULT 1');
