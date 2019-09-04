@@ -49,7 +49,7 @@ try
 	sM.distance = ana.distance;
 	sM.debug = ana.debug;
 	sM.blend = 1;
-	sM.bitDepth = 'FloatingPoint32BitIfPossible';
+	sM.bitDepth = ana.bitDepth;
 	sM.verbosityLevel = 4;
 	if exist(ana.gammaTable, 'file')
 		load(ana.gammaTable);
@@ -66,26 +66,39 @@ try
 	fprintf('\n--->>> runEquiMotion Opened Screen %i : %s\n', sM.win, sM.fullName);
 	
 	if IsLinux
-		Screen('Preference', 'TextRenderer', 1);
 		Screen('Preference', 'DefaultFontName', 'DejaVu Sans');
 	end
 	
 	%===========================set up stimuli====================
-	circle1 = discStimulus;
-	circle2 = discStimulus;
-	circle1.sigma = ana.sigma1;
-	circle2.sigma = ana.sigma2;
-	circle1.size = ana.circleDiameter;
-	circle2.size = ana.backgroundDiameter;
-	setup(circle1,sM);
-	setup(circle2,sM);
 	
+	grating1 = colourGratingStimulus;
+	grating1.size = ana.size;
+	grating1.colour = ana.colorFixed;
+	grating1.colour2 = ana.colorStart;
+	grating1.contrast = 1;
+	grating1.type = 'square';
+	grating1.mask = false;
+	grating1.tf = 0;
+	grating1.sf = 0.2;
+	
+	grating2 = colourGratingStimulus;
+	grating2.size = ana.size;
+	grating2.colour = 1.1 * (ana.colorFixed + ana.colorStart) / 2;
+	grating2.colour2 = 0.9 * (ana.colorFixed + ana.colorStart) / 2;
+	grating2.colour = [grating2.colour(1:3) 1]; grating2.colour2 = [grating2.colour2(1:3) 1];
+	grating2.contrast = 1;
+	grating2.type = 'square';
+	grating2.mask = false;
+	grating2.tf = 0;
+	grating2.sf = 0.2;
+	
+	setup(grating1,sM); setup(grating2,sM);
 	%============================SET UP VARIABLES=====================================
 	
 	len = 0;
 	r = cell(3,1);
 	for i = 1:length(r)
-		step = (ana.colorEnd(i) - ana.colorStart(i)) / ana.colorStep;
+		step = (ana.colorEnd(i) - ana.colorStart(i)) / (ana.colorStep-1);
 		r{i} = [ana.colorStart(i) : step : ana.colorEnd(i)]';
 		if length(r{i}) > len; len = length(r{i}); end
 	end
@@ -154,17 +167,33 @@ try
 	
 	while ~seq.taskFinished && ~breakLoop
 		%=========================MAINTAIN INITIAL FIXATION==========================
-		fprintf('===>>> runEquiMotion START Run = %i / %i (%i:%i) | %s, %s\n', seq.totalRuns, seq.nRuns, seq.thisBlock, seq.thisRun, sM.fullName, eL.fullName);
+		fprintf('\n===>>> runEquiMotion START Run = %i / %i (%i:%i) | %s, %s\n', seq.totalRuns, seq.nRuns, seq.thisBlock, seq.thisRun, sM.fullName, eL.fullName);
+		modColor			= [seq.outValues{seq.totalRuns}(1:3) 1];
+		fixedColor			= [ana.colorFixed(1:3) 1];
+		grating1.colourOut	= modColor;
+		grating1.colour2Out = fixedColor;
+		grating2.colourOut	= (1.1 * (fixedColor + modColor)) / 1.5; 
+		grating2.colourOut	= [grating2.colourOut(1:3) 1];
+		grating2.colour2Out = (0.9 * (fixedColor + modColor)) / 1.5; 
+		grating2.colour2Out = [grating2.colour2Out(1:3) 1];
+		
+		update(grating1); update(grating2);
+		fprintf('===>>> MOD=%s | FIX=%s\n',num2str(grating1.colourOut),num2str(grating1.colour2Out));
+		fprintf('===>>> B=%s | D=%s\n',num2str(grating2.colourOut),num2str(grating2.colour2Out));
+		
 		resetFixation(eL);
 		trackerClearScreen(eL);
 		trackerDrawFixation(eL); %draw fixation window on eyelink computer
 		trackerMessage(eL,'V_RT MESSAGE END_FIX END_RT');  %this 3 lines set the trial info for the eyelink
 		trackerMessage(eL,['TRIALID ' num2str(seq.outIndex(seq.totalRuns))]);  %obj.getTaskIndex gives us which trial we're at
+		trackerMessage(eL,['MSG:modColor=' num2str(modColor)]);
+		trackerMessage(eL,['MSG:variable=' num2str(seq.outIndex(seq.totalRuns))]);
+		trackerMessage(eL,['MSG:totalRuns=' num2str(seq.totalRuns)]);
 		startRecording(eL);
 		statusMessage(eL,'INITIATE FIXATION...');
 		fixated = '';
 		ListenChar(2);
-		fprintf('===>>> runEquiMotion initiating fixation to start run...\n');
+		fprintf('===>>> runEquiMotion initiating fixation...\n');
 		%syncTime(eL);
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
 			drawCross(sM, 0.3, [1 1 1 1], ana.fixX, ana.fixY);
@@ -212,20 +241,10 @@ try
 		%sM.verbose = false; eL.verbose = false; sM.verbosityLevel = 4; eL.verbosityLevel = 4; %force lots of log output
 		
 		%=========================Our actual stimulus drawing loop==========================
-		i=1;
 		ii = 1;
 		toggle = 0;
 		thisPupil = [];
-		modColor = seq.outValues{seq.totalRuns};
-		modColor(modColor < 0) = 0; modColor(modColor > 1) = 1;
-		fixedColor = ana.colorFixed;
-		backColor = modColor;
-		centerColor = fixedColor;
-		fprintf('===>>> modColor=%s | fixColor=%s @ %i frames\n',num2str(modColor),num2str(fixedColor),ana.onFrames);
-		trackerMessage(eL,['MSG:modColor=' num2str(modColor)]);
-		trackerMessage(eL,['MSG:variable=' num2str(seq.outIndex(seq.totalRuns))]);
-		trackerMessage(eL,['MSG:totalRuns=' num2str(seq.totalRuns)]);
-		
+		stroke = 1;
 		ana.trial(seq.totalRuns).n = seq.totalRuns;
 		ana.trial(seq.totalRuns).variable = seq.outIndex(seq.totalRuns);
 		ana.trial(seq.totalRuns).mColor = modColor;
@@ -234,28 +253,29 @@ try
 		ana.trial(seq.totalRuns).frameN = [];
 		
 		statusMessage(eL,'Show Stimulus...');
-		trackerMessage(eL,'END_FIX');
 		tStart = GetSecs; vbl = tStart;if isempty(tL.vbl);tL.vbl(1) = tStart;tL.startTime = tStart; end
-		
+		trackerMessage(eL,'END_FIX');
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		while GetSecs < tStart + ana.trialDuration
-			if i > ana.onFrames
-				toggle = mod(toggle+1,2); %switch the toggle 0 or 1
-				ana.trial(seq.totalRuns).frameN = [ana.trial(seq.totalRuns).frameN i];
-				i = 1; %reset out counter
-				if toggle
-					backColor = fixedColor; centerColor = modColor;
-				else
-					backColor = modColor; centerColor = fixedColor;
-				end
+			if mod(ii,ana.onFrames) == 0
+				stroke = stroke + 1;
+				if stroke > 4; stroke = 1; end
 			end
-			
-			circle1.colourOut = centerColor;
-			circle2.colourOut = backColor;
-			circle2.draw(); %background circle draw first!
-			circle1.draw();
-			
+			switch stroke
+				case 1
+					grating1.driftPhase = 0;
+					draw(grating1)
+				case 2
+					grating2.driftPhase = -90;
+					draw(grating2)
+				case 3
+					grating1.driftPhase = -180;
+					draw(grating1)
+				case 4
+					grating2.driftPhase = -270;
+					draw(grating2)
+			end
 			drawCross(sM, 0.3, [1 1 1 1], ana.fixX, ana.fixY);
             drawPhotoDiodeSquare(sM,[1 1 1 1]);
 			finishDrawing(sM);
@@ -264,7 +284,6 @@ try
 			tL.stimTime(tick) = toggle;
 			tL.tick = tick;
 			tick = tick + 1;
-			i = i + 1;
 
 			getSample(eL);
 			thisPupil(ii) = eL.pupil;
@@ -324,12 +343,12 @@ try
 			setOffline(eL);
 		else
 			fprintf('===>>> SUCCESS: Trial = %i (%i secs)\n\n', seq.totalRuns, tEnd-tStart);
-         if ana.sendReward; rM.timedTTL(2,150); end
+			if ana.sendReward; rM.timedTTL(2,150); end
 			ana.trial(seq.totalRuns).success = true;
 			stopRecording(eL);
 			trackerMessage(eL,'TRIAL_RESULT 1');
 			setOffline(eL);
-			updatePlot(seq.totalRuns);
+			%updatePlot(seq.totalRuns);
 			updateTask(seq,true); %updates our current run number
 			iii = seq.totalRuns;
 		end
@@ -341,6 +360,7 @@ try
 	Screen('DrawText', sM.win, '===>>> FINISHED!!!');
 	Screen('Flip',sM.win);
 	WaitSecs('YieldSecs', 2);
+	reset(grating1);reset(grating2);
 	close(sM); breakLoop = true;
 	ListenChar(0);ShowCursor;Priority(0);
 	
@@ -365,6 +385,7 @@ try
 
 catch ME
 	if exist('eL','var'); close(eL); end
+	reset(grating1);reset(grating2);
 	if exist('sM','var'); close(sM); end
 	ListenChar(0);ShowCursor;Priority(0);Screen('CloseAll');
 	getReport(ME)
