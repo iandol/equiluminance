@@ -152,7 +152,9 @@ try
 	WaitSecs('YieldSecs',0.5);
 	getSample(eL); %make sure everything is in memory etc.
 	
-	
+	%-------------------response values, linked to left, up, down
+	LEFT = 1; 	RIGHT = 2; UNSURE = 3; BREAKFIX = -1;
+
 	map = analysisCore.optimalColours(seq.minBlocks);
 		
 	% initialise our trial variables
@@ -304,36 +306,56 @@ try
 		ana.trial(seq.totalRuns).pupil = thisPupil;
 		ana.trial(seq.totalRuns).totalFrames = ii-1;
 		
+		drawBackground(sM);
+		Screen('DrawText',sM.win,['Motion Direction: [LEFT]=LEFT [DOWN]=UNSURE [RIGHT]=RIGHT'],0,0);
+		Screen('Flip',sM.win);
+		statusMessage(eL,'Waiting for Subject Response!');
+		edfMessage(eL,'Subject Responding')
+		edfMessage(eL,'END_RT'); ...
+		response = -1;
 		ListenChar(2);
-		while GetSecs < tEnd + ana.trialInterval / 2 && breakLoop == false
-			[keyIsDown, ~, keyCode] = KbCheck(-1);
-			if keyIsDown == 1
-				rchar = KbName(keyCode); if iscell(rchar);rchar=rchar{1};end
-				switch lower(rchar)
-					case {'c'}
-						fprintf('===>>> runEquiMotion recalibrate pressed!\n');
-						stopRecording(eL);
-						setOffline(eL);
-						trackerSetup(eL);
-						WaitSecs('YieldSecs',2);
-					case {'d'}
-						fprintf('===>>> runEquiMotion drift correct pressed!\n');
-						stopRecording(eL);
-						driftCorrection(eL);
-						WaitSecs('YieldSecs',2);
-					case {'q'}
-						fprintf('===>>> runEquiMotion quit pressed!!!\n');
-						trackerClearScreen(eL);
-						stopRecording(eL);
-						setOffline(eL);
-						breakLoop = true;
-				end
-			end
-			WaitSecs('YieldSecs',sM.screenVals.ifi);
+		[secs, keyCode] = KbWait(-1);
+		rchar = KbName(keyCode); if iscell(rchar);rchar=rchar{1};end
+		switch lower(rchar)
+			case {'leftarrow','left'}
+				response = LEFT;
+				trackerDrawText(eL,'Subject Pressed LEFT!');
+				edfMessage(eL,'Subject Pressed LEFT');
+				fprintf('Response: LEFT\n');
+				doPlot();
+			case {'righttarrow','right'}
+				response = RIGHT;
+				trackerDrawText(eL,'Subject Pressed RIGHT!');
+				edfMessage(eL,'Subject Pressed RIGHT')
+				fprintf('Response: RIGHT\n');
+				doPlot();
+			case {'downarrow','down'}
+				response = UNSURE;
+				trackerDrawText(eL,'Subject Pressed UNSURE!');
+				edfMessage(eL,'Subject Pressed UNSURE')
+				fprintf('Response: UNSURE\n');
+				doPlot();
+			case {'c'}
+				fprintf('===>>> runEquiMotion recalibrate pressed!\n');
+				stopRecording(eL);
+				setOffline(eL);
+				trackerSetup(eL);
+				WaitSecs('YieldSecs',2);
+			case {'d'}
+				fprintf('===>>> runEquiMotion drift correct pressed!\n');
+				stopRecording(eL);
+				driftCorrection(eL);
+				WaitSecs('YieldSecs',2);
+			case {'q'}
+				fprintf('===>>> runEquiMotion quit pressed!!!\n');
+				trackerClearScreen(eL);
+				stopRecording(eL);
+				setOffline(eL);
+				breakLoop = true;
 		end
 		ListenChar(0);
 		
-		WaitSecs('YieldSecs',ana.trialInterval / 2);
+		WaitSecs('YieldSecs',ana.trialInterval);
 		
 		% check if we lost fixation
 		if ~strcmpi(fixated,'fix')
@@ -348,7 +370,8 @@ try
 			fprintf('===>>> SUCCESS: Trial = %i (%i secs)\n\n', seq.totalRuns, tEnd-tStart);
 			if ana.sendReward; rM.timedTTL(2,150); end
 			ana.trial(seq.totalRuns).success = true;
-			trackerMessage(eL,'TRIAL_RESULT 1');
+			ana.trial(seq.totalRuns).response = response;
+			edfMessage(eL,['TRIAL_RESULT ' num2str(response)]);
 			resetFixation(eL);
 			stopRecording(eL);
 			setOffline(eL);
