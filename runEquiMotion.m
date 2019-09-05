@@ -1,7 +1,6 @@
 function runEquiMotion(ana)
 
 global rM
-
 if ana.sendReward
 	if ~exist('rM','var') || isempty(rM)
 		 rM = arduinoManager;
@@ -11,8 +10,11 @@ end
 
 fprintf('\n--->>> runEquiMotion Started: ana UUID = %s!\n',ana.uuid);
 
-%===================Initiate out metadata===================
+%----------compatibility for windows
+%if ispc; PsychJavaTrouble(); end
+KbName('UnifyKeyNames');
 
+%===================Initiate out metadata===================
 ana.date = datestr(datetime);
 ana.version = Screen('Version');
 ana.computer = Screen('Computer');
@@ -37,6 +39,7 @@ end
 
 cla(ana.plotAxis1);
 cla(ana.plotAxis2);
+cla(ana.plotAxis3);
 
 try
 	PsychDefaultSetup(2);
@@ -48,7 +51,7 @@ try
 	sM.pixelsPerCm = ana.pixelsPerCm;
 	sM.distance = ana.distance;
 	sM.debug = ana.debug;
-	sM.blend = 1;
+	sM.blend = true;
 	sM.bitDepth = ana.bitDepth;
 	sM.verbosityLevel = 4;
 	if exist(ana.gammaTable, 'file')
@@ -62,7 +65,7 @@ try
 		end
 	end
 	sM.backgroundColour = ana.backgroundColor;
-	sM.open; % OPEN THE SCREEN
+	screenVals = sM.open; % OPEN THE SCREEN
 	fprintf('\n--->>> runEquiMotion Opened Screen %i : %s\n', sM.win, sM.fullName);
 	
 	if IsLinux
@@ -76,21 +79,21 @@ try
 	grating1.colour = ana.colorFixed;
 	grating1.colour2 = ana.colorStart;
 	grating1.contrast = 1;
-	grating1.type = 'square';
-	grating1.mask = false;
+	grating1.type = ana.type;
+	grating1.mask = ana.mask;
 	grating1.tf = 0;
-	grating1.sf = 0.2;
+	grating1.sf = ana.sf;
 	
 	grating2 = colourGratingStimulus;
 	grating2.size = ana.size;
-	grating2.colour = 1.1 * (ana.colorFixed + ana.colorStart) / 2;
-	grating2.colour2 = 0.9 * (ana.colorFixed + ana.colorStart) / 2;
+	grating2.colour = (1+ana.contrastMultiplier) * (ana.colorFixed + ana.colorStart) / 2;
+	grating2.colour2 = (1-ana.contrastMultiplier) * (ana.colorFixed + ana.colorStart) / 2;
 	grating2.colour = [grating2.colour(1:3) 1]; grating2.colour2 = [grating2.colour2(1:3) 1];
 	grating2.contrast = 1;
-	grating2.type = 'square';
-	grating2.mask = false;
+	grating2.type = ana.type;
+	grating2.mask = ana.mask;
 	grating2.tf = 0;
-	grating2.sf = 0.2;
+	grating2.sf = ana.sf;
 	
 	setup(grating1,sM); setup(grating2,sM);
 	%============================SET UP VARIABLES=====================================
@@ -131,9 +134,9 @@ try
 	eL.name = ana.nameExp;
 	eL.saveFile = [ana.nameExp '.edf'];
 	eL.recordData = true; %save EDF file
-	eL.sampleRate = 1000;
+	eL.sampleRate = ana.sampleRate;
 	eL.remoteCalibration = false; % manual calibration?
-	eL.calibrationStyle = 'HV5'; % calibration style
+	eL.calibrationStyle = ana.calibrationStyle; % calibration style
 	eL.modify.calibrationtargetcolour = [1 1 1];
 	eL.modify.calibrationtargetsize = 1;
 	eL.modify.calibrationtargetwidth = 0.05;
@@ -142,17 +145,16 @@ try
 	% X, Y, FixInitTime, FixTime, Radius, StrictFix
 	updateFixationValues(eL, ana.fixX, ana.fixY, ana.firstFixInit,...
 		ana.firstFixTime, ana.firstFixDiameter, ana.strictFixation);
-	
 	%sM.verbose = true; eL.verbose = true; sM.verbosityLevel = 10; eL.verbosityLevel = 4; %force lots of log output
-	
-	map = analysisCore.optimalColours(seq.minBlocks);
-	
 	initialise(eL, sM); %use sM to pass screen values to eyelink
 	setup(eL); % do setup and calibration
 	fprintf('--->>> runEquiMotion eL setup complete: %s\n', eL.fullName);
 	WaitSecs('YieldSecs',0.5);
 	getSample(eL); %make sure everything is in memory etc.
 	
+	
+	map = analysisCore.optimalColours(seq.minBlocks);
+		
 	% initialise our trial variables
 	tL				= timeLogger();
 	tL.screenLog.beforeDisplay = GetSecs();
@@ -172,9 +174,9 @@ try
 		fixedColor			= [ana.colorFixed(1:3) 1];
 		grating1.colourOut	= modColor;
 		grating1.colour2Out = fixedColor;
-		grating2.colourOut	= (1.1 * (fixedColor + modColor)) / 1.5; 
+		grating2.colourOut	= ((1+ana.contrastMultiplier) * (fixedColor + modColor)) / 2.0; 
 		grating2.colourOut	= [grating2.colourOut(1:3) 1];
-		grating2.colour2Out = (0.9 * (fixedColor + modColor)) / 1.5; 
+		grating2.colour2Out = ((1-ana.contrastMultiplier) * (fixedColor + modColor)) / 2.0; 
 		grating2.colour2Out = [grating2.colour2Out(1:3) 1];
 		
 		update(grating1); update(grating2);
@@ -195,12 +197,13 @@ try
 		ListenChar(2);
 		fprintf('===>>> runEquiMotion initiating fixation...\n');
 		%syncTime(eL);
-		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
+		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix') && breakLoop == false
 			drawCross(sM, 0.3, [1 1 1 1], ana.fixX, ana.fixY);
             drawPhotoDiodeSquare(sM,[0 0 0 1]);
+			finishDrawing(sM);
 			getSample(eL);
 			fixated=testSearchHoldFixation(eL,'fix','breakfix');
-			Screen('Flip',sM.win); %flip the buffer
+			flip(sM); %flip the buffer
             [keyIsDown, ~, keyCode] = KbCheck(-1);
 			if keyIsDown == 1
 				rchar = KbName(keyCode); if iscell(rchar);rchar=rchar{1};end
@@ -302,7 +305,7 @@ try
 		ana.trial(seq.totalRuns).totalFrames = ii-1;
 		
 		ListenChar(2);
-		while GetSecs < tEnd + ana.trialInterval / 2
+		while GetSecs < tEnd + ana.trialInterval / 2 && breakLoop == false
 			[keyIsDown, ~, keyCode] = KbCheck(-1);
 			if keyIsDown == 1
 				rchar = KbName(keyCode); if iscell(rchar);rchar=rchar{1};end
@@ -330,7 +333,7 @@ try
 		end
 		ListenChar(0);
 		
-		WaitSecs('YieldSecs',ana.trialInterval / 2)
+		WaitSecs('YieldSecs',ana.trialInterval / 2);
 		
 		% check if we lost fixation
 		if ~strcmpi(fixated,'fix')
@@ -345,8 +348,9 @@ try
 			fprintf('===>>> SUCCESS: Trial = %i (%i secs)\n\n', seq.totalRuns, tEnd-tStart);
 			if ana.sendReward; rM.timedTTL(2,150); end
 			ana.trial(seq.totalRuns).success = true;
-			stopRecording(eL);
 			trackerMessage(eL,'TRIAL_RESULT 1');
+			resetFixation(eL);
+			stopRecording(eL);
 			setOffline(eL);
 			%updatePlot(seq.totalRuns);
 			updateTask(seq,true); %updates our current run number
