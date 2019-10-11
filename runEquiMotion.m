@@ -496,11 +496,11 @@ end
 		v = ana.trial(thisTrial).variable;
 		r = ana.trial(thisTrial).response;
 		p = [];
-		if r == 1
+		if r == LEFT
 			p = 'k-<';
-		elseif r == 2
+		elseif r == RIGHT
 			p = 'k->';
-		elseif r == 3
+		elseif r == UNSURE
 			p = 'k-x';
 		end
 		if ~isempty(p)
@@ -508,7 +508,7 @@ end
 			plot(ana.plotAxis1,v,thisTrial,p,'Color',map(v,:),'MarkerSize',8,'MarkerFaceColor', map(v,:));
 			title(ana.plotAxis1, [fixLabel ' Fixed Value: ' num2str(fixV)]);
 			xticks(ana.plotAxis1,1:length(varLabels));
-			xlim(ana.plotAxis1, [1 length(varLabels)]);
+			xlim(ana.plotAxis1, [0 length(varLabels)+1]);
 			xlabel(ana.plotAxis1,'Varying Color Value');
 			xticklabels(ana.plotAxis1,varLabels);
 			
@@ -517,7 +517,7 @@ end
 				try scatter(ana.plotAxis2,variableVals,(responseVals./totalVals),(totalVals+1).*20,...
 					'filled','MarkerFaceAlpha',0.5); end
 				xlim(ana.plotAxis2, [min(variableVals)-0.05 max(variableVals)+0.05]);
-				ylim(ana.plotAxis2, [0 1]);
+				ylim(ana.plotAxis2, [-0.05 1.05]);
 				hold(ana.plotAxis2,'on');
 				pv = PAL_PFML_Fit(variableVals,responseVals,totalVals,space,[1 1 0 0],PF);
 				if isinf(pv(1)); pv(1) = max(variableVals); end
