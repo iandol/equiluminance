@@ -45,7 +45,7 @@ drawnow;
 try
 	%=======================open our screen==========================================
 	PsychDefaultSetup(2);
-	Screen('Preference', 'SkipSyncTests', 0);
+	Screen('Preference', 'SkipSyncTests', 1);
 	sM = screenManager();
 	sM.screen = ana.screenID;
 	sM.windowed = ana.windowed;

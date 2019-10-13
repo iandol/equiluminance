@@ -4,7 +4,7 @@ global rM
 
 if ana.sendReward
 	if ~exist('rM','var') || isempty(rM)
-		 rM = arduinoManager;
+		 rM = arduinoManager('port',ana.arduinoPort);
 	end
 	open(rM) %open our reward manager
 end
@@ -39,10 +39,11 @@ cla(ana.plotAxis2);
 
 try
 	PsychDefaultSetup(2);
-	Screen('Preference', 'SkipSyncTests', 0);
+	Screen('Preference', 'SkipSyncTests', 1);
 	%===================open our screen====================
 	sM = screenManager();
 	sM.screen = ana.screenID;
+    sM.disableSyncTests = true;
 	sM.windowed = ana.windowed;
 	sM.pixelsPerCm = ana.pixelsPerCm;
 	sM.distance = ana.distance;
@@ -118,11 +119,11 @@ try
 	eL.saveFile = [ana.nameExp '.edf'];
 	eL.recordData = true; %save EDF file
 	eL.sampleRate = 1000;
-	eL.remoteCalibration = false; % manual calibration?
+	eL.remoteCalibration = true; % manual calibration?
 	eL.calibrationStyle = 'HV5'; % calibration style
-	eL.modify.calibrationtargetcolour = [1 1 1];
+	eL.modify.calibrationtargetcolour = [1 0 0];
 	eL.modify.calibrationtargetsize = 1;
-	eL.modify.calibrationtargetwidth = 0.05;
+	eL.modify.calibrationtargetwidth = 0.1;
 	eL.modify.waitformodereadytime = 500;
 	eL.modify.devicenumber = -1; % -1 = use any keyboard
 	% X, Y, FixInitTime, FixTime, Radius, StrictFix
@@ -166,7 +167,8 @@ try
 		fprintf('===>>> runIsoluminant initiating fixation to start run...\n');
 		%syncTime(eL);
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
-			drawCross(sM, 0.3, [1 1 1 1], ana.fixX, ana.fixY);
+			%drawCross(sM, 0.3, [1 0 0 1], ana.fixX, ana.fixY);
+            drawSpot(sM, 0.25, [1 1 1 1],ana.fixX, ana.fixY);
             drawPhotoDiodeSquare(sM,[0 0 0 1]);
 			getSample(eL);
 			fixated=testSearchHoldFixation(eL,'fix','breakfix');
@@ -255,7 +257,8 @@ try
 			circle2.draw(); %background circle draw first!
 			circle1.draw();
 			
-			drawCross(sM, 0.3, [1 1 1 1], ana.fixX, ana.fixY);
+			%drawCross(sM, 0.3, [1 0 0 1], ana.fixX, ana.fixY);
+            drawSpot(sM, 0.25, [1 1 1 1],ana.fixX, ana.fixY);
             drawPhotoDiodeSquare(sM,[1 1 1 1]);
 			finishDrawing(sM);
 			
@@ -281,8 +284,31 @@ try
 		ana.trial(seq.totalRuns).pupil = thisPupil;
 		ana.trial(seq.totalRuns).totalFrames = ii-1;
 		
-		ListenChar(2);
-		while GetSecs < tEnd + ana.trialInterval / 2
+		% check if we lost fixation
+		if ~strcmpi(fixated,'fix')
+			fprintf('===>>> BROKE FIXATION Trial = %i (%i secs)\n\n', seq.totalRuns, tEnd-tStart);
+			statusMessage(eL,'Subject Broke Fixation!');
+			trackerMessage(eL,'TRIAL_RESULT -1');
+			trackerMessage(eL,'MSG:BreakFix');
+			resetFixation(eL);
+			stopRecording(eL);
+			setOffline(eL);
+            WaitSecs('YieldSecs',ana.trialInterval)
+		else
+			fprintf('===>>> SUCCESS: Trial = %i (%i secs)\n\n', seq.totalRuns, tEnd-tStart);
+            if ana.sendReward; rM.timedTTL(2,150); end
+			ana.trial(seq.totalRuns).success = true;
+            WaitSecs('YieldSecs',ana.trialInterval)
+            stopRecording(eL);
+			trackerMessage(eL,'TRIAL_RESULT 1');
+			setOffline(eL);
+            updatePlot(seq.totalRuns);
+			updateTask(seq,true); %updates our current run number
+			iii = seq.totalRuns;
+        end
+        
+        ListenChar(2);
+		while GetSecs < tEnd + 0.01
 			[keyIsDown, ~, keyCode] = KbCheck(-1);
 			if keyIsDown == 1
 				rchar = KbName(keyCode); if iscell(rchar);rchar=rchar{1};end
@@ -309,29 +335,6 @@ try
 			WaitSecs('YieldSecs',sM.screenVals.ifi);
 		end
 		ListenChar(0);
-		
-		WaitSecs('YieldSecs',ana.trialInterval / 2)
-		
-		% check if we lost fixation
-		if ~strcmpi(fixated,'fix')
-			fprintf('===>>> BROKE FIXATION Trial = %i (%i secs)\n\n', seq.totalRuns, tEnd-tStart);
-			statusMessage(eL,'Subject Broke Fixation!');
-			trackerMessage(eL,'TRIAL_RESULT -1');
-			trackerMessage(eL,'MSG:BreakFix');
-			resetFixation(eL);
-			stopRecording(eL);
-			setOffline(eL);
-		else
-			fprintf('===>>> SUCCESS: Trial = %i (%i secs)\n\n', seq.totalRuns, tEnd-tStart);
-         if ana.sendReward; rM.timedTTL(2,150); end
-			ana.trial(seq.totalRuns).success = true;
-			stopRecording(eL);
-			trackerMessage(eL,'TRIAL_RESULT 1');
-			setOffline(eL);
-			updatePlot(seq.totalRuns);
-			updateTask(seq,true); %updates our current run number
-			iii = seq.totalRuns;
-		end
 		
 	end % while ~breakLoop
 	
