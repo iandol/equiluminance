@@ -49,7 +49,7 @@ try
 	sM.distance = ana.distance;
 	sM.debug = ana.debug;
 	sM.blend = 1;
-	sM.bitDepth = 'FloatingPoint32BitIfPossible';
+	sM.bitDepth = ana.bitDepth;
 	sM.verbosityLevel = 4;
 	if exist(ana.gammaTable, 'file')
 		load(ana.gammaTable);
@@ -106,7 +106,7 @@ try
 	seq.nBlocks = ana.trialNumber;
 	seq.initialise();
 	ana.nTrials = seq.nRuns;
-	ana.onFrames = round(((1/ana.frequency) * sM.screenVals.fps)); % video frames for each color
+	ana.onFrames = round(((1/ana.frequency) * sM.screenVals.fps)) / 2; % video frames for each color
 	fprintf('--->>> runIsoluminant # Trials: %i; # Frames Flip: %i; FPS: %i \n',seq.nRuns, ana.onFrames, sM.screenVals.fps);
 	WaitSecs('YieldSecs',0.25);
 	
@@ -118,10 +118,10 @@ try
 	eL.name = ana.nameExp;
 	eL.saveFile = [ana.nameExp '.edf'];
 	eL.recordData = true; %save EDF file
-	eL.sampleRate = 1000;
-	eL.remoteCalibration = true; % manual calibration?
+	eL.sampleRate = ana.sampleRate;
+	eL.remoteCalibration = ana.fixManual; % manual calibration?
 	eL.calibrationStyle = 'HV5'; % calibration style
-	eL.modify.calibrationtargetcolour = [1 0 0];
+	eL.modify.calibrationtargetcolour = ana.fixColour;
 	eL.modify.calibrationtargetsize = 1;
 	eL.modify.calibrationtargetwidth = 0.1;
 	eL.modify.waitformodereadytime = 500;
@@ -167,8 +167,8 @@ try
 		fprintf('===>>> runIsoluminant initiating fixation to start run...\n');
 		%syncTime(eL);
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
-			%drawCross(sM, 0.3, [1 0 0 1], ana.fixX, ana.fixY);
-            drawSpot(sM, 0.25, [1 1 1 1],ana.fixX, ana.fixY);
+			%drawCross(sM, 0.3, ana.fixColour, ana.fixX, ana.fixY);
+            drawSpot(sM, 0.25, ana.fixColour,ana.fixX, ana.fixY);
             drawPhotoDiodeSquare(sM,[0 0 0 1]);
 			getSample(eL);
 			fixated=testSearchHoldFixation(eL,'fix','breakfix');
@@ -257,8 +257,8 @@ try
 			circle2.draw(); %background circle draw first!
 			circle1.draw();
 			
-			%drawCross(sM, 0.3, [1 0 0 1], ana.fixX, ana.fixY);
-            drawSpot(sM, 0.25, [1 1 1 1],ana.fixX, ana.fixY);
+			%drawCross(sM, 0.3, ana.fixColour, ana.fixX, ana.fixY);
+            drawSpot(sM, 0.25, ana.fixColour, ana.fixX, ana.fixY);
             drawPhotoDiodeSquare(sM,[1 1 1 1]);
 			finishDrawing(sM);
 			
@@ -280,7 +280,7 @@ try
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		
 		tEnd=Screen('Flip',sM.win);
-		
+		trackerMessage(eL,'END_RT');
 		ana.trial(seq.totalRuns).pupil = thisPupil;
 		ana.trial(seq.totalRuns).totalFrames = ii-1;
 		
@@ -288,20 +288,23 @@ try
 		if ~strcmpi(fixated,'fix')
 			fprintf('===>>> BROKE FIXATION Trial = %i (%i secs)\n\n', seq.totalRuns, tEnd-tStart);
 			statusMessage(eL,'Subject Broke Fixation!');
+			stopRecording(eL);
 			trackerMessage(eL,'TRIAL_RESULT -1');
 			trackerMessage(eL,'MSG:BreakFix');
-			resetFixation(eL);
-			stopRecording(eL);
 			setOffline(eL);
+			resetFixation(eL);
             WaitSecs('YieldSecs',ana.trialInterval)
 		else
 			fprintf('===>>> SUCCESS: Trial = %i (%i secs)\n\n', seq.totalRuns, tEnd-tStart);
-            if ana.sendReward; rM.timedTTL(2,150); end
+            if ana.sendReward; rM.timedTTL(2,ana.rewardTime); end
 			ana.trial(seq.totalRuns).success = true;
-            WaitSecs('YieldSecs',ana.trialInterval)
-            stopRecording(eL);
+			statusMessage(eL,'CORRECT!');trackerMessage(eL,'MSG:Correct');
+			trackerClearScreen(eL);
+            WaitSecs('YieldSecs',ana.trialInterval);
+			stopRecording(eL);
 			trackerMessage(eL,'TRIAL_RESULT 1');
 			setOffline(eL);
+			resetFixation(eL);
             updatePlot(seq.totalRuns);
 			updateTask(seq,true); %updates our current run number
 			iii = seq.totalRuns;
@@ -361,11 +364,12 @@ try
 		save([ana.nameExp '.mat'],'ana', 'seq', 'eL', 'sM', 'tL');
 	end
 	if IsWin	
-		tL.printRunLog;
+		%tL.printRunLog;
 	end
 	clear ana seq eL sM tL
 
 catch ME
+	assignin('base','ana',ana)
 	if exist('eL','var'); close(eL); end
 	if exist('sM','var'); close(sM); end
 	ListenChar(0);ShowCursor;Priority(0);Screen('CloseAll');
