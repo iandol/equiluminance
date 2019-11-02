@@ -16,22 +16,28 @@ classdef pupilPower < analysisCore
 		%> normalise the plots of power vs luminance?
 		normalisePowerPlots logical = true
 		%> color map to use
-		colorMap = 'jet';
+		colorMap char = 'jet';
 		%> actual R G B luminance maxima, if [1 1 1] then use 0<->1
 		%> floating point range
-		maxLuminances = [1 1 1]
+		maxLuminances double = [1 1 1]
 		%> smooth the pupil data?
 		smoothPupil logical = true;
 		%> smoothing window in milliseconds
-		smoothWindow = 30;
+		smoothWindow double = 30;
 		%> smooth method
-		smoothMethod = 'gaussian'
+		smoothMethod char = 'gaussian'
 		%> draw error bars on raw pupil plots
 		drawError logical = true
 		%> error bars
-		error = 'SE';
+		error char = 'SE';
 		%> downsample raw pupil for plotting only (every N points)
-		downSample = 20;
+		downSample double = 20;
+	end
+	
+	properties (Hidden = true)
+		%> actual R G B luminance maxima, if [1 1 1] then use 0<->1
+		%> floating point range
+		defLuminances double = [1 1 1]
 	end
 	
 	%------------------VISIBLE PROPERTIES----------%
@@ -236,8 +242,8 @@ classdef pupilPower < analysisCore
 			xlabel('Time (s)')
 			ylabel('Diameter')
 			if me.normaliseBaseline
-				title(['Normalised Pupil  (' num2str(me.baselineWindow,'%.2f ')...
-					') | Trials = ' num2str(me.metadata.ana.trialNumber) ' | Subject = ' me.metadata.ana.subject]);
+				title(['Normalised Pupil  (baseline:' num2str(me.baselineWindow,'%.2f ')...
+					'secs) | Trials = ' num2str(me.metadata.ana.trialNumber) ' | Subject = ' me.metadata.ana.subject]);
 			else
 				title(['Raw Pupil | Trials = ' num2str(me.metadata.ana.trialNumber) ' | Subject = ' me.metadata.ana.subject])
 			end
@@ -280,7 +286,7 @@ classdef pupilPower < analysisCore
 			end
 			line([me.metadata.ana.frequency me.metadata.ana.frequency],[ax2.YLim(1) ax2.YLim(2)],...
 				'Color',[0.3 0.3 0.3 0.5],'linestyle',':','LineWidth',2);
-			title(['FFT Power (T=' num2str(me.measureRange,'%.2f ') ' F = ' num2str(me.metadata.ana.frequency) ')'])
+			title(['FFT Power (measure range=' num2str(me.measureRange,'%.2f ') 'secs) | F = ' num2str(me.metadata.ana.frequency) ')'])
 			
 			box on; grid on;
 			ax2.FontSize = 8;
@@ -304,6 +310,9 @@ classdef pupilPower < analysisCore
 				m = me.meanPowerValues;
 				e = me.varPowerValues;
 			end
+			idx = find(m==min(m));
+			minC = trlColors(idx);
+			ratio = fixColor / minC;
 			PL4 = areabar(trlColors,m,e,[0.7 0.2 0.2],'Color',[0.7 0.2 0.2],'LineWidth',1);
 			PL4.plot.DataTipTemplate.DataTipRows(1).Label = 'Time';
 			PL4.plot.DataTipTemplate.DataTipRows(2).Label = 'Power';
@@ -328,8 +337,9 @@ classdef pupilPower < analysisCore
 			else
 				ylabel('Power')
 			end
+			tit = sprintf('%s | Min = %.2f & Ratio = %.2f', tit, minC, ratio);
 			title(tit);
-			legend([PL3.plot,PL4.plot,PL5],{'0H','1H','.Prod'},...
+			legend([PL3.plot,PL4.plot,PL5],{'H0','H1','H0.*H1'},...
 				'Location','bestoutside','FontSize',5,'Position',[0.9125 0.2499 0.0816 0.0735])
 			box on; grid on;
 			
@@ -345,6 +355,13 @@ classdef pupilPower < analysisCore
 			drawnow;
 			figure(handles.h2);
 			
+		end
+		
+		function save(me, file)
+			
+			me.pupilData.removeRawData();
+			save(file,'me','-v7.3')
+
 		end
 		
 	end
@@ -363,12 +380,6 @@ classdef pupilPower < analysisCore
 			if ~exist('force','var') || isempty(force); force = false; end
 			if me.isLoaded && ~force; return; end
 			try
-				if ~isempty(me.fileName)
-					me.pupilData=eyelinkAnalysis('file',me.fileName,'dir',me.rootDirectory);
-				else
-					me.pupilData=eyelinkAnalysis;
-				end
-				parseSimple(me.pupilData);
 				[~,fn] = fileparts(me.pupilData.file);
 				me.metadata = load([me.pupilData.dir,filesep,fn,'.mat']); %load .mat of same filename with .edf
 				if isa(me.metadata.sM.gammaTable,'calibrateLuminance') && ~isempty(me.metadata.sM.gammaTable)
@@ -380,7 +391,19 @@ classdef pupilPower < analysisCore
 					me.maxLuminances(1) = l(2).in(end);
 					me.maxLuminances(2) = l(3).in(end);
 					me.maxLuminances(1) = l(4).in(end);
+				else
+					me.maxLuminances = me.defLuminances;
 				end
+				if ~isempty(me.fileName)
+					me.pupilData=eyelinkAnalysis('file',me.fileName,'dir',me.rootDirectory);
+				else
+					me.pupilData=eyelinkAnalysis;
+				end
+				me.pupilData.pixelsPerCm = me.metadata.sM.pixelsPerCm;
+				me.pupilData.distance = me.metadata.sM.distance;
+				fprintf('\n<strong>--->>></strong> LOADING raw EDF data: \n')
+				parseSimple(me.pupilData);
+				me.pupilData.removeRawData();
 				me.isLoaded = true;
 			catch ME
 				getReport(ME);
