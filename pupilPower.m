@@ -66,6 +66,8 @@ classdef pupilPower < analysisCore
 	
 	%------------------PRIVATE PROPERTIES----------%
 	properties (SetAccess = private, GetAccess = private)
+		%> raw data removed, cannot reparse from EDF events.
+		isRawDataRemoved logical = false
 		%> allowed properties passed to object upon construction, see parseArgs
 		allowedProperties char = ['fileName|pupilData|normaliseBaseline|normalisePowerPlots|error|colormap|'...
 		'maxLuminances|smoothPupil|smoothMethod|drawError|downSample']
@@ -73,7 +75,7 @@ classdef pupilPower < analysisCore
 	
 	%=======================================================================
 	methods
-		%=======================================================================
+	%=======================================================================
 		
 		% =========false==========================================================
 		%> @brief
@@ -223,6 +225,10 @@ classdef pupilPower < analysisCore
 				end
 				
 				idx = t >= me.measureRange(1) & t <= me.measureRange(2);
+				
+				if me.detrend
+					p = p - mean(p(idx));
+				end
 				maxp = max([maxp max(p(idx))]);
 				minp = min([minp min(p(idx))]);
 				
@@ -380,6 +386,11 @@ classdef pupilPower < analysisCore
 			if ~exist('force','var') || isempty(force); force = false; end
 			if me.isLoaded && ~force; return; end
 			try
+				if ~isempty(me.fileName)
+					me.pupilData=eyelinkAnalysis('file',me.fileName,'dir',me.rootDirectory);
+				else
+					me.pupilData=eyelinkAnalysis;
+				end
 				[~,fn] = fileparts(me.pupilData.file);
 				me.metadata = load([me.pupilData.dir,filesep,fn,'.mat']); %load .mat of same filename with .edf
 				if isa(me.metadata.sM.gammaTable,'calibrateLuminance') && ~isempty(me.metadata.sM.gammaTable)
@@ -394,16 +405,11 @@ classdef pupilPower < analysisCore
 				else
 					me.maxLuminances = me.defLuminances;
 				end
-				if ~isempty(me.fileName)
-					me.pupilData=eyelinkAnalysis('file',me.fileName,'dir',me.rootDirectory);
-				else
-					me.pupilData=eyelinkAnalysis;
-				end
 				me.pupilData.pixelsPerCm = me.metadata.sM.pixelsPerCm;
 				me.pupilData.distance = me.metadata.sM.distance;
 				fprintf('\n<strong>--->>></strong> LOADING raw EDF data: \n')
 				parseSimple(me.pupilData);
-				me.pupilData.removeRawData();
+				me.pupilData.removeRawData();me.isRawDataRemoved=true;
 				me.isLoaded = true;
 			catch ME
 				getReport(ME);
