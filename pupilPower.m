@@ -84,7 +84,7 @@ classdef pupilPower < analysisCore
 		%> @return
 		% ===================================================================
 		function me = pupilPower(varargin)
-			defaults.measureRange = [0.25 3.65];
+			defaults.measureRange = [0.72 3.57];
 			defaults.baselineWindow = [-0.2 0.2];
 			defaults.plotRange = [];
 			varargin = optickaCore.addDefaults(varargin,defaults);
@@ -166,25 +166,29 @@ classdef pupilPower < analysisCore
 			handles.h1=figure;figpos(1,[1000 625]);set(handles.h1,'Color',[1 1 1],'NumberTitle','off',...
 				'Name',['pupilPower: ' me.pupilData.file]);
 			set(handles.h1,'Papertype','a4','PaperUnits','centimeters','PaperOrientation','landscape','Renderer','painters')
-			plotColor=zeros(1,3);
-			plotColor(1,tColor)=1;        %color of line in the plot
-			numVars = length(me.meanPowerValues);
-			traceColor = colormap(me.colorMap);
-			traceColor_step = floor(length(traceColor)/numVars);
-			trlColor(numVars+1,:)=trlColor(numVars,:);
+			plotColor				= zeros(1,3);
+			plotColor(1,tColor)		= 1;        %color of line in the plot
+			lineColor				= zeros(1,3);
+			lineColor(1,fColor)		= 1;
+			numVars					= length(me.meanPowerValues);
+			traceColor				= colormap(me.colorMap);
+			traceColor_step			= floor(length(traceColor)/numVars);
+			trlColor(numVars+1,:)	= trlColor(numVars,:);
 			PL = stairs(1:numVars+1, trlColor(:,tColor),'color',plotColor,'LineWidth',2);
 			PL.Parent.FontSize = 8;
 			PL.Parent.XTick = 1.5:1:numVars+0.5;
 			PL.Parent.XTickLabel = nms; 
 			PL.Parent.XTickLabelRotation = 30;
 			xlim([0.5 numVars+1.5])
+			ax = axis;
+			line([ax(1) ax(2)],[fixColor fixColor],'Color',lineColor,'Linewidth',2);
 			if max(me.maxLuminances) == 1
 				xlabel('Step (0 <-> 1)')
 			else
 				xlabel('Step (cd/m2)')
 			end
 			ylim([colorMin-step colorMax+step])
-			set(gca,'ytick',colorMin-step:2*step:colorMax+step)
+			%set(gca,'ytick',colorMin-step:2*step:colorMax+step)
 			ylabel('Luminance')
 			title(tit);
 			box on; grid on;
