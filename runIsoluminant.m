@@ -148,6 +148,8 @@ try
 	powerValuesV	= cell(1,seq.minBlocks);
 	breakLoop		= false;
 	ana.trial		= struct();
+	ana.nBreakInit	= 0;
+	ana.nBreakFix	= 0;
 	tick			= 1;
 	halfisi			= sM.screenVals.halfisi;
 	Priority(MaxPriority(sM.win));
@@ -200,7 +202,9 @@ try
 		ListenChar(0);
 		if strcmpi(fixated,'breakfix')
 			fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', seq.totalRuns);
+			ana.nBreakInit = ana.nBreakInit + 1;
 			statusMessage(eL,'Subject Broke Initial Fixation!');
+			trackerMessage(eL,'TRIAL_RESULT -100');
 			trackerMessage(eL,'MSG:BreakInitialFix');
 			resetFixation(eL);
 			stopRecording(eL);
@@ -287,6 +291,7 @@ try
 		% check if we lost fixation
 		if ~strcmpi(fixated,'fix')
 			fprintf('===>>> BROKE FIXATION Trial = %i (%i secs)\n\n', seq.totalRuns, tEnd-tStart);
+			ana.nBreakFix = ana.nBreakFix + 1;
 			statusMessage(eL,'Subject Broke Fixation!');
 			stopRecording(eL);
 			trackerMessage(eL,'TRIAL_RESULT -1');
@@ -306,7 +311,7 @@ try
 			setOffline(eL);
 			resetFixation(eL);
             updatePlot(seq.totalRuns);
-			updateTask(seq,true); %updates our current run number
+			updateTask(seq,true,tEnd-tStart,); %updates our current run number
 			iii = seq.totalRuns;
         end
         

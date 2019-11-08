@@ -229,10 +229,11 @@ classdef pupilPower < analysisCore
 				end
 				
 				idx = t >= me.measureRange(1) & t <= me.measureRange(2);
-				
 				if me.detrend
 					p = p - mean(p(idx));
 				end
+				
+				idx = t >= 0 & t <= 3.5;
 				maxp = max([maxp max(p(idx))]);
 				minp = min([minp min(p(idx))]);
 				
@@ -409,8 +410,12 @@ classdef pupilPower < analysisCore
 				else
 					me.maxLuminances = me.defLuminances;
 				end
+				
+				me.pupilData.plotRange = [-0.5 3.5];
+				me.pupilData.measureRange = me.measureRange;
 				me.pupilData.pixelsPerCm = me.metadata.sM.pixelsPerCm;
 				me.pupilData.distance = me.metadata.sM.distance;
+				
 				fprintf('\n<strong>--->>></strong> LOADING raw EDF data: \n')
 				parseSimple(me.pupilData);
 				me.pupilData.removeRawData();me.isRawDataRemoved=true;
