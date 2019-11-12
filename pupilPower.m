@@ -111,11 +111,11 @@ classdef pupilPower < analysisCore
 		%> @param
 		%> @return
 		% ===================================================================
-		function handles = run(me, force)
+		function [handles,data] = run(me, force)
 			if ~exist('force','var') || isempty(force); force = false; end
 			me.load(force);
 			me.calculate();
-			if me.doPlots; handles = me.plot(); end
+			if me.doPlots; [handles,data] = me.plot(); end
 		end
 		
 		% ===================================================================
@@ -124,60 +124,37 @@ classdef pupilPower < analysisCore
 		%> @param
 		%> @return
 		% ===================================================================
-		function handles = plot(me)
+		function [handles,data] = plot(me)
 			if ~me.isCalculated; return; end
-			fix = me.metadata.ana.colorFixed .* me.maxLuminances;
-			fColor=find(fix > 0); %get the position of not zero
-			switch fColor(1)
-				case 1
-					fixName = 'Red';
-				case 2
-					fixName = 'Green';
-				otherwise
-					fixName = 'Blue';
-			end
-			fixColor = fix(fColor);
-			cE = me.metadata.ana.colorEnd .* me.maxLuminances;
-			cS = me.metadata.ana.colorStart .* me.maxLuminances;
-			vColor=find(cE > 0); %get the position of not zero
-			switch vColor(1)
-				case 1
-					varName = 'Red';
-				case 2
-					varName = 'Green';
-				otherwise
-					varName = 'Blue';
-			end
-			vals = me.metadata.seq.nVar.values';
-			vals = cellfun(@(x) x .* me.maxLuminances, vals, 'UniformOutput', false);
-			tit = num2str(fix,'%.2f ');
-			tit = regexprep(tit,'0\.00','0');
-			tit = ['Fixed Colour (' fixName ') = ' tit ' | Variable Colour = ' varName];
-			colorChange= cE - cS;
-			tColor=find(colorChange~=0); %get the position of not zero
-			step=abs(colorChange(tColor)/me.metadata.ana.colorStep);
-			trlColor=cell2mat(vals);
-			trlColors = trlColor(:,tColor)';
-			nms = num2cell(trlColors);
-			nms = cellfun(@(x) num2str(x,'%.2f'), nms, 'UniformOutput', false);
-			colorMax=max(trlColor(:,tColor));
-			colorMin=min(trlColor(:,tColor));
+			
+			[fixColor,fixName,fColor,varColor,varName,tColor,trlColor,trlColors,...
+				tit,colourLabels,step,colorMin,colorMax] = makeColours(me);
+			
+			data.fixName = fixName;
+			data.varName = varName;
+			data.trlColors = trlColors;
 			
 			handles.h1=figure;figpos(1,[1000 625]);set(handles.h1,'Color',[1 1 1],'NumberTitle','off',...
-				'Name',['pupilPower: ' me.pupilData.file]);
-			set(handles.h1,'Papertype','a4','PaperUnits','centimeters','PaperOrientation','landscape','Renderer','painters')
-			plotColor				= zeros(1,3);
-			plotColor(1,tColor)		= 1;        %color of line in the plot
-			lineColor				= zeros(1,3);
-			lineColor(1,fColor)		= 1;
-			numVars					= length(me.meanPowerValues);
-			traceColor				= colormap(me.colorMap);
-			traceColor_step			= floor(length(traceColor)/numVars);
+				'Name',['pupilPower: ' me.pupilData.file],'Papertype','a4','PaperUnits','centimeters',...
+				'PaperOrientation','landscape','Renderer','painters');
+			switch varName
+				case 'Yellow'
+					plotColor = [0.75 0.75 0];
+				otherwise
+					plotColor = zeros(1,3);	plotColor(1,tColor)	= 0.8;
+			end
+			switch fixName
+				case 'Yellow'
+					lineColor = [0.75 0.758 0];
+				otherwise
+					lineColor = zeros(1,3);	lineColor(1,fColor)	= 0.8;
+			end
+			numVars	= length(colourLabels);
 			trlColor(numVars+1,:)	= trlColor(numVars,:);
 			PL = stairs(1:numVars+1, trlColor(:,tColor),'color',plotColor,'LineWidth',2);
 			PL.Parent.FontSize = 8;
 			PL.Parent.XTick = 1.5:1:numVars+0.5;
-			PL.Parent.XTickLabel = nms; 
+			PL.Parent.XTickLabel = colourLabels; 
 			PL.Parent.XTickLabelRotation = 30;
 			xlim([0.5 numVars+1.5])
 			ax = axis;
@@ -193,11 +170,13 @@ classdef pupilPower < analysisCore
 			title(tit);
 			box on; grid on;
 			
-			handles.h2=figure;figpos(1,[1900 1200]);set(handles.h2,'Color',[1 1 1],'NumberTitle','off',...
-				'Name',['pupilPower: ' me.pupilData.file]);
-			set(handles.h2,'Papertype','a4','PaperUnits','centimeters','PaperOrientation','landscape','Renderer','painters')
-			
+			handles.h2=figure;figpos(1,[0.9 0.9],[],'%');set(handles.h2,'Color',[1 1 1],'NumberTitle','off',...
+				'Name',['pupilPower: ' me.pupilData.file],'Papertype','a4','PaperUnits','centimeters',...
+				'PaperOrientation','landscape','Renderer','painters');
 			ax1 = subplot(311);
+			traceColor				= colormap(me.colorMap);
+			traceColor_step			= floor(length(traceColor)/numVars);
+			
 			f = round(me.metadata.ana.onFrames) * (1 / me.metadata.sM.screenVals.fps);
 			m = 1:2:31;
 			for i = 1 : floor(me.metadata.ana.trialDuration / f / 2)
@@ -239,17 +218,23 @@ classdef pupilPower < analysisCore
 				
 				if me.drawError
 					PL1 = areabar(t,p,e,traceColor(i*traceColor_step,:),...
-						'Color', traceColor(i*traceColor_step,:), 'LineWidth', 1,'DisplayName',nms{i});
+						'Color', traceColor(i*traceColor_step,:), 'LineWidth', 1,'DisplayName',colourLabels{i});
 					PL1.plot.DataTipTemplate.DataTipRows(1).Label = 'Time';
 					PL1.plot.DataTipTemplate.DataTipRows(2).Label = 'Power';
 				else
 					PL1 = plot(t,p,'color', traceColor(i*traceColor_step,:),...
-						'LineWidth', 1,'DisplayName',nms{i});
+						'LineWidth', 1,'DisplayName',colourLabels{i});
 					PL1.DataTipTemplate.DataTipRows(1).Label = 'Time';
 					PL1.DataTipTemplate.DataTipRows(2).Label = 'Power';
 				end %close(handles.h1);
 				
 			end
+			
+			line([me.measureRange(1) me.measureRange(1)],[minp maxp],...
+				'Color',[0.3 0.3 0.3 0.5],'linestyle',':','LineWidth',2);
+			line([me.measureRange(2) me.measureRange(2)],[minp maxp],...
+				'Color',[0.3 0.3 0.3 0.5],'linestyle',':','LineWidth',2);
+			
 			xlabel('Time (s)')
 			ylabel('Diameter')
 			if me.normaliseBaseline
@@ -264,11 +249,15 @@ classdef pupilPower < analysisCore
 			else
 				ylim([minp-(minp/100*2) maxp+(maxp/100*2)]);
 			end
-			legend(nms,'Location','bestoutside','FontSize',5,...
+			legend(colourLabels,'Location','bestoutside','FontSize',5,...
 				'Position',[0.9125 0.5673 0.0779 0.3550]);
 			box on; grid on;
 			ax1.XMinorGrid = 'on';
 			ax1.FontSize = 8;
+			
+			data.minPower = minp;
+			data.maxPower = maxp;
+			data.powerRange = maxp - minp;
 			
 			ax2 = subplot(312);
 			maxP = 0;
@@ -281,7 +270,7 @@ classdef pupilPower < analysisCore
 				P = P(idx);
 				maxP = max([maxP max(P)]);
 				PL2 = plot(F,P,'color', [traceColor(i*traceColor_step,:) 0.6],...
-					'Marker','o','DisplayName',nms{i},...
+					'Marker','o','DisplayName',colourLabels{i},...
 					'MarkerSize', 5,'MarkerFaceColor',traceColor(i*traceColor_step,:),...
 					'MarkerEdgeColor', 'none');	
 				PL2.DataTipTemplate.DataTipRows(1).Label = 'Frequency';
@@ -334,7 +323,7 @@ classdef pupilPower < analysisCore
 			PL5 = plot(trlColors,pr,'--','Color',[0.4 0.4 0.4],'LineWidth',2);
 			ax3.FontSize = 8;
 			ax3.XTick = trlColors;
-			ax3.XTickLabel = nms; 
+			ax3.XTickLabel = colourLabels; 
 			ax3.XTickLabelRotation = 30;
 			line([fixColor fixColor],[ax3.YLim(1) ax3.YLim(2)],...
 				'lineStyle',':','Color',[0.3 0.3 0.3 0.5],'linewidth',2)
@@ -354,6 +343,9 @@ classdef pupilPower < analysisCore
 				'Location','bestoutside','FontSize',5,'Position',[0.9125 0.2499 0.0816 0.0735])
 			box on; grid on;
 			
+			data.minColor = minC;
+			data.ratio = ratio;
+			
 			handles.ax1 = ax1;
 			handles.ax2 = ax2;
 			handles.ax3 = ax3;
@@ -371,15 +363,71 @@ classdef pupilPower < analysisCore
 		function save(me, file)
 			
 			me.pupilData.removeRawData();
-			save(file,'me','-v7.3')
+			save(file,'me','-v7.3');
 
 		end
-		
+	
+	
+		function [fixColor,fixName,fColor,varColor,varName,tColor,trlColor,...
+				trlColors,tit,colourLabels,step,colorMin,colorMax] = makeColours(me,fc,cs,ce,vals)
+			if ~exist('fc','var') || isempty(fc); fc = me.metadata.ana.colorFixed; end
+			if ~exist('cs','var') || isempty(cs); cs = me.metadata.ana.colorStart; end
+			if ~exist('ce','var') || isempty(ce); ce = me.metadata.ana.colorEnd; end
+			if ~exist('vals','var') || isempty(vals); vals = me.metadata.seq.nVar.values'; end
+			
+			cNames = {'Red';'Green';'Blue';'Yellow';'Cyan';'Purple'};
+			fix = fc .* me.maxLuminances;
+			fColor=find(fix > 0); %get the position of not zero
+			if all([1 2] == fColor); fColor = 4; end
+			fixName = cNames{fColor};
+			switch fixName
+				case 'Yellow'
+					fixColor = fix(1) + fix(2);
+				otherwise
+					fixColor = fix(fColor);
+			end
+			
+			cE = ce .* me.maxLuminances;
+			cS = cs .* me.maxLuminances;
+			vColor=find(cE > 0); %get the position of not zero
+			if all([1 2] == vColor); vColor = 4; end
+			varName = cNames{vColor};
+			switch varName
+				case 'Yellow'
+					varColor = cS(1) + cS(2);
+				otherwise
+					varColor = cS(vColor);
+			end
+
+			vals = cellfun(@(x) x .* me.maxLuminances, vals, 'UniformOutput', false);
+			tit = num2str(fix,'%.2f ');
+			tit = regexprep(tit,'0\.00','0');
+			tit = ['Fixed Colour (' fixName ') = ' tit ' | Variable Colour = ' varName];
+			colorChange= cE - cS;
+			tColor=find(colorChange~=0); %get the position of not zero
+			step=abs(colorChange(tColor)/me.metadata.ana.colorStep);
+			trlColor=cell2mat(vals);
+			switch varName
+				case 'Yellow'
+					trlColors = trlColor(:,1)' + trlColor(:,2)';
+					colorMin = min(trlColor(:,1)) + min(trlColor(:,2));
+					colorMin = max(trlColor(:,1)) + max(trlColor(:,2));
+				otherwise
+					trlColors = trlColor(:,tColor)';
+					colorMax=max(trlColor(:,tColor));
+					colorMin=min(trlColor(:,tColor));
+			end
+			
+			colourLabels = num2cell(trlColors);
+			colourLabels = cellfun(@(x) num2str(x,'%.2f'), colourLabels, 'UniformOutput', false);
+			
+		end
 	end
+	
 	
 	%=======================================================================
 	methods (Access = protected) %------------------PRIVATE METHODS
-		%=======================================================================
+	%=======================================================================
 		
 		% ===================================================================
 		%> @brief
@@ -406,7 +454,7 @@ classdef pupilPower < analysisCore
 					end
 					me.maxLuminances(1) = l(2).in(end);
 					me.maxLuminances(2) = l(3).in(end);
-					me.maxLuminances(1) = l(4).in(end);
+					me.maxLuminances(3) = l(4).in(end);
 				else
 					me.maxLuminances = me.defLuminances;
 				end
