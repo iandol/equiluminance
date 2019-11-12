@@ -311,7 +311,7 @@ try
 			setOffline(eL);
 			resetFixation(eL);
             updatePlot(seq.totalRuns);
-			updateTask(seq,true,tEnd-tStart,); %updates our current run number
+			updateTask(seq,true,tEnd-tStart); %updates our current run number
 			iii = seq.totalRuns;
         end
         

@@ -189,10 +189,8 @@ classdef pupilPower < analysisCore
 				t = me.meanTimes{i};
 				p = me.meanPupil{i};
 				e = me.varPupil{i};
-				idx = t >= -1;
-				t = t(idx);
-				p = p(idx);
-				e = e(idx);
+				
+				if isempty(t); continue; end
 				
 				if me.normaliseBaseline
 					idx = t >= me.baselineWindow(1) & t <= me.baselineWindow(2);
@@ -216,17 +214,19 @@ classdef pupilPower < analysisCore
 				maxp = max([maxp max(p(idx))]);
 				minp = min([minp min(p(idx))]);
 				
-				if me.drawError
-					PL1 = areabar(t,p,e,traceColor(i*traceColor_step,:),...
-						'Color', traceColor(i*traceColor_step,:), 'LineWidth', 1,'DisplayName',colourLabels{i});
-					PL1.plot.DataTipTemplate.DataTipRows(1).Label = 'Time';
-					PL1.plot.DataTipTemplate.DataTipRows(2).Label = 'Power';
-				else
-					PL1 = plot(t,p,'color', traceColor(i*traceColor_step,:),...
-						'LineWidth', 1,'DisplayName',colourLabels{i});
-					PL1.DataTipTemplate.DataTipRows(1).Label = 'Time';
-					PL1.DataTipTemplate.DataTipRows(2).Label = 'Power';
-				end %close(handles.h1);
+				if ~isempty(p)
+					if me.drawError
+						PL1 = areabar(t,p,e,traceColor(i*traceColor_step,:),...
+							'Color', traceColor(i*traceColor_step,:), 'LineWidth', 1,'DisplayName',nms{i});
+						PL1.plot.DataTipTemplate.DataTipRows(1).Label = 'Time';
+						PL1.plot.DataTipTemplate.DataTipRows(2).Label = 'Power';
+					else
+						PL1 = plot(t,p,'color', traceColor(i*traceColor_step,:),...
+							'LineWidth', 1,'DisplayName',nms{i});
+						PL1.DataTipTemplate.DataTipRows(1).Label = 'Time';
+						PL1.DataTipTemplate.DataTipRows(2).Label = 'Power';
+					end 
+				end
 				
 			end
 			
