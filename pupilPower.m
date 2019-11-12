@@ -69,7 +69,7 @@ classdef pupilPower < analysisCore
 		%> raw data removed, cannot reparse from EDF events.
 		isRawDataRemoved logical = false
 		%> allowed properties passed to object upon construction, see parseArgs
-		allowedProperties char = ['fileName|pupilData|normaliseBaseline|normalisePowerPlots|error|colormap|'...
+		allowedProperties char = ['defLuminances|fileName|pupilData|normaliseBaseline|normalisePowerPlots|error|colormap|'...
 		'maxLuminances|smoothPupil|smoothMethod|drawError|downSample']
 	end
 	
@@ -128,7 +128,7 @@ classdef pupilPower < analysisCore
 			if ~me.isCalculated; return; end
 			
 			[fixColor,fixName,fColor,varColor,varName,tColor,trlColor,trlColors,...
-				tit,colourLabels,step,colorMin,colorMax] = makeColours(me);
+				tit,colorLabels,step,colorMin,colorMax] = makecolors(me);
 			
 			data.fixName = fixName;
 			data.varName = varName;
@@ -139,22 +139,23 @@ classdef pupilPower < analysisCore
 				'PaperOrientation','landscape','Renderer','painters');
 			switch varName
 				case 'Yellow'
-					plotColor = [0.75 0.75 0];
+					plotColor = [0.8 0.8 0];
 				otherwise
 					plotColor = zeros(1,3);	plotColor(1,tColor)	= 0.8;
 			end
 			switch fixName
 				case 'Yellow'
-					lineColor = [0.75 0.758 0];
+					lineColor = [0.8 0.8 0];
 				otherwise
 					lineColor = zeros(1,3);	lineColor(1,fColor)	= 0.8;
 			end
-			numVars	= length(colourLabels);
-			trlColor(numVars+1,:)	= trlColor(numVars,:);
-			PL = stairs(1:numVars+1, trlColor(:,tColor),'color',plotColor,'LineWidth',2);
+			numVars	= length(colorLabels);
+			csteps = trlColors;
+			csteps(numVars+1) = csteps(numVars);
+			PL = stairs(1:numVars+1, csteps, 'Color',plotColor,'LineWidth',2);
 			PL.Parent.FontSize = 8;
 			PL.Parent.XTick = 1.5:1:numVars+0.5;
-			PL.Parent.XTickLabel = colourLabels; 
+			PL.Parent.XTickLabel = colorLabels; 
 			PL.Parent.XTickLabelRotation = 30;
 			xlim([0.5 numVars+1.5])
 			ax = axis;
@@ -162,11 +163,11 @@ classdef pupilPower < analysisCore
 			if max(me.maxLuminances) == 1
 				xlabel('Step (0 <-> 1)')
 			else
-				xlabel('Step (cd/m2)')
+				xlabel('Step (cd/m^2)')
 			end
-			ylim([colorMin-step colorMax+step])
+			ylim([colorMin-5 colorMax+5])
 			%set(gca,'ytick',colorMin-step:2*step:colorMax+step)
-			ylabel('Luminance')
+			ylabel('Luminance (cd/m^2)')
 			title(tit);
 			box on; grid on;
 			
@@ -194,7 +195,7 @@ classdef pupilPower < analysisCore
 				
 				if me.normaliseBaseline
 					idx = t >= me.baselineWindow(1) & t <= me.baselineWindow(2);
-					mn = median(p(idx));
+					mn = mean(p(idx));
 					p = p - mn;
 				end
 				
@@ -217,12 +218,12 @@ classdef pupilPower < analysisCore
 				if ~isempty(p)
 					if me.drawError
 						PL1 = areabar(t,p,e,traceColor(i*traceColor_step,:),...
-							'Color', traceColor(i*traceColor_step,:), 'LineWidth', 1,'DisplayName',nms{i});
+							'Color', traceColor(i*traceColor_step,:), 'LineWidth', 1,'DisplayName',colorLabels{i});
 						PL1.plot.DataTipTemplate.DataTipRows(1).Label = 'Time';
 						PL1.plot.DataTipTemplate.DataTipRows(2).Label = 'Power';
 					else
 						PL1 = plot(t,p,'color', traceColor(i*traceColor_step,:),...
-							'LineWidth', 1,'DisplayName',nms{i});
+							'LineWidth', 1,'DisplayName',colorLabels{i});
 						PL1.DataTipTemplate.DataTipRows(1).Label = 'Time';
 						PL1.DataTipTemplate.DataTipRows(2).Label = 'Power';
 					end 
@@ -243,13 +244,13 @@ classdef pupilPower < analysisCore
 			else
 				title(['Raw Pupil | Trials = ' num2str(me.metadata.ana.trialNumber) ' | Subject = ' me.metadata.ana.subject])
 			end
-			xlim([-0.05 me.measureRange(2)+0.05]);
-			if minp < 0
+			xlim([-0.05 me.measureRange(2)+0.05]);if minp == 0;minp = -1;end;if maxp==0;maxp = 1; end
+			if minp <= 0
 				ylim([minp+(minp/100*2) maxp+(maxp/100*2)]);
 			else
 				ylim([minp-(minp/100*2) maxp+(maxp/100*2)]);
 			end
-			legend(colourLabels,'Location','bestoutside','FontSize',5,...
+			legend(colorLabels,'Location','bestoutside','FontSize',5,...
 				'Position',[0.9125 0.5673 0.0779 0.3550]);
 			box on; grid on;
 			ax1.XMinorGrid = 'on';
@@ -270,13 +271,14 @@ classdef pupilPower < analysisCore
 				P = P(idx);
 				maxP = max([maxP max(P)]);
 				PL2 = plot(F,P,'color', [traceColor(i*traceColor_step,:) 0.6],...
-					'Marker','o','DisplayName',colourLabels{i},...
+					'Marker','o','DisplayName',colorLabels{i},...
 					'MarkerSize', 5,'MarkerFaceColor',traceColor(i*traceColor_step,:),...
 					'MarkerEdgeColor', 'none');	
 				PL2.DataTipTemplate.DataTipRows(1).Label = 'Frequency';
 				PL2.DataTipTemplate.DataTipRows(2).Label = 'Power';
 			end
 			xlim([-0.1 floor(me.metadata.ana.frequency*3)]);
+			if maxP==0; maxP=1; end
 			ylim([0 maxP+(maxP/20)]);
 			xlabel('Frequency (Hz)');
 			ylabel('Power');
@@ -301,8 +303,10 @@ classdef pupilPower < analysisCore
 				e0 = me.varPowerValues0;
 			end
 			PL3 = areabar(trlColors,m0,e0,[0.3 0.3 0.6],'Color',[0.3 0.3 0.6],'LineWidth',1);
-			PL3.plot.DataTipTemplate.DataTipRows(1).Label = 'Time';
-			PL3.plot.DataTipTemplate.DataTipRows(2).Label = 'Power';
+			try
+				PL3.plot.DataTipTemplate.DataTipRows(1).Label = 'Time';
+				PL3.plot.DataTipTemplate.DataTipRows(2).Label = 'Power';
+			end
 			if me.normalisePowerPlots
 				m = me.meanPowerValues / max(me.meanPowerValues);
 				e = me.varPowerValues / max(me.meanPowerValues);
@@ -310,41 +314,47 @@ classdef pupilPower < analysisCore
 				m = me.meanPowerValues;
 				e = me.varPowerValues;
 			end
-			idx = find(m==min(m));
-			minC = trlColors(idx);
-			ratio = fixColor / minC;
-			PL4 = areabar(trlColors,m,e,[0.7 0.2 0.2],'Color',[0.7 0.2 0.2],'LineWidth',1);
-			PL4.plot.DataTipTemplate.DataTipRows(1).Label = 'Time';
-			PL4.plot.DataTipTemplate.DataTipRows(2).Label = 'Power';
-			pr = (m .* m0);
-			mx = max([max(m) max(m0)]);
-			mn = min([min(m) min(m0)]);
-			pr = (pr / max(pr)) * mx;
-			PL5 = plot(trlColors,pr,'--','Color',[0.4 0.4 0.4],'LineWidth',2);
-			ax3.FontSize = 8;
-			ax3.XTick = trlColors;
-			ax3.XTickLabel = colourLabels; 
-			ax3.XTickLabelRotation = 30;
-			line([fixColor fixColor],[ax3.YLim(1) ax3.YLim(2)],...
-				'lineStyle',':','Color',[0.3 0.3 0.3 0.5],'linewidth',2)
-			if max(me.maxLuminances) == 1
-				xlabel('LuminanceStep (0 <-> 1)')
+			if ~any(isnan(m))
+				idx = find(m==min(m));
+				minC = trlColors(idx);
+				ratio = fixColor / minC;
+				PL4 = areabar(trlColors,m,e,[0.7 0.2 0.2],'Color',[0.7 0.2 0.2],'LineWidth',1);
+				try
+					PL4.plot.DataTipTemplate.DataTipRows(1).Label = 'Time';
+					PL4.plot.DataTipTemplate.DataTipRows(2).Label = 'Power';
+				end
+				pr = (m .* m0);
+				mx = max([max(m) max(m0)]);
+				mn = min([min(m) min(m0)]);
+				pr = (pr / max(pr)) * mx;
+				PL5 = plot(trlColors,pr,'--','Color',[0.4 0.4 0.4],'LineWidth',2);
+				ax3.FontSize = 8;
+				ax3.XTick = trlColors;
+				ax3.XTickLabel = colorLabels; 
+				ax3.XTickLabelRotation = 30;
+				line([fixColor fixColor],[ax3.YLim(1) ax3.YLim(2)],...
+					'lineStyle',':','Color',[0.3 0.3 0.3 0.5],'linewidth',2)
+				if max(me.maxLuminances) == 1
+					xlabel('LuminanceStep (0 <-> 1)')
+				else
+					xlabel('Luminance Step (cd/m^2)')
+				end
+				if me.normalisePowerPlots
+					ylabel('Normalised Power')
+				else
+					ylabel('Power')
+				end
+				tit = sprintf('%s | Min = %.2f & Ratio = %.2f', tit, minC, ratio);
+				title(tit);
+				legend([PL3.plot,PL4.plot,PL5],{'H0','H1','H0.*H1'},...
+					'Location','bestoutside','FontSize',5,'Position',[0.9125 0.2499 0.0816 0.0735])
+				box on; grid on;
+				data.minColor = minC;
+				data.ratio = ratio;
 			else
-				xlabel('Luminance Step (cd/m2)')
+				data.minColor = 0;
+				data.ratio = 0;
 			end
-			if me.normalisePowerPlots
-				ylabel('Normalised Power')
-			else
-				ylabel('Power')
-			end
-			tit = sprintf('%s | Min = %.2f & Ratio = %.2f', tit, minC, ratio);
-			title(tit);
-			legend([PL3.plot,PL4.plot,PL5],{'H0','H1','H0.*H1'},...
-				'Location','bestoutside','FontSize',5,'Position',[0.9125 0.2499 0.0816 0.0735])
-			box on; grid on;
-			
-			data.minColor = minC;
-			data.ratio = ratio;
 			
 			handles.ax1 = ax1;
 			handles.ax2 = ax2;
@@ -352,9 +362,10 @@ classdef pupilPower < analysisCore
 			handles.Pl1 = PL1;
 			handles.PL2 = PL2;
 			handles.PL3 = PL3;
-			handles.PL4 = PL4;
-			handles.PL5 = PL5;
-			
+			if exist('PL4','var')
+				handles.PL4 = PL4;
+				handles.PL5 = PL5;
+			end
 			drawnow;
 			figure(handles.h2);
 			
@@ -369,7 +380,7 @@ classdef pupilPower < analysisCore
 	
 	
 		function [fixColor,fixName,fColor,varColor,varName,tColor,trlColor,...
-				trlColors,tit,colourLabels,step,colorMin,colorMax] = makeColours(me,fc,cs,ce,vals)
+				trlColors,tit,colorLabels,step,colorMin,colorMax] = makecolors(me,fc,cs,ce,vals)
 			if ~exist('fc','var') || isempty(fc); fc = me.metadata.ana.colorFixed; end
 			if ~exist('cs','var') || isempty(cs); cs = me.metadata.ana.colorStart; end
 			if ~exist('ce','var') || isempty(ce); ce = me.metadata.ana.colorEnd; end
@@ -402,7 +413,7 @@ classdef pupilPower < analysisCore
 			vals = cellfun(@(x) x .* me.maxLuminances, vals, 'UniformOutput', false);
 			tit = num2str(fix,'%.2f ');
 			tit = regexprep(tit,'0\.00','0');
-			tit = ['Fixed Colour (' fixName ') = ' tit ' | Variable Colour = ' varName];
+			tit = ['Fixed color (' fixName ') = ' tit ' | Variable color = ' varName];
 			colorChange= cE - cS;
 			tColor=find(colorChange~=0); %get the position of not zero
 			step=abs(colorChange(tColor)/me.metadata.ana.colorStep);
@@ -411,15 +422,15 @@ classdef pupilPower < analysisCore
 				case 'Yellow'
 					trlColors = trlColor(:,1)' + trlColor(:,2)';
 					colorMin = min(trlColor(:,1)) + min(trlColor(:,2));
-					colorMin = max(trlColor(:,1)) + max(trlColor(:,2));
+					colorMax = max(trlColor(:,1)) + max(trlColor(:,2));
 				otherwise
 					trlColors = trlColor(:,tColor)';
 					colorMax=max(trlColor(:,tColor));
 					colorMin=min(trlColor(:,tColor));
 			end
 			
-			colourLabels = num2cell(trlColors);
-			colourLabels = cellfun(@(x) num2str(x,'%.2f'), colourLabels, 'UniformOutput', false);
+			colorLabels = num2cell(trlColors);
+			colorLabels = cellfun(@(x) num2str(x,'%.2f'), colorLabels, 'UniformOutput', false);
 			
 		end
 	end
