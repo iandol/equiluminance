@@ -149,6 +149,10 @@ classdef pupilPower < analysisCore
 				otherwise
 					lineColor = zeros(1,3);	lineColor(1,fColor)	= 0.8;
 			end
+			pCorrect = (length(me.pupilData.correct.idx)/length(me.pupilData.trials))*100;
+			t2 = sprintf(' | %i / %i = %.2f%%',...
+				length(me.pupilData.correct.idx),length(me.pupilData.trials), ...
+				pCorrect);
 			numVars	= length(colorLabels);
 			csteps = trlColors;
 			csteps(numVars+1) = csteps(numVars);
@@ -165,10 +169,10 @@ classdef pupilPower < analysisCore
 			else
 				xlabel('Step (cd/m^2)')
 			end
-			ylim([colorMin-5 colorMax+5])
+			ylim([colorMin-step(1) colorMax+step(1)])
 			%set(gca,'ytick',colorMin-step:2*step:colorMax+step)
 			ylabel('Luminance (cd/m^2)')
-			title(tit);
+			title([tit t2]);
 			box on; grid on;
 			
 			handles.h2=figure;figpos(1,[0.9 0.9],[],'%');set(handles.h2,'Color',[1 1 1],'NumberTitle','off',...
@@ -239,10 +243,9 @@ classdef pupilPower < analysisCore
 			xlabel('Time (s)')
 			ylabel('Diameter')
 			if me.normaliseBaseline
-				title(['Normalised Pupil  (baseline:' num2str(me.baselineWindow,'%.2f ')...
-					'secs) | Trials = ' num2str(me.metadata.ana.trialNumber) ' | Subject = ' me.metadata.ana.subject]);
+				title(['Normalised Pupil: # Trials = ' num2str(me.metadata.ana.trialNumber) ' | Subject = ' me.metadata.ana.subject  ' | baseline = ' num2str(me.baselineWindow,'%.2f ') 'secs']);
 			else
-				title(['Raw Pupil | Trials = ' num2str(me.metadata.ana.trialNumber) ' | Subject = ' me.metadata.ana.subject])
+				title(['Raw Pupil: # Trials = ' num2str(me.metadata.ana.trialNumber) ' | Subject = ' me.metadata.ana.subject])
 			end
 			xlim([-0.05 me.measureRange(2)+0.05]);if minp == 0;minp = -1;end;if maxp==0;maxp = 1; end
 			if minp <= 0
@@ -288,7 +291,7 @@ classdef pupilPower < analysisCore
 			end
 			line([me.metadata.ana.frequency me.metadata.ana.frequency],[ax2.YLim(1) ax2.YLim(2)],...
 				'Color',[0.3 0.3 0.3 0.5],'linestyle',':','LineWidth',2);
-			title(['FFT Power (measure range=' num2str(me.measureRange,'%.2f ') 'secs) | F = ' num2str(me.metadata.ana.frequency) ')'])
+			title(['FFT Power: measure range = ' num2str(me.measureRange,'%.2f ') 'secs | F = ' num2str(me.metadata.ana.frequency) 'Hz | Power Range = ' num2str(data.powerRange,'%.2f')])
 			
 			box on; grid on;
 			ax2.FontSize = 8;
@@ -344,7 +347,7 @@ classdef pupilPower < analysisCore
 				else
 					ylabel('Power')
 				end
-				tit = sprintf('%s | Min = %.2f & Ratio = %.2f', tit, minC, ratio);
+				tit = sprintf('Harmonic Power: %s | %s Min@H1 = %.2f & Ratio = %.2f', tit, varName, minC, ratio);
 				title(tit);
 				legend([PL3.plot,PL4.plot,PL5],{'H0','H1','H0.*H1'},...
 					'Location','bestoutside','FontSize',5,'Position',[0.9125 0.2499 0.0816 0.0735])
@@ -413,7 +416,7 @@ classdef pupilPower < analysisCore
 			vals = cellfun(@(x) x .* me.maxLuminances, vals, 'UniformOutput', false);
 			tit = num2str(fix,'%.2f ');
 			tit = regexprep(tit,'0\.00','0');
-			tit = ['Fixed color (' fixName ') = ' tit ' | Variable color = ' varName];
+			tit = ['Fix color (' fixName ') = ' tit ' | Var color (' varName ')'];
 			colorChange= cE - cS;
 			tColor=find(colorChange~=0); %get the position of not zero
 			step=abs(colorChange(tColor)/me.metadata.ana.colorStep);
