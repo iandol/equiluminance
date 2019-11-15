@@ -77,8 +77,10 @@ handles.fill = fill(areax,err,c1,'EdgeColor','none','FaceAlpha',alpha);
 set(get(get(handles.fill,'Annotation'),'LegendInformation'),'IconDisplayStyle','off'); % Exclude line from legend
 handles.axis = (gca);
 set(gca,'NextPlot','add');
-handles.plot = plot(xvalues,ydata,'Color', c1/2, varargin{:});
+handles.plot = plot(xvalues,ydata,'Color', c1/2, varargin{:},'LineStyle','-');
 set(gca,'NextPlot',NextPlot);
 %set(gca,'PlotBoxAspectRatioMode','manual');
-uistack(handles.plot,'top')
-set(gca,'Layer','bottom');
+try
+	uistack(handles.plot,'top');
+	set(gca,'Layer','bottom');
+end

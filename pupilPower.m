@@ -20,6 +20,8 @@ classdef pupilPower < analysisCore
 		%> actual R G B luminance maxima, if [1 1 1] then use 0<->1
 		%> floating point range
 		maxLuminances double = [1 1 1]
+		%> use hanning window?
+		useHanning logical = false
 		%> smooth the pupil data?
 		smoothPupil logical = true;
 		%> smoothing window in milliseconds
@@ -42,24 +44,31 @@ classdef pupilPower < analysisCore
 	
 	%------------------VISIBLE PROPERTIES----------%
 	properties (SetAccess = {?analysisCore}, GetAccess = public)
-		metadata struct
-		SortedPupil struct
-		powerValues
-		powerValues0
-		varPowerValues
-		varPowerValues0
 		meanPowerValues
+		varPowerValues
 		meanPowerValues0
-		rawPupil cell
+		varPowerValues0
+		meanPhaseValues
+		varPhaseValues
 		meanPupil
 		varPupil
-		rawTimes cell
 		meanTimes
-		rawF cell
 		meanF
-		rawP cell
 		meanP
 		varP
+	end
+	
+	%------------------PROTECTED PROPERTIES----------%
+	properties (SetAccess = {?analysisCore}, GetAccess = public, Hidden = true)
+		powerValues
+		phaseValues
+		powerValues0
+		metadata struct
+		SortedPupil struct
+		rawPupil cell
+		rawTimes cell
+		rawF cell
+		rawP cell
 		isLoaded logical = false
 		isCalculated logical = false
 	end
@@ -69,8 +78,9 @@ classdef pupilPower < analysisCore
 		%> raw data removed, cannot reparse from EDF events.
 		isRawDataRemoved logical = false
 		%> allowed properties passed to object upon construction, see parseArgs
-		allowedProperties char = ['defLuminances|fileName|pupilData|normaliseBaseline|normalisePowerPlots|error|colormap|'...
-		'maxLuminances|smoothPupil|smoothMethod|drawError|downSample']
+		allowedProperties char = ['useHanning|defLuminances|fileName|pupilData|'...
+			'normaliseBaseline|normalisePowerPlots|error|colorMap|'...
+			'maxLuminances|smoothPupil|smoothMethod|drawError|downSample']
 	end
 	
 	%=======================================================================
@@ -215,13 +225,15 @@ classdef pupilPower < analysisCore
 					p = p - mean(p(idx));
 				end
 				
+				[~, ~, A(i), p1(i), p0(i)] = doFFT(me,p);
+				
 				idx = t >= 0 & t <= 3.5;
 				maxp = max([maxp max(p(idx))]);
 				minp = min([minp min(p(idx))]);
 				
 				if ~isempty(p)
 					if me.drawError
-						PL1 = areabar(t,p,e,traceColor(i*traceColor_step,:),...
+						PL1 = areabar(t,p,e,traceColor(i*traceColor_step,:),0.2,...
 							'Color', traceColor(i*traceColor_step,:), 'LineWidth', 1,'DisplayName',colorLabels{i});
 						PL1.plot.DataTipTemplate.DataTipRows(1).Label = 'Time';
 						PL1.plot.DataTipTemplate.DataTipRows(2).Label = 'Power';
@@ -240,12 +252,16 @@ classdef pupilPower < analysisCore
 			line([me.measureRange(2) me.measureRange(2)],[minp maxp],...
 				'Color',[0.3 0.3 0.3 0.5],'linestyle',':','LineWidth',2);
 			
+			data.minDiameter = minp;
+			data.maxDiameter = maxp;
+			data.diameterRange = maxp - minp;
+			
 			xlabel('Time (s)')
 			ylabel('Diameter')
 			if me.normaliseBaseline
-				title(['Normalised Pupil: # Trials = ' num2str(me.metadata.ana.trialNumber) ' | Subject = ' me.metadata.ana.subject  ' | baseline = ' num2str(me.baselineWindow,'%.2f ') 'secs']);
+				title(['Normalised Pupil: # Trials = ' num2str(me.metadata.ana.trialNumber) ' | Subject = ' me.metadata.ana.subject  ' | baseline = ' num2str(me.baselineWindow,'%.2f ') 'secs'  ' | Range = ' num2str(data.diameterRange,'%.2f')]);
 			else
-				title(['Raw Pupil: # Trials = ' num2str(me.metadata.ana.trialNumber) ' | Subject = ' me.metadata.ana.subject])
+				title(['Raw Pupil: # Trials = ' num2str(me.metadata.ana.trialNumber) ' | Subject = ' me.metadata.ana.subject  ' | Range = ' num2str(data.diameterRange,'%.2f')])
 			end
 			xlim([-0.05 me.measureRange(2)+0.05]);if minp == 0;minp = -1;end;if maxp==0;maxp = 1; end
 			if minp <= 0
@@ -258,10 +274,6 @@ classdef pupilPower < analysisCore
 			box on; grid on;
 			ax1.XMinorGrid = 'on';
 			ax1.FontSize = 8;
-			
-			data.minPower = minp;
-			data.maxPower = maxp;
-			data.powerRange = maxp - minp;
 			
 			ax2 = subplot(312);
 			maxP = 0;
@@ -291,13 +303,26 @@ classdef pupilPower < analysisCore
 			end
 			line([me.metadata.ana.frequency me.metadata.ana.frequency],[ax2.YLim(1) ax2.YLim(2)],...
 				'Color',[0.3 0.3 0.3 0.5],'linestyle',':','LineWidth',2);
-			title(['FFT Power: measure range = ' num2str(me.measureRange,'%.2f ') 'secs | F = ' num2str(me.metadata.ana.frequency) 'Hz | Power Range = ' num2str(data.powerRange,'%.2f')])
+			title(['FFT Power: measure range = ' num2str(me.measureRange,'%.2f ') 'secs | F = ' num2str(me.metadata.ana.frequency) 'Hz, Hanning=' num2str(me.useHanning)]);
 			
 			box on; grid on;
 			ax2.FontSize = 8;
 			
 			ax3 = subplot(313);
 			hold on
+			colororder({'k','k'})
+			yyaxis right
+			PL3a = areabar(trlColors,me.meanPhaseValues,me.varPhaseValues,[0.6 0.6 0.3],0.05,'Color',[0.6 0.6 0.3],'LineWidth',1);
+			try
+				PL3a.DataTipTemplate.DataTipRows(1).Label = 'Luminance';
+				PL3a.DataTipTemplate.DataTipRows(2).Label = 'Angle';
+			end
+			%PL3b = plot(trlColors,rad2deg(A),'k-.','Color',[0.6 0.6 0.3],'linewidth',1);
+			ylabel('Phase (deg)');
+			
+			box on; grid on;
+			
+			yyaxis left
 			if me.normalisePowerPlots
 				m0 = me.meanPowerValues0 / max(me.meanPowerValues0);
 				e0 = me.varPowerValues0 / max(me.meanPowerValues0);
@@ -305,11 +330,12 @@ classdef pupilPower < analysisCore
 				m0 = me.meanPowerValues0;
 				e0 = me.varPowerValues0;
 			end
-			PL3 = areabar(trlColors,m0,e0,[0.3 0.3 0.6],'Color',[0.3 0.3 0.6],'LineWidth',1);
+			PL3 = areabar(trlColors,m0,e0,[0.3 0.3 0.6],0.2,'Color',[0.3 0.3 0.6],'LineWidth',1);
 			try
-				PL3.plot.DataTipTemplate.DataTipRows(1).Label = 'Time';
+				PL3.plot.DataTipTemplate.DataTipRows(1).Label = 'Luminance';
 				PL3.plot.DataTipTemplate.DataTipRows(2).Label = 'Power';
 			end
+			
 			if me.normalisePowerPlots
 				m = me.meanPowerValues / max(me.meanPowerValues);
 				e = me.varPowerValues / max(me.meanPowerValues);
@@ -321,9 +347,9 @@ classdef pupilPower < analysisCore
 				idx = find(m==min(m));
 				minC = trlColors(idx);
 				ratio = fixColor / minC;
-				PL4 = areabar(trlColors,m,e,[0.7 0.2 0.2],'Color',[0.7 0.2 0.2],'LineWidth',1);
+				PL4 = areabar(trlColors,m,e,[0.7 0.2 0.2],0.2,'Color',[0.7 0.2 0.2],'LineWidth',1);
 				try
-					PL4.plot.DataTipTemplate.DataTipRows(1).Label = 'Time';
+					PL4.plot.DataTipTemplate.DataTipRows(1).Label = 'Luminance';
 					PL4.plot.DataTipTemplate.DataTipRows(2).Label = 'Power';
 				end
 				pr = (m .* m0);
@@ -331,33 +357,36 @@ classdef pupilPower < analysisCore
 				mn = min([min(m) min(m0)]);
 				pr = (pr / max(pr)) * mx;
 				PL5 = plot(trlColors,pr,'--','Color',[0.4 0.4 0.4],'LineWidth',2);
-				ax3.FontSize = 8;
-				ax3.XTick = trlColors;
-				ax3.XTickLabel = colorLabels; 
-				ax3.XTickLabelRotation = 30;
-				line([fixColor fixColor],[ax3.YLim(1) ax3.YLim(2)],...
-					'lineStyle',':','Color',[0.3 0.3 0.3 0.5],'linewidth',2)
-				if max(me.maxLuminances) == 1
-					xlabel('LuminanceStep (0 <-> 1)')
-				else
-					xlabel('Luminance Step (cd/m^2)')
-				end
-				if me.normalisePowerPlots
-					ylabel('Normalised Power')
-				else
-					ylabel('Power')
-				end
-				tit = sprintf('Harmonic Power: %s | %s Min@H1 = %.2f & Ratio = %.2f', tit, varName, minC, ratio);
-				title(tit);
-				legend([PL3.plot,PL4.plot,PL5],{'H0','H1','H0.*H1'},...
-					'Location','bestoutside','FontSize',5,'Position',[0.9125 0.2499 0.0816 0.0735])
-				box on; grid on;
 				data.minColor = minC;
 				data.ratio = ratio;
 			else
 				data.minColor = 0;
 				data.ratio = 0;
 			end
+			%plot(trlColors,p0 / max(p0),'b--',trlColors,p1 / max(p1),'r:','linewidth',1);
+			
+			ax3.FontSize = 8;
+			ax3.XTick = trlColors;
+			ax3.XTickLabel = colorLabels; 
+			ax3.XTickLabelRotation = 30;
+			line([fixColor fixColor],[ax3.YLim(1) ax3.YLim(2)],...
+				'lineStyle',':','Color',[0.3 0.3 0.3 0.5],'linewidth',2)
+			if max(me.maxLuminances) == 1
+				xlabel('LuminanceStep (0 <-> 1)')
+			else
+				xlabel('Luminance Step (cd/m^2)')
+			end
+			if me.normalisePowerPlots
+				ylabel('Normalised Power')
+			else
+				ylabel('Power')
+			end
+			tit = sprintf('Harmonic Power: %s | %s Min@H1 = %.2f & Ratio = %.2f', tit, varName, minC, ratio);
+			title(tit);
+			legend([PL3.plot,PL4.plot,PL5,PL3a.plot],{'H0','H1','H0.*H1','Phase'},...
+				'Location','bestoutside','FontSize',5,'Position',[0.9125 0.2499 0.0816 0.0735])
+
+			box on; grid on;
 			
 			handles.ax1 = ax1;
 			handles.ax2 = ax2;
@@ -457,6 +486,8 @@ classdef pupilPower < analysisCore
 					me.pupilData=eyelinkAnalysis('file',me.fileName,'dir',me.rootDirectory);
 				else
 					me.pupilData=eyelinkAnalysis;
+					me.fileName = me.pupilData.file;
+					me.rootDirectory = me.pupilData.dir;
 				end
 				[~,fn] = fileparts(me.pupilData.file);
 				me.metadata = load([me.pupilData.dir,filesep,fn,'.mat']); %load .mat of same filename with .edf
@@ -547,20 +578,14 @@ classdef pupilPower < analysisCore
 							if me.detrend
 								p = p - mean(p);
 							end
-							t = t(idx);
 							
-							L=length(p);
-							P1 = fft(p);
-							P2 = abs(P1/L);
-							P3=P2(1:floor(L/2)+1);
-							P3(2:end-1) = 2*P3(2:end-1);
-							f=Fs1*(0:(L/2))/L;
-							idx = analysisCore.findNearest(f, me.metadata.ana.frequency);
-							me.powerValues(currentVar,currentBlock) = P3(idx); %get the pupil power of tagging frequency
-							idx = analysisCore.findNearest(f, 0);
-							me.powerValues0(currentVar,currentBlock) = P3(idx); %get the pupil power of 0 harmonic
+							[P,f,A,p1,p0] = me.doFFT(p);
+							
+							me.powerValues(currentVar,currentBlock) = p1; %get the pupil power of tagging frequency
+							me.phaseValues(currentVar,currentBlock) = rad2deg(A);
+							me.powerValues0(currentVar,currentBlock) = p0; %get the pupil power of 0 harmonic
 							me.rawF{currentVar,currentBlock} = f;
-							me.rawP{currentVar,currentBlock} = P3;
+							me.rawP{currentVar,currentBlock} = P;
 							rawFramef(k)=size(me.rawF{currentVar,currentBlock},2);
 							rawFramePupil(k)=size(me.rawPupil{currentVar,currentBlock},2);
 							k=k+1;
@@ -597,6 +622,13 @@ classdef pupilPower < analysisCore
 			me.varPowerValues = e';
 			me.varPowerValues(me.varPowerValues==inf)=0;
 			
+			pH=me.phaseValues;
+			pH(pH==0)=NaN;
+			[p,e] = analysisCore.stderr(pH,me.error,false,0.05,2);
+			me.meanPhaseValues = p';
+			me.varPhaseValues = e';
+			me.varPhaseValues(me.varPhaseValues==inf)=0;
+			
 			pV0=me.powerValues0;
 			pV0(pV0==0)=NaN;
 			[p,e] = analysisCore.stderr(pV0,me.error,false,0.05,2);
@@ -605,6 +637,43 @@ classdef pupilPower < analysisCore
 			me.varPowerValues0(me.varPowerValues0==inf)=0;
 			
 			me.isCalculated = true;
+		end
+		
+		% ===================================================================
+		%> @brief phase basic phase measurement
+		%>
+		%> @param x - signal in the time domain
+		%> @return phase - phase, degrees
+		% ===================================================================
+		function [P, f, A, p1, p0] = doFFT(me,p)	
+			useX = true;
+			L = length(p);
+			if me.useHanning
+				win = hanning(L, 'periodic');
+				P = fft(p.*win'); 
+			else
+				P = fft(p);
+			end
+			
+			if useX
+				Pi = fft(p);
+				P = abs(Pi/L);
+				P=P(1:floor(L/2)+1);
+				P(2:end-1) = 2*P(2:end-1);
+				f = me.pupilData.sampleRate * (0:(L/2))/L;
+			else
+				Pi = fft(p);
+				NumUniquePts = ceil((L+1)/2);
+				P = abs(Pi(1:NumUniquePts));
+				f = (0:NumUniquePts-1)*me.pupilData.sampleRate/L;
+			end
+			
+			idx = analysisCore.findNearest(f, me.metadata.ana.frequency);
+			p1 = P(idx);
+			A = angle(Pi(idx));
+			idx = analysisCore.findNearest(f, 0);
+			p0 = P(idx);
+				
 		end
 		
 		% ===================================================================

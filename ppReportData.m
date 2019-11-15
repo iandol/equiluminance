@@ -9,8 +9,8 @@ classdef ppReportData
 		measureRange char = ''
 		detrend logical
 		normaliseBaseline logical
-		minPower double
-		maxPower double
+		minDiameter double
+		maxDiameter double
 		minColor double
 		ratio double
 		
