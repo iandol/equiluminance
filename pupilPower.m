@@ -144,7 +144,7 @@ classdef pupilPower < analysisCore
 			data.varName = varName;
 			data.trlColors = trlColors;
 			
-			handles.h1=figure;figpos(1,[1000 625]);set(handles.h1,'Color',[1 1 1],'NumberTitle','off',...
+			handles.h1=figure;figpos(1,[900 500]);set(handles.h1,'Color',[1 1 1],'NumberTitle','off',...
 				'Name',['pupilPower: ' me.pupilData.file],'Papertype','a4','PaperUnits','centimeters',...
 				'PaperOrientation','landscape','Renderer','painters');
 			switch varName
@@ -167,7 +167,7 @@ classdef pupilPower < analysisCore
 			csteps = trlColors;
 			csteps(numVars+1) = csteps(numVars);
 			PL = stairs(1:numVars+1, csteps, 'Color',plotColor,'LineWidth',2);
-			PL.Parent.FontSize = 8;
+			PL.Parent.FontSize = 11;
 			PL.Parent.XTick = 1.5:1:numVars+0.5;
 			PL.Parent.XTickLabel = colorLabels; 
 			PL.Parent.XTickLabelRotation = 30;
@@ -214,7 +214,7 @@ classdef pupilPower < analysisCore
 				end
 				
 				if me.pupilData.sampleRate > 500
-					idx = logical(mod(1:length(t),me.downSample)); %downsample every N as less points to draw
+					idx = circshift(logical(mod(1:length(t),me.downSample)), -(me.downSample-1)); %downsample every N as less points to draw
 					t(idx) = [];
 					p(idx) = [];
 					e(idx) = [];
@@ -269,11 +269,11 @@ classdef pupilPower < analysisCore
 			else
 				ylim([minp-(minp/100*2) maxp+(maxp/100*2)]);
 			end
-			legend(colorLabels,'Location','bestoutside','FontSize',5,...
+			legend(colorLabels,'Location','bestoutside','FontSize',10,...
 				'Position',[0.9125 0.5673 0.0779 0.3550]);
 			box on; grid on;
 			ax1.XMinorGrid = 'on';
-			ax1.FontSize = 8;
+			ax1.FontSize = 12;
 			
 			ax2 = subplot(312);
 			maxP = 0;
@@ -306,7 +306,7 @@ classdef pupilPower < analysisCore
 			title(['FFT Power: measure range = ' num2str(me.measureRange,'%.2f ') 'secs | F = ' num2str(me.metadata.ana.frequency) 'Hz, Hanning=' num2str(me.useHanning)]);
 			
 			box on; grid on;
-			ax2.FontSize = 8;
+			ax2.FontSize = 12;
 			
 			ax3 = subplot(313);
 			hold on
@@ -365,7 +365,7 @@ classdef pupilPower < analysisCore
 			end
 			%plot(trlColors,p0 / max(p0),'b--',trlColors,p1 / max(p1),'r:','linewidth',1);
 			
-			ax3.FontSize = 8;
+			ax3.FontSize = 12;
 			ax3.XTick = trlColors;
 			ax3.XTickLabel = colorLabels; 
 			ax3.XTickLabelRotation = 30;
@@ -384,7 +384,7 @@ classdef pupilPower < analysisCore
 			tit = sprintf('Harmonic Power: %s | %s Min@H1 = %.2f & Ratio = %.2f', tit, varName, minC, ratio);
 			title(tit);
 			legend([PL3.plot,PL4.plot,PL5,PL3a.plot],{'H0','H1','H0.*H1','Phase'},...
-				'Location','bestoutside','FontSize',5,'Position',[0.9125 0.2499 0.0816 0.0735])
+				'Location','bestoutside','FontSize',10,'Position',[0.9125 0.2499 0.0816 0.0735])
 
 			box on; grid on;
 			
