@@ -37,7 +37,7 @@ classdef pupilPower < analysisCore
 	end
 	
 	properties (Hidden = true)
-		%> actual R G B luminance maxima, if [1 1 1] then use 0<->1
+		%> default R G B luminance maxima, if [1 1 1] then use 0<->1
 		%> floating point range
 		defLuminances double = [1 1 1]
 	end
@@ -88,7 +88,7 @@ classdef pupilPower < analysisCore
 	%=======================================================================
 		
 		% =========false==========================================================
-		%> @brief
+		%> @brief class constructor
 		%>
 		%> @param
 		%> @return
@@ -116,9 +116,9 @@ classdef pupilPower < analysisCore
 		end
 		
 		% ===================================================================
-		%> @brief
+		%> @brief run full analysis and plot the result
 		%>
-		%> @param
+		%> @param force: reload the EDF and reparse
 		%> @return
 		% ===================================================================
 		function [handles,data] = run(me, force)
@@ -129,7 +129,7 @@ classdef pupilPower < analysisCore
 		end
 		
 		% ===================================================================
-		%> @brief
+		%> @brief plot the parsed data
 		%>
 		%> @param
 		%> @return
@@ -403,6 +403,12 @@ classdef pupilPower < analysisCore
 			
 		end
 		
+		% ===================================================================
+		%> @brief save
+		%>
+		%> @param file filename to save to
+		%> @return
+		% ===================================================================
 		function save(me, file)
 			
 			me.pupilData.removeRawData();
@@ -410,7 +416,12 @@ classdef pupilPower < analysisCore
 
 		end
 	
-	
+	% ===================================================================
+		%> @brief make the color variables used in plotting
+		%>
+		%> @param
+		%> @return
+		% ===================================================================
 		function [fixColor,fixName,fColor,varColor,varName,tColor,trlColor,...
 				trlColors,tit,colorLabels,step,colorMin,colorMax] = makecolors(me,fc,cs,ce,vals)
 			if ~exist('fc','var') || isempty(fc); fc = me.metadata.ana.colorFixed; end
@@ -640,10 +651,10 @@ classdef pupilPower < analysisCore
 		end
 		
 		% ===================================================================
-		%> @brief phase basic phase measurement
+		%> @brief do the FFT
 		%>
-		%> @param x - signal in the time domain
-		%> @return phase - phase, degrees
+		%> @param p the raw signal
+		%> @return 
 		% ===================================================================
 		function [P, f, A, p1, p0] = doFFT(me,p)	
 			useX = true;
