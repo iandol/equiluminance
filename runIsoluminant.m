@@ -19,6 +19,7 @@ ana.computer = Screen('Computer');
 %===================experiment parameters===================
 if ana.debug
 	ana.screenID = 0;
+	ana.bitDepth = '8bit';
 else
 	ana.screenID = max(Screen('Screens'));%-1;
 end
@@ -48,6 +49,7 @@ try
 	sM.pixelsPerCm = ana.pixelsPerCm;
 	sM.distance = ana.distance;
 	sM.debug = ana.debug;
+	sM.photoDiode = false;
 	sM.blend = 1;
 	sM.bitDepth = ana.bitDepth;
 	sM.verbosityLevel = 4;
@@ -57,9 +59,6 @@ try
 			sM.gammaTable = c;
 		end
 		clear c;
-		if ana.debug
-			sM.gammaTable.plot
-		end
 	end
 	sM.backgroundColour = ana.backgroundColor;
 	sM.open; % OPEN THE SCREEN
@@ -169,9 +168,12 @@ try
 		fprintf('===>>> runIsoluminant initiating fixation to start run...\n');
 		%syncTime(eL);
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
-			%drawCross(sM, 0.3, ana.fixColour, ana.fixX, ana.fixY);
-            drawSpot(sM, 0.25, ana.fixColour,ana.fixX, ana.fixY);
-            drawPhotoDiodeSquare(sM,[0 0 0 1]);
+			if ana.fixCross
+				drawCross(sM, 0.3, ana.fixColour, ana.fixX, ana.fixY);
+			else
+				drawSpot(sM, 0.2, ana.fixColour, ana.fixX, ana.fixY);
+			end
+            drawPhotoDiode(sM,[0 0 0 1]);
 			getSample(eL);
 			fixated=testSearchHoldFixation(eL,'fix','breakfix');
 			Screen('Flip',sM.win); %flip the buffer
@@ -261,9 +263,12 @@ try
 			circle2.draw(); %background circle draw first!
 			circle1.draw();
 			
-			%drawCross(sM, 0.3, ana.fixColour, ana.fixX, ana.fixY);
-            drawSpot(sM, 0.25, ana.fixColour, ana.fixX, ana.fixY);
-            drawPhotoDiodeSquare(sM,[1 1 1 1]);
+			if ana.fixCross
+				drawCross(sM, 0.3, ana.fixColour, ana.fixX, ana.fixY);
+			else
+				drawSpot(sM, 0.2, ana.fixColour, ana.fixX, ana.fixY);
+			end
+            drawPhotoDiode(sM,[1 1 1 1]);
 			finishDrawing(sM);
 			
 			[tL.vbl(tick),tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);

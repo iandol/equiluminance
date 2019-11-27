@@ -310,7 +310,7 @@ classdef pupilPower < analysisCore
 			
 			ax3 = subplot(313);
 			hold on
-			colororder({'k','k'})
+			if exist('colororder','file')>0; colororder({'k','k'});end
 			yyaxis right
 			PL3a = areabar(trlColors,me.meanPhaseValues,me.varPhaseValues,[0.6 0.6 0.3],0.05,'Color',[0.6 0.6 0.3],'LineWidth',1);
 			try
