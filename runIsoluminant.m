@@ -80,22 +80,35 @@ try
 	setup(circle2,sM);
 	
 	%============================SET UP VARIABLES=====================================
-	
-	len = 0;
-	r = cell(3,1);
-	for i = 1:length(r)
-		step = (ana.colorEnd(i) - ana.colorStart(i)) / ana.colorStep;
-		r{i} = [ana.colorStart(i) : step : ana.colorEnd(i)]';
-		if length(r{i}) > len; len = length(r{i}); end
-	end
-	for i = 1:length(r)
-		if isempty(r{i})
-			r{i} = zeros(len,1);
+	if ana.useDKL
+		cM = colourManager;
+		cM.deviceSPD = '/home/psychww/MatlabFiles/Calibration/PhosphorsDisplay++Color++.mat';
+		cM.backgroundColour = sM.backgroundColour;
+		fColour = cM.DKLtoRGB(ana.colorFixed);
+		sM.backgroundColour = fColour; sM.drawBackground;sM.flip;
+		ele = linspace(ana.colorStart(3),ana.colorEnd(3),ana.colorStep);
+		vals = cell(length(ele),1);
+		for i = 1:length(ele)
+			vals{i} = cM.DKLtoRGB([ana.colorStart(1) ana.colorStart(2) ele(i)]);
 		end
-	end
-	vals = cell(len,1);
-	for i = 1:len
-		vals{i} = [r{1}(i) r{2}(i) r{3}(i)];
+	else
+		cM = [];
+		fColour = ana.colorFixed;
+		len = 0;
+		r = cell(3,1);
+		for i = 1:length(r)
+			r{i} = linspace(ana.colorStart(i), ana.colorEnd(i),ana.colorStep)';
+			if length(r{i}) > len; len = length(r{i}); end
+		end
+		for i = 1:length(r)
+			if isempty(r{i})
+				r{i} = zeros(len,1);
+			end
+		end
+		vals = cell(len,1);
+		for i = 1:len
+			vals{i} = [r{1}(i) r{2}(i) r{3}(i)];
+		end
 	end
 	
 	seq = stimulusSequence;
@@ -134,6 +147,7 @@ try
 	map = analysisCore.optimalColours(seq.minBlocks);
 	
 	initialise(eL, sM); %use sM to pass screen values to eyelink
+	
 	setup(eL); % do setup and calibration
 	fprintf('--->>> runIsoluminant eL setup complete: %s\n', eL.fullName);
 	WaitSecs('YieldSecs',0.5);
@@ -225,7 +239,7 @@ try
 		thisPupil = [];
 		modColor = seq.outValues{seq.totalRuns};
 		modColor(modColor < 0) = 0; modColor(modColor > 1) = 1;
-		fixedColor = ana.colorFixed;
+		fixedColor = fColour;
 		backColor = modColor;
 		centerColor = fixedColor;
 		fprintf('===>>> modColor=%s | fixColor=%s @ %i frames\n',num2str(modColor),num2str(fixedColor),ana.onFrames);
@@ -289,6 +303,7 @@ try
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		
 		tEnd=Screen('Flip',sM.win);
+		sM.drawTextNow(['Trial: ' num2str(seq.totalRuns) '/' num2str(seq.nRuns)]);
 		trackerMessage(eL,'END_RT');
 		ana.trial(seq.totalRuns).pupil = thisPupil;
 		ana.trial(seq.totalRuns).totalFrames = ii-1;
@@ -317,9 +332,9 @@ try
 			resetFixation(eL);
             updatePlot(seq.totalRuns);
 			updateTask(seq,true,tEnd-tStart); %updates our current run number
-			iii = seq.totalRuns;
-        end
+		end
         
+		tEnd=Screen('Flip',sM.win);
         ListenChar(2);
 		while GetSecs < tEnd + 0.01
 			[keyIsDown, ~, keyCode] = KbCheck(-1);
@@ -365,18 +380,21 @@ try
 	trackerClearScreen(eL);
 	stopRecording(eL);
 	setOffline(eL);
+	if seq.totalRuns < ana.colorStep; eL.saveFile = ''; end
 	close(eL);
 	if ~isempty(ana.nameExp) || ~strcmpi(ana.nameExp,'debug')
 		ana.plotAxis1 = [];
 		ana.plotAxis2 = [];
 		ana.plotAxis3 = [];
-		fprintf('==>> SAVE %s, to: %s\n', ana.nameExp, pwd);
-		save([ana.nameExp '.mat'],'ana', 'seq', 'eL', 'sM', 'tL');
+		if seq.totalRuns >= ana.colorStep
+			fprintf('==>> SAVE %s, to: %s\n', ana.nameExp, pwd);
+			save([ana.nameExp '.mat'],'ana', 'seq', 'eL', 'sM', 'tL','cM');
+		end
 	end
 	if IsWin	
 		%tL.printRunLog;
 	end
-	clear ana seq eL sM tL
+	clear ana seq eL sM tL cM
 
 catch ME
 	assignin('base','ana',ana)
@@ -391,7 +409,7 @@ end
 		ifi = sM.screenVals.ifi;
 		t = 0:ifi:ifi*(ana.trial(thisTrial).totalFrames-1);
 		hold(ana.plotAxis1,'on');
-		plot(ana.plotAxis1,t,ana.trial(thisTrial).pupil,'Color',map(v,:));
+		plot(ana.plotAxis1,t,ana.trial(thisTrial).pupil/mean(ana.trial(thisTrial).pupil),'Color',map(v,:));
 		xlim(ana.plotAxis1,[ 0 ana.trialDuration]);
 		calculatePower(thisTrial)
 		hold(ana.plotAxis2,'on');
@@ -409,13 +427,14 @@ end
 		T  = sM.screenVals.ifi;            % Sampling period       
 		P  = ana.trial(thisTrial).pupil;
 		L  = length(P);
-		t  = (0:L-1)*T;
+		P = P - mean(P);
 		P1 = fft(P);
 		P2 = abs(P1/L);
 		P3 = P2(1:L/2+1);
 		P3(2:end-1) = 2*P3(2:end-1);
 		f  = Fs*(0:(L/2))/L;
 		idx = findNearest(f, ana.frequency);
+		fprintf('F (%.2f) actually @ %.2f\n',ana.frequency,f(idx));
 		powerValues(thisTrial) = P3(idx);
 		powerValuesV{v} = [powerValuesV{v} powerValues(thisTrial)];
 	end
