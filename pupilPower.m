@@ -101,7 +101,7 @@ classdef pupilPower < analysisCore
 			me = me@analysisCore(varargin); %superclass constructor
 			if nargin>0; me.parseArgs(varargin, me.allowedProperties); end
 			if ~isempty(me.fileName)
-				[p,f,e] = fileparts(me.fileName);
+				[p,f,~] = fileparts(me.fileName);
 				if ~isempty(p) && (exist(p,'dir') == 7)
 					me.rootDirectory = p;
 				else
@@ -188,17 +188,19 @@ classdef pupilPower < analysisCore
 			handles.h2=figure;figpos(1,[0.9 0.9],[],'%');set(handles.h2,'Color',[1 1 1],'NumberTitle','off',...
 				'Name',['pupilPower: ' me.pupilData.file],'Papertype','a4','PaperUnits','centimeters',...
 				'PaperOrientation','landscape','Renderer','painters');
-			ax1 = subplot(311);
+			tl = tiledlayout(handles.h2,3,1,'TileSpacing','compact');
+			ax1 = nexttile(tl);
 			traceColor				= colormap(me.colorMap);
 			traceColor_step			= floor(length(traceColor)/numVars);
 			
 			f = round(me.metadata.ana.onFrames) * (1 / me.metadata.sM.screenVals.fps);
-			m = 1:2:31;
-			for i = 1 : floor(me.metadata.ana.trialDuration / f / 2)
+			m = 0:2:100;
+			for i = 1 : floor(me.metadata.ana.trialDuration / f / 2)+1
 				rectangle('Position',[f*m(i) -10000 f 20000],'FaceColor',[0.8 0.8 0.8 0.3],'EdgeColor','none')
 			end
 			maxp = -inf;
 			minp = inf;
+			
 			for i = 1: length(me.meanPupil)
 				hold on
 				t = me.meanTimes{i};
@@ -230,11 +232,11 @@ classdef pupilPower < analysisCore
 				idx = t >= 0 & t <= 3.5;
 				maxp = max([maxp max(p(idx))]);
 				minp = min([minp min(p(idx))]);
-				
+
 				if ~isempty(p)
 					if me.drawError
-						PL1 = areabar(t,p,e,traceColor(i*traceColor_step,:),0.2,...
-							'Color', traceColor(i*traceColor_step,:), 'LineWidth', 1,'DisplayName',colorLabels{i});
+						PL1 = areabar(t,p,e,traceColor(i*traceColor_step,:),0.1,...
+							'Color', traceColor(i*traceColor_step,:), 'LineWidth', 2,'DisplayName',colorLabels{i});
 						PL1.plot.DataTipTemplate.DataTipRows(1).Label = 'Time';
 						PL1.plot.DataTipTemplate.DataTipRows(2).Label = 'Power';
 					else
@@ -263,7 +265,7 @@ classdef pupilPower < analysisCore
 			else
 				title(['Raw Pupil: # Trials = ' num2str(me.metadata.ana.trialNumber) ' | Subject = ' me.metadata.ana.subject  ' | Range = ' num2str(data.diameterRange,'%.2f')])
 			end
-			xlim([-0.05 me.measureRange(2)+0.05]);if minp == 0;minp = -1;end;if maxp==0;maxp = 1; end
+			xlim([-0.2 me.measureRange(2)+0.05]);if minp == 0;minp = -1;end;if maxp==0;maxp = 1; end
 			if minp <= 0
 				ylim([minp+(minp/100*2) maxp+(maxp/100*2)]);
 			else
@@ -275,7 +277,7 @@ classdef pupilPower < analysisCore
 			ax1.XMinorGrid = 'on';
 			ax1.FontSize = 12;
 			
-			ax2 = subplot(312);
+			ax2 = nexttile(tl);
 			maxP = 0;
 			for i = 1: length(me.meanF)
 				hold on
@@ -297,7 +299,7 @@ classdef pupilPower < analysisCore
 			ylim([0 maxP+(maxP/20)]);
 			xlabel('Frequency (Hz)');
 			ylabel('Power');
-			if ~me.normaliseBaseline
+			if ~me.detrend || ~me.normaliseBaseline
 				ax2.YScale = 'log';
 				ylabel('Power [log]');
 			end
@@ -308,11 +310,11 @@ classdef pupilPower < analysisCore
 			box on; grid on;
 			ax2.FontSize = 12;
 			
-			ax3 = subplot(313);
+			ax3 = nexttile(tl);
 			hold on
 			if exist('colororder','file')>0; colororder({'k','k'});end
 			yyaxis right
-			PL3a = areabar(trlColors,me.meanPhaseValues,me.varPhaseValues,[0.6 0.6 0.3],0.05,'Color',[0.6 0.6 0.3],'LineWidth',1);
+			PL3a = areabar(trlColors,me.meanPhaseValues,me.varPhaseValues,[0.6 0.6 0.3],0.2,'Color',[0.6 0.6 0.3],'LineWidth',1.5);
 			try
 				PL3a.DataTipTemplate.DataTipRows(1).Label = 'Luminance';
 				PL3a.DataTipTemplate.DataTipRows(2).Label = 'Angle';
@@ -330,7 +332,7 @@ classdef pupilPower < analysisCore
 				m0 = me.meanPowerValues0;
 				e0 = me.varPowerValues0;
 			end
-			PL3 = areabar(trlColors,m0,e0,[0.3 0.3 0.6],0.2,'Color',[0.3 0.3 0.6],'LineWidth',1);
+			PL3 = areabar(trlColors,m0,e0,[0.5 0.5 0.7],0.1,'Color',[0.5 0.5 0.7],'LineWidth',1);
 			try
 				PL3.plot.DataTipTemplate.DataTipRows(1).Label = 'Luminance';
 				PL3.plot.DataTipTemplate.DataTipRows(2).Label = 'Power';
@@ -347,7 +349,7 @@ classdef pupilPower < analysisCore
 				idx = find(m==min(m));
 				minC = trlColors(idx);
 				ratio = fixColor / minC;
-				PL4 = areabar(trlColors,m,e,[0.7 0.2 0.2],0.2,'Color',[0.7 0.2 0.2],'LineWidth',1);
+				PL4 = areabar(trlColors,m,e,[0.7 0.2 0.2],0.2,'Color',[0.7 0.2 0.2],'LineWidth',2);
 				try
 					PL4.plot.DataTipTemplate.DataTipRows(1).Label = 'Luminance';
 					PL4.plot.DataTipTemplate.DataTipRows(2).Label = 'Power';
@@ -356,7 +358,7 @@ classdef pupilPower < analysisCore
 				mx = max([max(m) max(m0)]);
 				mn = min([min(m) min(m0)]);
 				pr = (pr / max(pr)) * mx;
-				PL5 = plot(trlColors,pr,'--','Color',[0.4 0.4 0.4],'LineWidth',2);
+				PL5 = plot(trlColors,pr,'--','Color',[0.4 0.4 0.4],'LineWidth',1);
 				data.minColor = minC;
 				data.ratio = ratio;
 			else
@@ -369,8 +371,10 @@ classdef pupilPower < analysisCore
 			ax3.XTick = trlColors;
 			ax3.XTickLabel = colorLabels; 
 			ax3.XTickLabelRotation = 30;
-			line([fixColor fixColor],[ax3.YLim(1) ax3.YLim(2)],...
-				'lineStyle',':','Color',[0.3 0.3 0.3 0.5],'linewidth',2)
+			if fixColor <= max(trlColors)
+				line([fixColor fixColor],[ax3.YLim(1) ax3.YLim(2)],...
+				'lineStyle',':','Color',[0.3 0.3 0.3 0.5],'linewidth',2);
+			end
 			if max(me.maxLuminances) == 1
 				xlabel('LuminanceStep (0 <-> 1)')
 			else

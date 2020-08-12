@@ -12,13 +12,16 @@ end
 fprintf('\n--->>> runIsoluminant Started: ana UUID = %s!\n',ana.uuid);
 
 %===================Initiate out metadata===================
-ana.date = datestr(datetime);
-ana.version = Screen('Version');
-ana.computer = Screen('Computer');
+ana.date		= datestr(datetime);
+ana.version		= Screen('Version');
+ana.computer	= Screen('Computer');
+ana.gpu			= opengl('data');
+ana.flashFirst	= true; %we changed the stimulus flash order on 2020/08/12; before 0 showed the fixColor, after this 0 shows the var color
 
 %===================experiment parameters===================
 if ana.debug
 	ana.screenID = 0;
+	ana.windowed = [0 0 1000 1000];
 	ana.bitDepth = '8bit';
 else
 	ana.screenID = max(Screen('Screens'));%-1;
@@ -27,9 +30,9 @@ end
 %===================Make a name for this run===================
 pf='IsoLum_';
 if ~isempty(ana.subject)
-	nameExp = [pf ana.subject];
-	c = sprintf(' %i',fix(clock()));
-	nameExp = [nameExp c];
+	nameExp		= [pf ana.subject];
+	c			= sprintf(' %i',fix(clock()));
+	nameExp		= [nameExp c];
 	ana.nameExp = regexprep(nameExp,' ','_');
 else
 	ana.nameExp = 'debug';
@@ -40,28 +43,30 @@ cla(ana.plotAxis2);
 
 try
 	PsychDefaultSetup(2);
-	Screen('Preference', 'SkipSyncTests', 1);
 	%===================open our screen====================
-	sM = screenManager();
-	sM.screen = ana.screenID;
-    sM.disableSyncTests = true;
-	sM.windowed = ana.windowed;
-	sM.pixelsPerCm = ana.pixelsPerCm;
-	sM.distance = ana.distance;
-	sM.debug = ana.debug;
-	sM.photoDiode = false;
-	sM.blend = 1;
-	sM.bitDepth = ana.bitDepth;
+	sM				= screenManager();
+	sM.screen		= ana.screenID;
+    if ana.debug || ismac || ispc || ~isempty(regexpi(ana.gpu.Vendor,'NVIDIA','ONCE'))
+		sM.disableSyncTests = true; 
+	end
+	sM.windowed		= ana.windowed;
+	sM.pixelsPerCm	= ana.pixelsPerCm;
+	sM.distance		= ana.distance;
+	sM.debug		= ana.debug;
+	sM.photoDiode	= false;
+	sM.blend		= true;
+	sM.bitDepth		= ana.bitDepth;
 	sM.verbosityLevel = 4;
 	if exist(ana.gammaTable, 'file')
 		load(ana.gammaTable);
-		if isa(c,'calibrateLuminance')
+		if exist('c','var') && isa(c,'calibrateLuminance')
 			sM.gammaTable = c;
 		end
 		clear c;
 	end
 	sM.backgroundColour = ana.backgroundColor;
 	sM.open; % OPEN THE SCREEN
+	ana.gpuInfo		= Screen('GetWindowInfo',sM.win);
 	fprintf('\n--->>> runIsoluminant Opened Screen %i : %s\n', sM.win, sM.fullName);
 	
 	if IsLinux
@@ -70,12 +75,12 @@ try
 	end
 	
 	%===========================set up stimuli====================
-	circle1 = discStimulus;
-	circle2 = discStimulus;
-	circle1.sigma = ana.sigma1;
-	circle2.sigma = ana.sigma2;
-	circle1.size = ana.circleDiameter;
-	circle2.size = ana.backgroundDiameter;
+	circle1			= discStimulus;
+	circle2			= discStimulus;
+	circle1.sigma	= ana.sigma1;
+	circle2.sigma	= ana.sigma2;
+	circle1.size	= ana.circleDiameter;
+	circle2.size	= ana.backgroundDiameter;
 	setup(circle1,sM);
 	setup(circle2,sM);
 	
@@ -183,7 +188,7 @@ try
 		%syncTime(eL);
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
 			if ana.fixCross
-				drawCross(sM, 0.3, ana.fixColour, ana.fixX, ana.fixY);
+				drawCross(sM, 0.4, ana.fixColour, ana.fixX, ana.fixY, 0.05, true, 0.25);
 			else
 				drawSpot(sM, 0.2, ana.fixColour, ana.fixX, ana.fixY);
 			end
@@ -233,15 +238,15 @@ try
 		%sM.verbose = false; eL.verbose = false; sM.verbosityLevel = 4; eL.verbosityLevel = 4; %force lots of log output
 		
 		%=========================Our actual stimulus drawing loop==========================
-		i=1;
+		togCount=1;
 		ii = 1;
 		toggle = 0;
 		thisPupil = [];
 		modColor = seq.outValues{seq.totalRuns};
 		modColor(modColor < 0) = 0; modColor(modColor > 1) = 1;
 		fixedColor = fColour;
-		backColor = modColor;
-		centerColor = fixedColor;
+		backColor = fixedColor;
+		centerColor = modColor;
 		fprintf('===>>> modColor=%s | fixColor=%s @ %i frames\n',num2str(modColor),num2str(fixedColor),ana.onFrames);
 		trackerMessage(eL,['MSG:modColor=' num2str(modColor)]);
 		trackerMessage(eL,['MSG:variable=' num2str(seq.outIndex(seq.totalRuns))]);
@@ -261,14 +266,14 @@ try
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		while GetSecs < tStart + ana.trialDuration
-			if i > ana.onFrames
+			if togCount > ana.onFrames
 				toggle = mod(toggle+1,2); %switch the toggle 0 or 1
-				ana.trial(seq.totalRuns).frameN = [ana.trial(seq.totalRuns).frameN i];
-				i = 1; %reset out counter
+				ana.trial(seq.totalRuns).frameN = [ana.trial(seq.totalRuns).frameN togCount];
+				togCount = 1; %reset out counter
 				if toggle
-					backColor = fixedColor; centerColor = modColor;
-				else
 					backColor = modColor; centerColor = fixedColor;
+				else
+					backColor = fixedColor; centerColor = modColor;
 				end
 			end
 			
@@ -278,7 +283,7 @@ try
 			circle1.draw();
 			
 			if ana.fixCross
-				drawCross(sM, 0.3, ana.fixColour, ana.fixX, ana.fixY);
+				drawCross(sM, 0.4, ana.fixColour, ana.fixX, ana.fixY, 0.05, false, 0.2);
 			else
 				drawSpot(sM, 0.2, ana.fixColour, ana.fixX, ana.fixY);
 			end
@@ -289,7 +294,7 @@ try
 			tL.stimTime(tick) = toggle;
 			tL.tick = tick;
 			tick = tick + 1;
-			i = i + 1;
+			togCount = togCount + 1;
 
 			getSample(eL);
 			thisPupil(ii) = eL.pupil;
@@ -383,6 +388,8 @@ try
 	if seq.totalRuns < ana.colorStep; eL.saveFile = ''; end
 	close(eL);
 	if ~isempty(ana.nameExp) || ~strcmpi(ana.nameExp,'debug')
+		ana.powerValues = powerValues;
+		ana.powerValuesV = powerValuesV;
 		ana.plotAxis1 = [];
 		ana.plotAxis2 = [];
 		ana.plotAxis3 = [];
@@ -394,6 +401,7 @@ try
 	if IsWin	
 		%tL.printRunLog;
 	end
+	assignin('base','ana',ana);
 	clear ana seq eL sM tL cM
 
 catch ME
@@ -409,16 +417,15 @@ end
 		ifi = sM.screenVals.ifi;
 		t = 0:ifi:ifi*(ana.trial(thisTrial).totalFrames-1);
 		hold(ana.plotAxis1,'on');
-		plot(ana.plotAxis1,t,ana.trial(thisTrial).pupil/mean(ana.trial(thisTrial).pupil),'Color',map(v,:));
+		plot(ana.plotAxis1,t,ana.trial(thisTrial).pupil-mean(ana.trial(thisTrial).pupil(1:5)),'Color',map(v,:));
 		xlim(ana.plotAxis1,[ 0 ana.trialDuration]);
 		calculatePower(thisTrial)
 		hold(ana.plotAxis2,'on');
 		plot(ana.plotAxis2,thisTrial,powerValues(thisTrial),'k-o','MarkerSize',8,...
 			'MarkerEdgeColor',map(v,:),'MarkerFaceColor',map(v,:),...
 			'DisplayName',num2str(ana.trial(thisTrial).variable));
-		plot(ana.plotAxis3,cellfun(@mean,powerValuesV),'k-o','MarkerSize',8)
+		errorbar(ana.plotAxis3,1:length(powerValuesV),cellfun(@mean,powerValuesV),cellfun(@std,powerValuesV))
         drawnow
-		
 	end
 
 	function calculatePower(thisTrial)
@@ -434,7 +441,7 @@ end
 		P3(2:end-1) = 2*P3(2:end-1);
 		f  = Fs*(0:(L/2))/L;
 		idx = findNearest(f, ana.frequency);
-		fprintf('F (%.2f) actually @ %.2f\n',ana.frequency,f(idx));
+		fprintf('F (%.2f) actually @ %.2f\n\n',ana.frequency,f(idx));
 		powerValues(thisTrial) = P3(idx);
 		powerValuesV{v} = [powerValuesV{v} powerValues(thisTrial)];
 	end
