@@ -235,7 +235,7 @@ classdef pupilPower < analysisCore
 
 				if ~isempty(p)
 					if me.drawError
-						PL1 = areabar(t,p,e,traceColor(i*traceColor_step,:),0.1,...
+						PL1 = analysisCore.areabar(t,p,e,traceColor(i*traceColor_step,:),0.1,...
 							'Color', traceColor(i*traceColor_step,:), 'LineWidth', 2,'DisplayName',colorLabels{i});
 						PL1.plot.DataTipTemplate.DataTipRows(1).Label = 'Time';
 						PL1.plot.DataTipTemplate.DataTipRows(2).Label = 'Power';
@@ -314,7 +314,8 @@ classdef pupilPower < analysisCore
 			hold on
 			if exist('colororder','file')>0; colororder({'k','k'});end
 			yyaxis right
-			PL3a = areabar(trlColors,me.meanPhaseValues,me.varPhaseValues,[0.6 0.6 0.3],0.2,'Color',[0.6 0.6 0.3],'LineWidth',1.5);
+			PL3a = analysisCore.areabar(trlColors,me.meanPhaseValues,...
+				me.varPhaseValues,[0.6 0.6 0.3],0.2,'LineWidth',1.5);
 			try
 				PL3a.DataTipTemplate.DataTipRows(1).Label = 'Luminance';
 				PL3a.DataTipTemplate.DataTipRows(2).Label = 'Angle';
@@ -332,7 +333,8 @@ classdef pupilPower < analysisCore
 				m0 = me.meanPowerValues0;
 				e0 = me.varPowerValues0;
 			end
-			PL3 = areabar(trlColors,m0,e0,[0.5 0.5 0.7],0.1,'Color',[0.5 0.5 0.7],'LineWidth',1);
+			PL3 = analysisCore.areabar(trlColors,m0,e0,[0.5 0.5 0.7],0.1,...
+				'LineWidth',1);
 			try
 				PL3.plot.DataTipTemplate.DataTipRows(1).Label = 'Luminance';
 				PL3.plot.DataTipTemplate.DataTipRows(2).Label = 'Power';
@@ -345,11 +347,12 @@ classdef pupilPower < analysisCore
 				m = me.meanPowerValues;
 				e = me.varPowerValues;
 			end
-			if ~any(isnan(m))
+			if ~any(isnan(m)) && ~me.detrend
 				idx = find(m==min(m));
 				minC = trlColors(idx);
 				ratio = fixColor / minC;
-				PL4 = areabar(trlColors,m,e,[0.7 0.2 0.2],0.2,'Color',[0.7 0.2 0.2],'LineWidth',2);
+				PL4 = analysisCore.areabar(trlColors,m,e,[0.7 0.2 0.2],0.2,...
+					'LineWidth',2);
 				try
 					PL4.plot.DataTipTemplate.DataTipRows(1).Label = 'Luminance';
 					PL4.plot.DataTipTemplate.DataTipRows(2).Label = 'Power';
@@ -358,7 +361,8 @@ classdef pupilPower < analysisCore
 				mx = max([max(m) max(m0)]);
 				mn = min([min(m) min(m0)]);
 				pr = (pr / max(pr)) * mx;
-				PL5 = plot(trlColors,pr,'--','Color',[0.4 0.4 0.4],'LineWidth',1);
+				PL5 = plot(trlColors,pr,'LineStyle','--','Color',[0.5 0.5 0.5],...
+					'LineWidth',1);
 				data.minColor = minC;
 				data.ratio = ratio;
 			else
