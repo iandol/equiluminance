@@ -194,7 +194,11 @@ classdef pupilPower < analysisCore
 			traceColor_step			= floor(length(traceColor)/numVars);
 			
 			f = round(me.metadata.ana.onFrames) * (1 / me.metadata.sM.screenVals.fps);
-			m = 0:2:100;
+			if isfield(me.metadata.ana,'flashFirst') && me.metadata.ana.flashFirst == true
+				m = 0:2:100;
+			else
+				m = 1:2:101;
+			end
 			for i = 1 : floor(me.metadata.ana.trialDuration / f / 2)+1
 				rectangle('Position',[f*m(i) -10000 f 20000],'FaceColor',[0.8 0.8 0.8 0.3],'EdgeColor','none')
 			end
@@ -370,7 +374,7 @@ classdef pupilPower < analysisCore
 			ax3.XTick = trlColors;
 			ax3.XTickLabel = colorLabels; 
 			ax3.XTickLabelRotation = 30;
-			if fixColor <= max(trlColors)
+			if fixColor <= max(trlColors) && fixColor >= min(trlColors)
 				line([fixColor fixColor],[ax3.YLim(1) ax3.YLim(2)],...
 				'lineStyle',':','Color',[0.3 0.3 0.3 0.5],'linewidth',2);
 			end
@@ -427,7 +431,8 @@ classdef pupilPower < analysisCore
 		%> @return
 		% ===================================================================
 		function [fixColor,fixName,fColor,varColor,varName,tColor,trlColor,...
-				trlColors,tit,colorLabels,step,colorMin,colorMax] = makecolors(me,fc,cs,ce,vals)
+				trlColors,tit,colorLabels,step,colorMin,colorMax] = ...
+				makecolors(me,fc,cs,ce,vals)
 			if ~exist('fc','var') || isempty(fc); fc = me.metadata.ana.colorFixed; end
 			if ~exist('cs','var') || isempty(cs); cs = me.metadata.ana.colorStart; end
 			if ~exist('ce','var') || isempty(ce); ce = me.metadata.ana.colorEnd; end
