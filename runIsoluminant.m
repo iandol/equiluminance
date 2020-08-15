@@ -21,7 +21,7 @@ ana.flashFirst	= true; %we changed the stimulus flash order on 2020/08/12; befor
 %===================experiment parameters===================
 if ana.debug
 	ana.screenID = 0;
-	ana.windowed = [0 0 1000 1000];
+	ana.windowed = [0 0 1600 1000];
 	ana.bitDepth = '8bit';
 else
 	ana.screenID = max(Screen('Screens'));%-1;
@@ -40,6 +40,8 @@ end
 
 cla(ana.plotAxis1);
 cla(ana.plotAxis2);
+cla(ana.plotAxis3);
+drawnow;
 
 try
 	PsychDefaultSetup(2);
@@ -65,9 +67,11 @@ try
 		clear c;
 	end
 	sM.backgroundColour = ana.backgroundColor;
-	sM.open; % OPEN THE SCREEN
-	ana.gpuInfo		= Screen('GetWindowInfo',sM.win);
+	screenVals			= sM.open; % OPEN THE SCREEN
+	ana.gpuInfo			= Screen('GetWindowInfo',sM.win);
+	ana.screenVals		= screenVals;
 	fprintf('\n--->>> runIsoluminant Opened Screen %i : %s\n', sM.win, sM.fullName);
+	disp(screenVals);
 	
 	if IsLinux
 		Screen('Preference', 'TextRenderer', 1);

@@ -18,10 +18,13 @@ KbName('UnifyKeyNames');
 ana.date = datestr(datetime);
 ana.version = Screen('Version');
 ana.computer = Screen('Computer');
+ana.gpu			= opengl('data');
 
 %==========================experiment parameters=====================================
 if ana.debug
 	ana.screenID = 0;
+	ana.windowed = [0 0 1600 1000];
+	ana.bitDepth = '8bit';
 else
 	ana.screenID = max(Screen('Screens'));%-1;
 end
@@ -45,8 +48,10 @@ drawnow;
 try
 	%=======================open our screen==========================================
 	PsychDefaultSetup(2);
-	Screen('Preference', 'SkipSyncTests', 1);
 	sM = screenManager();
+	if ana.debug || ismac || ispc || ~isempty(regexpi(ana.gpu.Vendor,'NVIDIA','ONCE'))
+		sM.disableSyncTests = true; 
+	end
 	sM.screen = ana.screenID;
 	sM.windowed = ana.windowed;
 	sM.pixelsPerCm = ana.pixelsPerCm;
@@ -68,6 +73,7 @@ try
 	end
 	sM.backgroundColour = ana.backgroundColor;
 	screenVals = sM.open; % OPEN THE SCREEN
+	ana.gpuInfo		= Screen('GetWindowInfo',sM.win);
 	ana.screenVals = screenVals;
 	fprintf('\n--->>> runEquiMotion Opened Screen %i : %s\n', sM.win, sM.fullName);
 	disp(screenVals);
@@ -113,7 +119,7 @@ try
 	for i = 1:len
 		vals{i} = [r{1}(i) r{2}(i) r{3}(i)];
 	end
-	fixC = find(ana.colorFixed > 0);
+	fixC = find(ana.colorFixed == max(ana.colorFixed));
 	switch fixC
 		case 1
 			fixLabel='Red';
