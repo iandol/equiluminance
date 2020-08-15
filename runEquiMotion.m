@@ -78,6 +78,11 @@ try
 	fprintf('\n--->>> runEquiMotion Opened Screen %i : %s\n', sM.win, sM.fullName);
 	disp(screenVals);
 	
+	if IsLinux
+		Screen('Preference', 'TextRenderer', 1);
+		Screen('Preference', 'DefaultFontName', 'DejaVu Serif');
+	end
+	
 	%===========================SETUP STIMULI========================================
 	grating1 = colourGratingStimulus;
 	grating1.size = ana.size;
@@ -351,8 +356,8 @@ try
 		ana.trial(seq.totalRuns).totalFrames = ii-1;
 		
 		drawPhotoDiode(sM,[0 0 0 1]);
-		DrawFormattedText2(['Which Direction?:\n  [<b>LEFT<b>] = LEFT MOTION'...
-			'\n  [<b>RIGHT<b>]=RIGHT MOTION \n  [<b>DOWN<b>]=UNSURE \n  [<b>UP<b>]=REDO'],...
+		DrawFormattedText2(['Which Direction (press arrow button)?:\n  [<b>LEFT<b>] = LEFT MOTION'...
+			'\n  [<b>RIGHT<b>]=RIGHT MOTION \n  [<b>UP<b>]=REDO'],...
 			'win',sM.win,'sx','center','sy','center','xalign','center','yalign','center');
 		Screen('Flip',sM.win);
 		statusMessage(eL,'Waiting for Subject Response!');
@@ -376,13 +381,13 @@ try
 				trackerDrawText(eL,'Subject Pressed RIGHT!');
 				edfMessage(eL,'Subject Pressed RIGHT')
 				fprintf('Response: RIGHT\n');
-			case {'downarrow','down'}
-				response = UNSURE;
-				updateResponse();
-				trackerDrawText(eL,'Subject Pressed UNSURE!');
-				edfMessage(eL,'Subject Pressed UNSURE')
-				fprintf('Response: UNSURE\n');
-			case {'uparrow','up'}
+% 			case {'downarrow','down'}
+% 				response = UNSURE;
+% 				updateResponse();
+% 				trackerDrawText(eL,'Subject Pressed UNSURE!');
+% 				edfMessage(eL,'Subject Pressed UNSURE')
+% 				fprintf('Response: UNSURE\n');
+			case {'downarrow','down','uparrow','up'}
 				response = REDO;
 				updateResponse();
 				trackerDrawText(eL,'Subject Pressed REDO!');

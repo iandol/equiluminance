@@ -303,7 +303,7 @@ classdef pupilPower < analysisCore
 			ylim([0 maxP+(maxP/20)]);
 			xlabel('Frequency (Hz)');
 			ylabel('Power');
-			if ~me.detrend || ~me.normaliseBaseline
+			if ~me.detrend && ~me.normaliseBaseline
 				ax2.YScale = 'log';
 				ylabel('Power [log]');
 			end
