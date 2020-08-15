@@ -192,7 +192,7 @@ try
 		%syncTime(eL);
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
 			if ana.fixCross
-				drawCross(sM, 0.4, ana.fixColour, ana.fixX, ana.fixY, 0.05, true, 0.25);
+				drawCross(sM, 0.4, ana.fixColour, ana.fixX, ana.fixY, 0.05, false, 0.25);
 			else
 				drawSpot(sM, 0.2, ana.fixColour, ana.fixX, ana.fixY);
 			end
