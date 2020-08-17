@@ -234,16 +234,33 @@ try
 		statusMessage(eL,'INITIATE FIXATION...');
 		fixated = '';
 		ListenChar(2);
-	
+		
+		%=======================Prepare for the stimulus loop========================
+		ii = 1;
+		stroke = 1; %motion is 4-stroke start at stroke 1
+		tr = seq.totalRuns;
+		ana.trial(tr).n = tr;
+		ana.trial(tr).variable = seq.outIndex(tr);
+		ana.trial(tr).value = variableVals(ana.trial(tr).variable);
+		ana.trial(tr).mColor = grating1.colour;
+		ana.trial(tr).fColor = grating1.colour2;
+		ana.trial(tr).blendColor1 = grating2.colour;
+		ana.trial(tr).blendColor2 = grating2.colour2;
+		ana.trial(tr).pupil = [];
+		ana.trial(tr).frameN = [];
+		vbl=Screen('Flip',sM.win);
 		%================================initiate fixation===========================
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix') && breakLoop == false
-			drawCross(sM, 0.3, [1 1 1 1], ana.fixX, ana.fixY);
+			drawCross(sM, 0.4, [1 1 1 1], ana.fixX, ana.fixY, 0.05, false);
             drawPhotoDiode(sM,[0 0 0 1]);
 			finishDrawing(sM);
 			getSample(eL);
 			fixated=testSearchHoldFixation(eL,'fix','breakfix');
-			flip(sM); %flip the buffer
-            [keyIsDown, ~, keyCode] = KbCheck(-1);
+			%flip(sM); %flip the buffer
+			[tL.vbl(tick), tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);
+            tL.stimTime(tick) = 0;
+			tick = tick + 1;
+			[keyIsDown, ~, keyCode] = KbCheck(-1);
 			if keyIsDown
 				rchar = KbName(keyCode);
 				switch lower(rchar)
@@ -281,20 +298,6 @@ try
 			continue
 		end
 		
-		%=======================Prepare for the stimulus loop========================
-		ii = 1;
-		stroke = 1; %motion is 4-stroke start at stroke 1
-		tr = seq.totalRuns;
-		ana.trial(tr).n = tr;
-		ana.trial(tr).variable = seq.outIndex(tr);
-		ana.trial(tr).value = variableVals(ana.trial(tr).variable);
-		ana.trial(tr).mColor = grating1.colour;
-		ana.trial(tr).fColor = grating1.colour2;
-		ana.trial(tr).blendColor1 = grating2.colour;
-		ana.trial(tr).blendColor2 = grating2.colour2;
-		ana.trial(tr).pupil = [];
-		ana.trial(tr).frameN = [];
-
 		statusMessage(eL,'Show Stimulus...');
 		
 		%=======================Our actual stimulus drawing loop=====================
@@ -320,14 +323,13 @@ try
 				if stroke > 4; stroke = 1; end
 			end
 
-			drawCross(sM, 0.3, [1 1 1 1], ana.fixX, ana.fixY);
+			drawCross(sM, 0.4, [1 1 1 1], ana.fixX, ana.fixY, 0.05, false);
             drawPhotoDiode(sM,[1 1 1 1]);
 			finishDrawing(sM);
 			
 			[vbl, tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);
 			if tick == startTick; trackerMessage(eL,'END_FIX'); end
-			tL.vbl(tick) = vbl; tL.stimTime(tick) = stroke;
-			tL.tick = tick;
+			tL.vbl(tick) = vbl; tL.stimTime(tick) = 1;
 			tick = tick + 1;
 
 			getSample(eL);
@@ -353,6 +355,7 @@ try
 			continue;
 		end
 		
+		tL.tick = tick;
 		ana.trial(seq.totalRuns).totalFrames = ii-1;
 		
 		drawPhotoDiode(sM,[0 0 0 1]);
@@ -439,9 +442,7 @@ try
 		fprintf('==>> SAVE %s, to: %s\n', ana.nameExp, pwd);
 		save([ana.nameExp '.mat'],'ana', 'seq', 'eL', 'sM', 'tL');
 	end
-	if IsWin 
-		tL.printRunLog;
-	end
+	tL.printRunLog;
 	clear ana seq eL sM tL
 
 catch ME
