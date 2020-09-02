@@ -44,7 +44,7 @@ pfx					= linspace(min(variableVals),max(variableVals),250);
 tit = ['Equimotion Data: ' f];
 tit=regexprep(tit,'_','-');
 h = figure('Name',tit,'Units','normalized',...
-		'Position',[0.25 0.25 0.3 0.4],...
+		'Position',[0.25 0.25 0.5 0.6],...
 		'Color',[1 1 1],...
 		'PaperType','A4','PaperUnits','centimeters');
 tl = tiledlayout(h,2,1);
@@ -99,5 +99,9 @@ xlim([min(variableVals)-0.05 max(variableVals)+0.05]);
 ylim([-0.05 1.05]);
 box on; grid on;
 tl.XLabel.String	= [varLabel ' Variable Color Value'];
-tl.XLabel.FontName	= 'JetBrains Mono';	
+tl.XLabel.FontName	= 'JetBrains Mono';
+
+[~,f,~] = fileparts(f);
+exportgraphics(tl,[f '.pdf'],'ContentType','vector');
+
 end
