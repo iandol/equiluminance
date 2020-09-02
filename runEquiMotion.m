@@ -133,9 +133,9 @@ try
 		case 3
 			fixLabel='Blue';
 	end
-	fixV			= ana.colorFixed(fixC);
+	fixV			= ana.colorFixed(fixC); 
 	%varC			= find(ana.colorEnd > 0);
-	variableVals	= r{ana.colorEnd > 0}';
+	variableVals	= r{ana.colorEnd > 0}'; ana.variableVals = variableVals;
 	responseVals	= zeros(size(variableVals));
 	totalVals		= responseVals;
 	varLabels		= arrayfun(@(a) num2str(a,3),variableVals,'UniformOutput',false);
