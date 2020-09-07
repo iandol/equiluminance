@@ -520,7 +520,7 @@ classdef pupilPower < analysisCore
 					me.maxLuminances(1) = l(2).in(end);
 					me.maxLuminances(2) = l(3).in(end);
 					me.maxLuminances(3) = l(4).in(end);
-				else
+				elseif max(me.defLuminances) > 1
 					me.maxLuminances = me.defLuminances;
 				end
 				

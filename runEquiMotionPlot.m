@@ -6,7 +6,7 @@ out					= load(f);
 ana					= out.ana;
 seq					= out.seq;
 
-maxLuminances		= [1 1 1];
+maxLuminances		= [25.5484  102.9958   18.1265];
 fixC				= find(ana.colorFixed == max(ana.colorFixed));
 switch fixC
 	case 1
@@ -31,25 +31,25 @@ end
 variableVals		= variableVals .* maxLuminances(varC);
 varLabels			= arrayfun(@(a) num2str(a,3),variableVals,'UniformOutput',false);
 LEFT = 1; 	RIGHT = 2; UNSURE = 3; REDO = -10; BREAKFIX = -1;
-map = analysisCore.optimalColours(seq.minBlocks);
+map					= analysisCore.optimalColours(seq.minBlocks);
 % to plot the psychometric function
-PF					= @PAL_Weibull;
-maxbeta				= 30;
+PF					= @PAL_Quick;
+maxbeta				= 200;
 space.alpha			= linspace(min(variableVals), max(variableVals), 100);
-space.beta			= linspace(1, maxbeta, 100);
-space.gamma			= 0;
-space.lambda		= 0;
-pfx					= linspace(min(variableVals),max(variableVals),250);
+space.beta			= linspace(0, maxbeta, 100);
+space.gamma			= linspace(0, 0.15, 10);
+space.lambda		= linspace(0, 0.15, 10);
+pfx					= linspace(min(variableVals),max(variableVals),300);
 
-tit = ['Equimotion Data: ' f];
+tit = ['Data: ' f];
 tit=regexprep(tit,'_','-');
 h = figure('Name',tit,'Units','normalized',...
-		'Position',[0.25 0.25 0.5 0.6],...
+'Position',[0.25 0.25 0.5 0.6],...		
 		'Color',[1 1 1],...
 		'PaperType','A4','PaperUnits','centimeters');
 tl = tiledlayout(h,2,1);
 tl.Title.String = tit;
-tl.Title.FontName = 'JetBrains Mono';
+tl.Title.FontName = 'Fira Code';
 tl.Title.FontWeight = 'bold';
 
 ax=nexttile(1);
@@ -69,11 +69,11 @@ for i = 1:length(ana.trial)
 		pl=plot(v,i,p,'Color',map(v,:),'MarkerSize',8,'MarkerFaceColor', map(v,:));
 	end
 end
-ax.FontName = 'JetBrains Mono';
+ax.FontName = 'Fira Code';
 ylabel('Trial Number');
-title([' Fixed Value: ' num2str(ana.colorFixed .* maxLuminances)]);
+title([fixLabel ' Fixed Value: ' num2str(ana.colorFixed .* maxLuminances)]);
 xticks(1:length(varLabels));
-xlim([0 length(varLabels)+1]);
+xlim([0.5 length(varLabels)+0.5]);
 xticklabels(varLabels); box on; grid on;
 pl(1).Parent.XTickLabelRotation=45;
 
@@ -84,24 +84,39 @@ try
 	hold on;
 	try scatter(variableVals,(responseVals./totalVals),(totalVals+1).*20,...
 		'filled','MarkerFaceAlpha',0.5); end
-	pv = PAL_PFML_Fit(variableVals,responseVals,totalVals,space,[1 1 0 0],PF);
+	[pv,ll,scenario] = PAL_PFML_Fit(variableVals,responseVals,totalVals,space,[1 1 1 1],PF);
+	fprintf('FIT: %.2f %.2f %.2f %.2f | LL: %.2f | scenario: %i\n',...
+			pv(1),pv(2),pv(3),pv(4),ll,scenario);
+	if isinf(pv(1))
+		warning('Weibull didn''t fit, change to Logistic!!!!!');
+		PF = @PAL_Logistic;
+		maxbeta = 20;
+		space.beta			= linspace(0, maxbeta, 25);
+		[pv,ll,scenario] = PAL_PFML_Fit(variableVals,responseVals,totalVals,space,[1 1 1 1],PF);
+		fprintf('FIT: %.2f %.2f %.2f %.2f | LL: %.2f | scenario: %i\n',...
+			pv(1),pv(2),pv(3),pv(4),ll,scenario);
+	end
 	if isinf(pv(2)); pv(2) = maxbeta; end
 	pfvals = PF(pv,pfx);
 	pl=plot(pfx,pfvals,'k-');
 	pl(1).Parent.XTickLabelRotation=45;
 	ylabel('Proportion LEFT Choices');
-	title(sprintf('Weibull Threshold:%.2f | Slope:%.2f | Trials:%i',pv(1),pv(2),sum(totalVals)));
-catch ME
-	fprintf('===>>> Cannot plot psychometric curve yet...\n');
+	ratio = (ana.colorFixed(fixC)*maxLuminances(fixC))/pv(1);
+	tit=sprintf('%s Threshold:%.2f | Slope:%.2f | Trials:%i| Ratio:%.2f',...
+		char(PF),pv(1),pv(2),sum(totalVals),ratio);
+	tit=regexprep(tit,'_','-');
+	title(tit);
 end
-ax.FontName			= 'JetBrains Mono';
-xlim([min(variableVals)-0.05 max(variableVals)+0.05]);
+xticks(variableVals);
+xticklabels(varLabels); 
+ax.FontName			= 'Fira code';
+xlim([min(variableVals)-(max(variableVals)/20) max(variableVals)+(max(variableVals)/20)]);
 ylim([-0.05 1.05]);
 box on; grid on;
 tl.XLabel.String	= [varLabel ' Variable Color Value'];
-tl.XLabel.FontName	= 'JetBrains Mono';
+tl.XLabel.FontName	= 'Fira code';
 
 [~,f,~] = fileparts(f);
-exportgraphics(tl,[f '.pdf'],'ContentType','vector');
+exportgraphics(tl,[pwd filesep f '.pdf']);
 
 end
