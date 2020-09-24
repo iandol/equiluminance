@@ -319,7 +319,7 @@ classdef pupilPower < analysisCore
 			if exist('colororder','file')>0; colororder({'k','k'});end
 			yyaxis right
 			phasePH = analysisCore.areabar(trlColors,me.meanPhaseValues,...
-				me.varPhaseValues,[0.6 0.6 0.3],0.2,'LineWidth',1.5);
+				me.varPhaseValues,[0.6 0.6 0.3],0.25,'LineWidth',1.5);
 			try
 				phasePH.DataTipTemplate.DataTipRows(1).Label = 'Luminance';
 				phasePH.DataTipTemplate.DataTipRows(2).Label = 'Angle';
@@ -364,8 +364,9 @@ classdef pupilPower < analysisCore
 			mx = max([max(m) max(m0)]);
 			mn = min([min(m) min(m0)]);
 			pr = (pr / max(pr)) * mx;
-			h0h1PH = plot(trlColors,pr,'--','Color',[0.5 0.5 0.5],...
-				'LineWidth',1);
+			%h0h1PH = plot(trlColors,pr,'--','Color',[0.5 0.5 0.5],...
+			%	'LineWidth',1);
+			
 			data.minColor = minC;
 			data.ratio = ratio;
 			%plot(trlColors,p0 / max(p0),'b--',trlColors,p1 / max(p1),'r:','linewidth',1);
@@ -374,6 +375,7 @@ classdef pupilPower < analysisCore
 			ax3.XTick = trlColors;
 			ax3.XTickLabel = colorLabels; 
 			ax3.XTickLabelRotation = 30;
+			ax3.XLim = [ 0 - max(trlColors)/50 max(trlColors) + max(trlColors)/50];
 			if fixColor <= max(trlColors) && fixColor >= min(trlColors)
 				line([fixColor fixColor],[ax3.YLim(1) ax3.YLim(2)],...
 				'lineStyle',':','Color',[0.3 0.3 0.3 0.5],'linewidth',2);
@@ -390,7 +392,7 @@ classdef pupilPower < analysisCore
 			end
 			tit = sprintf('Harmonic Power: %s | %s Min@H1 = %.2f & Ratio = %.2f', tit, varName, data.minColor, data.ratio);
 			title(tit);
-			legend([h0PH.plot,h1PH.plot,h0h1PH,phasePH.plot],{'H0','H1','H0.*H1','Phase'},...
+			legend([h0PH.plot,h1PH.plot,phasePH.plot],{'H0','H1','Phase'},...
 				'Location','bestoutside','FontSize',10,'Position',[0.9125 0.2499 0.0816 0.0735])
 			
 			box on; grid on;
@@ -404,6 +406,8 @@ classdef pupilPower < analysisCore
 			handles.PL3 = h0PH;
 			if exist('h1PH','var')
 				handles.PL4 = h1PH;
+			end
+			if exist('h0h1PH','var')
 				handles.PL5 = h0h1PH;
 			end
 			drawnow;
