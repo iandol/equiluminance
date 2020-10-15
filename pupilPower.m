@@ -489,6 +489,44 @@ classdef pupilPower < analysisCore
 			colorLabels = cellfun(@(x) num2str(x,'%.2f'), colorLabels, 'UniformOutput', false);
 			
 		end
+		
+		% ===================================================================
+		%> @brief do the FFT
+		%>
+		%> @param p the raw signal
+		%> @return 
+		% ===================================================================
+		function [P, f, A, p1, p0] = doFFT(me,p)	
+			useX = true;
+			L = length(p);
+			if me.useHanning
+				win = hanning(L, 'periodic');
+				P = fft(p.*win'); 
+			else
+				P = fft(p);
+			end
+			
+			if useX
+				Pi = fft(p);
+				P = abs(Pi/L);
+				P=P(1:floor(L/2)+1);
+				P(2:end-1) = 2*P(2:end-1);
+				f = me.pupilData.sampleRate * (0:(L/2))/L;
+			else
+				Pi = fft(p);
+				NumUniquePts = ceil((L+1)/2);
+				P = abs(Pi(1:NumUniquePts));
+				f = (0:NumUniquePts-1)*me.pupilData.sampleRate/L;
+			end
+			
+			idx = analysisCore.findNearest(f, me.metadata.ana.frequency);
+			p1 = P(idx);
+			A = angle(Pi(idx));
+			idx = analysisCore.findNearest(f, 0);
+			p0 = P(idx);
+				
+		end
+		
 	end
 	
 	
@@ -663,42 +701,6 @@ classdef pupilPower < analysisCore
 			me.isCalculated = true;
 		end
 		
-		% ===================================================================
-		%> @brief do the FFT
-		%>
-		%> @param p the raw signal
-		%> @return 
-		% ===================================================================
-		function [P, f, A, p1, p0] = doFFT(me,p)	
-			useX = true;
-			L = length(p);
-			if me.useHanning
-				win = hanning(L, 'periodic');
-				P = fft(p.*win'); 
-			else
-				P = fft(p);
-			end
-			
-			if useX
-				Pi = fft(p);
-				P = abs(Pi/L);
-				P=P(1:floor(L/2)+1);
-				P(2:end-1) = 2*P(2:end-1);
-				f = me.pupilData.sampleRate * (0:(L/2))/L;
-			else
-				Pi = fft(p);
-				NumUniquePts = ceil((L+1)/2);
-				P = abs(Pi(1:NumUniquePts));
-				f = (0:NumUniquePts-1)*me.pupilData.sampleRate/L;
-			end
-			
-			idx = analysisCore.findNearest(f, me.metadata.ana.frequency);
-			p1 = P(idx);
-			A = angle(Pi(idx));
-			idx = analysisCore.findNearest(f, 0);
-			p0 = P(idx);
-				
-		end
 		
 		% ===================================================================
 		%> @brief
