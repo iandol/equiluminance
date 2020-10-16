@@ -1,5 +1,5 @@
-function runEquiMotion(ana)
-fprintf('\n\n--->>> runEquiMotion Started: UUID = %s!\n',ana.uuid);
+function runEquiFlicker(ana)
+fprintf('\n\n--->>> runEquiFlicker Started: UUID = %s!\n',ana.uuid);
 
 %============================use reward system?======================================
 global rM
@@ -15,9 +15,9 @@ end
 KbName('UnifyKeyNames');
 
 %==========================Initiate out metadata=====================================
-ana.date = datestr(datetime);
-ana.version = Screen('Version');
-ana.computer = Screen('Computer');
+ana.date		= datestr(datetime);
+ana.version		= Screen('Version');
+ana.computer	= Screen('Computer');
 ana.gpu			= opengl('data');
 
 %==========================experiment parameters=====================================
@@ -30,7 +30,7 @@ else
 end
 
 %=======================Make a name for this run=====================================
-pf='EquiMotion_';
+pf='EquiFlicker_';
 if ~isempty(ana.subject)
 	nameExp = [pf ana.subject];
 	c = sprintf(' %i',fix(clock()));
@@ -52,14 +52,14 @@ try
 	if ana.debug || ismac || ispc || ~isempty(regexpi(ana.gpu.Vendor,'NVIDIA','ONCE'))
 		sM.disableSyncTests = true; 
 	end
-	sM.screen = ana.screenID;
-	sM.windowed = ana.windowed;
-	sM.pixelsPerCm = ana.pixelsPerCm;
-	sM.distance = ana.distance;
-	sM.photoDiode = true;
-	sM.debug = ana.debug;
-	sM.blend = true;
-	sM.bitDepth = ana.bitDepth;
+	sM.screen		= ana.screenID;
+	sM.debug		= ana.debug;
+	sM.windowed		= ana.windowed;
+	sM.pixelsPerCm	= ana.pixelsPerCm;
+	sM.distance		= ana.distance;
+	sM.photoDiode	= true;
+	sM.blend		= true;
+	sM.bitDepth		= ana.bitDepth;
 	sM.verbosityLevel = 4;
 	if exist(ana.gammaTable, 'file')
 		load(ana.gammaTable);
@@ -72,10 +72,10 @@ try
 		end
 	end
 	sM.backgroundColour = ana.backgroundColor;
-	screenVals = sM.open; % OPEN THE SCREEN
+	screenVals		= sM.open; % OPEN THE SCREEN
 	ana.gpuInfo		= Screen('GetWindowInfo',sM.win);
-	ana.screenVals = screenVals;
-	fprintf('\n--->>> runEquiMotion Opened Screen %i : %s\n', sM.win, sM.fullName);
+	ana.screenVals	= screenVals;
+	fprintf('\n--->>> runEquiFlicker Opened Screen %i : %s\n', sM.win, sM.fullName);
 	disp(screenVals);
 	
 	if IsLinux
@@ -94,7 +94,7 @@ try
 	grating1.tf			= 0;
 	grating1.sf			= ana.sf;
 	
-	ana.offsetBlend	= true;
+	ana.offsetBlend	= false;
 	if ana.offsetBlend
 		blend = (ana.colorFixed + ana.colorStart) / 2;
 	else
@@ -112,7 +112,7 @@ try
 	grating2.sf			= ana.sf;
 	
 	setup(grating1,sM); setup(grating2,sM);
-	
+		
 	%============================SETUP VARIABLES=====================================
 	len = 0;
 	r = cell(3,1);
@@ -162,13 +162,13 @@ try
 	seq.nBlocks			= ana.trialNumber;
 	seq.initialise();
 	ana.nTrials			= seq.nRuns;
-	ana.onFrames		= round(((1/ana.frequency) * sM.screenVals.fps) / 4); % video frames for each color
-	fprintf('--->>> runEquiMotion # Trials: %i; # Freq/frames: %i:%i; FPS: %i \n',seq.nRuns, ana.frequency, ana.onFrames, sM.screenVals.fps);
+	ana.onFrames		= round( ( (1/ana.frequency) * sM.screenVals.fps ) ); % video frames for each color
+	fprintf('--->>> runEquiFlicker # Trials: %i; # Freq/frames: %i:%i; FPS: %i \n',seq.nRuns, ana.frequency, ana.onFrames, sM.screenVals.fps);
 	
 	%==============================SETUP EYELINK=====================================
 	ana.strictFixation = true;
 	eL = eyelinkManager('IP',[]);
-	fprintf('--->>> runEquiMotion eL setup starting: %s\n', eL.fullName);
+	fprintf('--->>> runEquiFlicker eL setup starting: %s\n', eL.fullName);
 	eL.isDummy = ana.isDummy; %use dummy or real eyelink?
 	eL.name = ana.nameExp;
 	eL.saveFile = [ana.nameExp '.edf'];
@@ -187,7 +187,7 @@ try
 	%sM.verbose = true; eL.verbose = true; sM.verbosityLevel = 10; eL.verbosityLevel = 4; %force lots of log output
 	initialise(eL, sM); %use sM to pass screen values to eyelink
 	setup(eL); % do setup and calibration
-	fprintf('--->>> runEquiMotion eL setup complete: %s\n', eL.fullName);
+	fprintf('--->>> runEquiFlicker eL setup complete: %s\n', eL.fullName);
 	WaitSecs('YieldSecs',0.5);
 	getSample(eL); %make sure everything is in memory etc.
 	
@@ -213,7 +213,7 @@ try
 	while ~seq.taskFinished && ~breakLoop
 	
 		%=================Define stimulus colours for this run=======================
-		fprintf('\n===>>> runEquiMotion START Run = %i / %i (%i:%i) | %s, %s\n', seq.totalRuns, seq.nRuns, seq.thisBlock, seq.thisRun, sM.fullName, eL.fullName);
+		fprintf('\n===>>> runEquiFlicker START Run = %i / %i (%i:%i) | %s, %s\n', seq.totalRuns, seq.nRuns, seq.thisBlock, seq.thisRun, sM.fullName, eL.fullName);
 		modColor			= [seq.outValues{seq.totalRuns}(1:3) 1];
 		fixedColor			= [ana.colorFixed(1:3) 1];
 		grating1.colourOut	= modColor;
@@ -271,20 +271,20 @@ try
 				rchar = KbName(keyCode);
 				switch lower(rchar)
 					case {'c'}
-						fprintf('===>>> runEquiMotion recalibrate pressed!\n');
+						fprintf('===>>> runEquiFlicker recalibrate pressed!\n');
 						fixated = 'breakfix';
 						stopRecording(eL);
 						setOffline(eL);
 						trackerSetup(eL);
 						WaitSecs('YieldSecs', 1);
 					case {'d'}
-						fprintf('===>>> runEquiMotion drift correct pressed!\n');
+						fprintf('===>>> runEquiFlicker drift correct pressed!\n');
 						fixated = 'breakfix';
 						stopRecording(eL);
 						driftCorrection(eL);
 						WaitSecs('YieldSecs', 1);
 					case {'q'}
-						fprintf('===>>> runEquiMotion Q pressed!!!\n');
+						fprintf('===>>> runEquiFlicker Q pressed!!!\n');
 						fixated = 'breakfix';
 						breakLoop = true;
 				end
@@ -305,28 +305,21 @@ try
 		end
 		
 		statusMessage(eL,'Show Stimulus...');
-		
 		%=======================Our actual stimulus drawing loop=====================
-		startTick = tick;
+		startTick = tick; keepRunning = true;
 		tStart = GetSecs; vbl = tStart;if isempty(tL.vbl);tL.vbl(1) = tStart;tL.startTime = tStart; end
-		while vbl < tStart + ana.trialDuration
+		while keepRunning
 			switch stroke
 				case 1
-					grating1.driftPhase = 180; %see Cavanagh 1987 Fig. 1,darker red=left
+					grating1.driftPhase = 0; %see Cavanagh 1987 Fig. 1,darker red=left
 					draw(grating1)
 				case 2
-					grating2.driftPhase = 270;
-					draw(grating2)
-				case 3
-					grating1.driftPhase = 0;
+					grating1.driftPhase = 180;
 					draw(grating1)
-				case 4
-					grating2.driftPhase = 90;
-					draw(grating2)
 			end
 			if mod(ii,ana.onFrames) == 0 
 				stroke = stroke + 1;
-				if stroke > 4; stroke = 1; end
+				if stroke > 2; stroke = 1; end
 			end
 
 			drawCross(sM, 0.4, [1 1 1 1], ana.fixX, ana.fixY, 0.05, false);
@@ -343,6 +336,11 @@ try
 			if ~isFixated(eL)
 				fixated = 'breakfix';
 				break %break the while loop
+			end
+			if ana.debug
+				keepRunning = tick < startTick + 60;
+			else
+				keepRunning = vbl < tStart + ana.trialDuration;
 			end
 		end
 		%============================================================================
@@ -365,8 +363,8 @@ try
 		ana.trial(seq.totalRuns).totalFrames = ii-1;
 		
 		drawPhotoDiode(sM,[0 0 0 1]);
-		DrawFormattedText2(['Which Direction (press arrow button)?:\n  [<b>LEFT<b>] = LEFT MOTION'...
-			'\n  [<b>RIGHT<b>]=RIGHT MOTION \n  [<b>UP<b>]=REDO'],...
+		DrawFormattedText2(['DID YOU SEE FLICKER (press arrow button)?:\n  [<b>LEFT<b>] = NO'...
+			'\n  [<b>RIGHT<b>]=YES \n  [<b>UP<b>]=REDO'],...
 			'win',sM.win,'sx','center','sy','center','xalign','center','yalign','center');
 		Screen('Flip',sM.win);
 		statusMessage(eL,'Waiting for Subject Response!');
@@ -381,15 +379,15 @@ try
 			case {'leftarrow','left'}
 				response = LEFT;
 				updateResponse();
-				trackerDrawText(eL,'Subject Pressed LEFT!');
-				edfMessage(eL,'Subject Pressed LEFT');
-				fprintf('Response: LEFT\n');
+				trackerDrawText(eL,'Subject Pressed LEFT = NO!');
+				edfMessage(eL,'Subject Pressed LEFT = NO');
+				fprintf('Response: LEFT = NO\n');
 			case {'rightarrow','right'}
 				response = RIGHT;
 				updateResponse();
-				trackerDrawText(eL,'Subject Pressed RIGHT!');
-				edfMessage(eL,'Subject Pressed RIGHT')
-				fprintf('Response: RIGHT\n');
+				trackerDrawText(eL,'Subject Pressed RIGHT = YES!');
+				edfMessage(eL,'Subject Pressed RIGHT = YES')
+				fprintf('Response: RIGHT = YES\n');
 % 			case {'downarrow','down'}
 % 				response = UNSURE;
 % 				updateResponse();
@@ -403,18 +401,18 @@ try
 				edfMessage(eL,'Subject Pressed REDO')
 				fprintf('Response: REDO\n');
 			case {'c'}
-				fprintf('===>>> runEquiMotion recalibrate pressed!\n');
+				fprintf('===>>> runEquiFlicker recalibrate pressed!\n');
 				stopRecording(eL);
 				setOffline(eL);
 				trackerSetup(eL);
 				WaitSecs('YieldSecs',2);
 			case {'d'}
-				fprintf('===>>> runEquiMotion drift correct pressed!\n');
+				fprintf('===>>> runEquiFlicker drift correct pressed!\n');
 				stopRecording(eL);
 				driftCorrection(eL);
 				WaitSecs('YieldSecs',2);
 			case {'q'}
-				fprintf('===>>> runEquiMotion quit pressed!!!\n');
+				fprintf('===>>> runEquiFlicker quit pressed!!!\n');
 				trackerClearScreen(eL);
 				stopRecording(eL);
 				setOffline(eL);
@@ -426,7 +424,7 @@ try
 	end % while ~breakLoop
 	
 	%===============================Clean up============================
-	fprintf('===>>> runEquiMotion Finished Trials: %i\n',seq.totalRuns);
+	fprintf('===>>> runEquiFlicker Finished Trials: %i\n',seq.totalRuns);
 	Screen('DrawText', sM.win, '===>>> FINISHED!!!',50,50);
 	Screen('Flip',sM.win);
 	WaitSecs('YieldSecs', 2);
@@ -537,11 +535,11 @@ end
 				xlim(ana.plotAxis2, [min(variableVals)-0.05 max(variableVals)+0.05]);
 				ylim(ana.plotAxis2, [-0.05 1.05]);
 				hold(ana.plotAxis2,'on');
-				pv = PAL_PFML_Fit(variableVals,responseVals,totalVals,space,[1 1 0 0],PF);
-				if isinf(pv(1)); pv(1) = max(variableVals); end
-				if isinf(pv(2)); pv(2) = 30; end
-				pfvals = PF(pv,pfx);
-				plot(ana.plotAxis2,pfx,pfvals,'k-');
+				%pv = PAL_PFML_Fit(variableVals,responseVals,totalVals,space,[1 1 0 0],PF);
+				%if isinf(pv(1)); pv(1) = max(variableVals); end
+				%if isinf(pv(2)); pv(2) = 30; end
+				%pfvals = PF(pv,pfx);
+				%plot(ana.plotAxis2,pfx,pfvals,'k-');
 			catch ME
 				fprintf('===>>> Cannot plot psychometric curve yet...\n');
 			end
