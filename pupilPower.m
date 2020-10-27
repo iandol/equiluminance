@@ -17,7 +17,7 @@ classdef pupilPower < analysisCore
 		normalisePowerPlots logical = true
 		%> color map to use
 		colorMap char = 'jet';
-		%> actual R G B luminance maxima, if [1 1 1] then use 0<->1
+		%> actual R G B luminance maxima for display, if [1 1 1] then use 0<->1
 		%> floating point range
 		maxLuminances double = [1 1 1]
 		%> use hanning window?
@@ -38,7 +38,8 @@ classdef pupilPower < analysisCore
 	
 	properties (Hidden = true)
 		%> default R G B luminance maxima, if [1 1 1] then use 0<->1
-		%> floating point range
+		%> floating point range, compatibility with older code, use
+		%> maxLumiances
 		defLuminances double = [1 1 1]
 	end
 	
@@ -56,6 +57,7 @@ classdef pupilPower < analysisCore
 		meanF
 		meanP
 		varP
+		SortedPupil struct
 	end
 	
 	%------------------PROTECTED PROPERTIES----------%
@@ -64,7 +66,6 @@ classdef pupilPower < analysisCore
 		phaseValues
 		powerValues0
 		metadata struct
-		SortedPupil struct
 		rawPupil cell
 		rawTimes cell
 		rawF cell
@@ -112,6 +113,19 @@ classdef pupilPower < analysisCore
 				if isempty(me.name); me.name = 'pupilPower'; end
 				me.rootDirectory = pwd;
 				run(me);
+			end
+		end
+		
+		% ===================================================================
+		%> @brief validate 
+		% ===================================================================
+		function set.maxLuminances(me,value)
+			if all( [1 3] == size(value) )
+				me.maxLuminances = value;
+			elseif all( [3 1] == size(value) )
+				me.maxLuminances = value';
+			else 
+				me.maxLuminances = [1 1 1];
 			end
 		end
 		
@@ -188,8 +202,8 @@ classdef pupilPower < analysisCore
 			handles.h2=figure;figpos(1,[0.9 0.9],[],'%');set(handles.h2,'Color',[1 1 1],'NumberTitle','off',...
 				'Name',['pupilPower: ' me.pupilData.file],'Papertype','a4','PaperUnits','centimeters',...
 				'PaperOrientation','landscape','Renderer','painters');
-			tl = tiledlayout(handles.h2,3,1,'TileSpacing','compact');
-			ax1 = nexttile(tl);
+			tl = tiledlayout(handles.h2,2,3,'TileSpacing','compact');
+			ax1 = nexttile(tl,[1 3]);
 			traceColor				= colormap(me.colorMap);
 			traceColor_step			= floor(length(traceColor)/numVars);
 			
@@ -271,9 +285,9 @@ classdef pupilPower < analysisCore
 			end
 			xlim([-0.2 me.measureRange(2)+0.05]);if minp == 0;minp = -1;end;if maxp==0;maxp = 1; end
 			if minp <= 0
-				ylim([minp+(minp/100*2) maxp+(maxp/100*2)]);
+				ylim([minp+(minp/10) maxp+(maxp/10)]);
 			else
-				ylim([minp-(minp/100*2) maxp+(maxp/100*2)]);
+				ylim([minp-(minp/10) maxp+(maxp/10)]);
 			end
 			legend(colorLabels,'Location','bestoutside','FontSize',10,...
 				'Position',[0.9125 0.5673 0.0779 0.3550]);
@@ -314,7 +328,7 @@ classdef pupilPower < analysisCore
 			box on; grid on;
 			ax2.FontSize = 12;
 			
-			ax3 = nexttile(tl);
+			ax3 = nexttile(tl,[1 2]);
 			hold on
 			if exist('colororder','file')>0; colororder({'k','k'});end
 			yyaxis right
@@ -324,6 +338,9 @@ classdef pupilPower < analysisCore
 				phasePH.DataTipTemplate.DataTipRows(1).Label = 'Luminance';
 				phasePH.DataTipTemplate.DataTipRows(2).Label = 'Angle';
 			end
+			mn = min(me.meanPhaseValues-me.varPhaseValues);
+			mx = max(me.meanPhaseValues+me.varPhaseValues);
+			ylim([mn mx]);
 			%PL3b = plot(trlColors,rad2deg(A),'k-.','Color',[0.6 0.6 0.3],'linewidth',1);
 			ylabel('Phase (deg)');
 			
@@ -337,6 +354,7 @@ classdef pupilPower < analysisCore
 				m0 = me.meanPowerValues0;
 				e0 = me.varPowerValues0;
 			end
+			
 			h0PH = analysisCore.areabar(trlColors,m0,e0,[0.5 0.5 0.7],0.1,...
 				'LineWidth',1);
 			try
@@ -351,6 +369,7 @@ classdef pupilPower < analysisCore
 				m = me.meanPowerValues;
 				e = me.varPowerValues;
 			end
+			
 			idx = find(m==min(m));
 			minC = trlColors(idx);
 			ratio = fixColor / minC;
@@ -360,13 +379,15 @@ classdef pupilPower < analysisCore
 				h1PH.plot.DataTipTemplate.DataTipRows(1).Label = 'Luminance';
 				h1PH.plot.DataTipTemplate.DataTipRows(2).Label = 'Power';
 			end
+			
+			mx = max([max(m+e) max(m0+e0)]);
+			mn = min([min(m-e) min(m0-e0)]);
+			ylim([mn mx]);
 			pr = (m .* m0);
-			mx = max([max(m) max(m0)]);
-			mn = min([min(m) min(m0)]);
 			pr = (pr / max(pr)) * mx;
 			%h0h1PH = plot(trlColors,pr,'--','Color',[0.5 0.5 0.5],...
 			%	'LineWidth',1);
-			
+
 			data.minColor = minC;
 			data.ratio = ratio;
 			%plot(trlColors,p0 / max(p0),'b--',trlColors,p1 / max(p1),'r:','linewidth',1);
@@ -374,8 +395,10 @@ classdef pupilPower < analysisCore
 			ax3.FontSize = 12;
 			ax3.XTick = trlColors;
 			ax3.XTickLabel = colorLabels; 
-			ax3.XTickLabelRotation = 30;
-			ax3.XLim = [ 0 - max(trlColors)/50 max(trlColors) + max(trlColors)/50];
+			ax3.XTickLabelRotation = 45;
+			pad = max(diff(trlColors))/10;
+			ax3.XLim = [ min(trlColors) - pad max(trlColors) + pad];
+			
 			if fixColor <= max(trlColors) && fixColor >= min(trlColors)
 				line([fixColor fixColor],[ax3.YLim(1) ax3.YLim(2)],...
 				'lineStyle',':','Color',[0.3 0.3 0.3 0.5],'linewidth',2);
@@ -441,7 +464,7 @@ classdef pupilPower < analysisCore
 			if ~exist('cs','var') || isempty(cs); cs = me.metadata.ana.colorStart; end
 			if ~exist('ce','var') || isempty(ce); ce = me.metadata.ana.colorEnd; end
 			if ~exist('vals','var') || isempty(vals); vals = me.metadata.seq.nVar.values'; end
-			
+			if size(me.maxLuminances,1) > 1; me.maxLuminances=me.maxLuminances';end
 			cNames = {'Red';'Green';'Blue';'Yellow';'Cyan';'Purple'};
 			fix = fc .* me.maxLuminances;
 			fColor=find(fix > 0); %get the position of not zero

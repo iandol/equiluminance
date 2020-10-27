@@ -13,7 +13,8 @@ end
 %===========================compatibility for windows================================
 %if ispc; PsychJavaTrouble(); end
 KbName('UnifyKeyNames');
-
+RestrictKeysForKbCheck([KbName('q') KbName('c') KbName('d') KbName('v') ...
+	KbName('leftarrow') KbName('rightarrow') KbName('uparrow')]);
 %==========================Initiate out metadata=====================================
 ana.date		= datestr(datetime);
 ana.version		= Screen('Version');
@@ -94,24 +95,7 @@ try
 	grating1.tf			= 0;
 	grating1.sf			= ana.sf;
 	
-	ana.offsetBlend	= false;
-	if ana.offsetBlend
-		blend = (ana.colorFixed + ana.colorStart) / 2;
-	else
-		blend = (ana.colorFixed + ( (ana.colorStart + ana.colorEnd) / 2 ) ) / 2;
-	end
-	grating2			= colourGratingStimulus;
-	grating2.size		= ana.size;
-	grating2.colour		= (1+ana.contrastMultiplier) * blend;
-	grating2.colour2	= (1-ana.contrastMultiplier) * blend;
-	grating2.colour		= [grating2.colour(1:3) 1]; grating2.colour2 = [grating2.colour2(1:3) 1];
-	grating2.contrast	= 1;
-	grating2.type		= ana.type;
-	grating2.mask		= ana.mask;
-	grating2.tf			= 0;
-	grating2.sf			= ana.sf;
-	
-	setup(grating1,sM); setup(grating2,sM);
+	setup(grating1,sM); 
 		
 	%============================SETUP VARIABLES=====================================
 	len = 0;
@@ -193,7 +177,7 @@ try
 	
 	%================================================================================
 	%-------------prepare variables needed for task loop-----------------------------
-	LEFT = 1; 	RIGHT = 2; UNSURE = 3; REDO = -10; BREAKFIX = -1;
+	NO = 1; YES = 2; UNSURE = 3; REDO = -10; BREAKFIX = -1;
 	map = analysisCore.optimalColours(seq.minBlocks);	
 	tL				= timeLogger();
 	tL.screenLog.beforeDisplay = GetSecs();
@@ -210,21 +194,17 @@ try
 	
 	%================================================================================
 	%-------------------------------------TASK LOOP----------------------------------
-	while ~seq.taskFinished && ~breakLoop
+	while seq.taskFinished == false || breakLoop == false
 	
 		%=================Define stimulus colours for this run=======================
-		fprintf('\n===>>> runEquiFlicker START Run = %i / %i (%i:%i) | %s, %s\n', seq.totalRuns, seq.nRuns, seq.thisBlock, seq.thisRun, sM.fullName, eL.fullName);
+		fprintf('\n===>>> runEquiFlicker START Run = %i / %i (%i:%i) | frames: %i | %s, %s\n',...
+			seq.totalRuns, seq.nRuns, seq.thisBlock, seq.thisRun, ana.onFrames, sM.fullName, eL.fullName);
 		modColor			= [seq.outValues{seq.totalRuns}(1:3) 1];
 		fixedColor			= [ana.colorFixed(1:3) 1];
 		grating1.colourOut	= modColor;
 		grating1.colour2Out = fixedColor;
-		grating2.colourOut	= ((1+ana.contrastMultiplier) * (fixedColor + modColor)) / 2.0; 
-		grating2.colourOut	= [grating2.colourOut(1:3) 1];
-		grating2.colour2Out = ((1-ana.contrastMultiplier) * (fixedColor + modColor)) / 2.0; 
-		grating2.colour2Out = [grating2.colour2Out(1:3) 1];
-		update(grating1); update(grating2);
+		update(grating1);
 		fprintf('===>>> MOD=%s | FIX=%s\n',num2str(grating1.colourOut(1:3)),num2str(grating1.colour2Out(1:3)));
-		fprintf('===>>> B=%s | D=%s\n',num2str(grating2.colourOut(1:3)),num2str(grating2.colour2Out(1:3)));
 		
 		%======================prepare eyelink for this trial ==============
 		resetFixation(eL);
@@ -239,7 +219,6 @@ try
 		startRecording(eL);
 		statusMessage(eL,'INITIATE FIXATION...');
 		fixated = '';
-		ListenChar(2);
 		
 		%=======================Prepare for the stimulus loop========================
 		ii = 1;
@@ -250,14 +229,13 @@ try
 		ana.trial(tr).value = variableVals(ana.trial(tr).variable);
 		ana.trial(tr).mColor = grating1.colour;
 		ana.trial(tr).fColor = grating1.colour2;
-		ana.trial(tr).blendColor1 = grating2.colour;
-		ana.trial(tr).blendColor2 = grating2.colour2;
 		ana.trial(tr).pupil = [];
 		ana.trial(tr).frameN = [];
+		ListenChar(-1);
 		vbl=Screen('Flip',sM.win);
 		%================================initiate fixation===========================
-		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix') && breakLoop == false
-			drawCross(sM, 0.4, [1 1 1 1], ana.fixX, ana.fixY, 0.05, false);
+		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
+			drawCross(sM, 0.5, [1 1 1 1], ana.fixX, ana.fixY, 0.05, true);
             drawPhotoDiode(sM,[0 0 0 1]);
 			finishDrawing(sM);
 			getSample(eL);
@@ -322,7 +300,7 @@ try
 				if stroke > 2; stroke = 1; end
 			end
 
-			drawCross(sM, 0.4, [1 1 1 1], ana.fixX, ana.fixY, 0.05, false);
+			drawCross(sM, 0.5, [1 1 1 1], ana.fixX, ana.fixY, 0.05, true);
             drawPhotoDiode(sM,[1 1 1 1]);
 			finishDrawing(sM);
 			
@@ -371,19 +349,19 @@ try
 		edfMessage(eL,'Subject Responding')
 		edfMessage(eL,'END_RT'); ...
 		response = -1;
-		ListenChar(2);
+		ListenChar(-1);
 		[~, keyCode] = KbWait(-1);
 		ListenChar(0);
 		rchar = KbName(keyCode); if iscell(rchar);rchar=rchar{1};end
 		switch lower(rchar)
 			case {'leftarrow','left'}
-				response = LEFT;
+				response = NO;
 				updateResponse();
 				trackerDrawText(eL,'Subject Pressed LEFT = NO!');
 				edfMessage(eL,'Subject Pressed LEFT = NO');
 				fprintf('Response: LEFT = NO\n');
 			case {'rightarrow','right'}
-				response = RIGHT;
+				response = YES;
 				updateResponse();
 				trackerDrawText(eL,'Subject Pressed RIGHT = YES!');
 				edfMessage(eL,'Subject Pressed RIGHT = YES')
@@ -428,9 +406,9 @@ try
 	Screen('DrawText', sM.win, '===>>> FINISHED!!!',50,50);
 	Screen('Flip',sM.win);
 	WaitSecs('YieldSecs', 2);
-	reset(grating1);reset(grating2);
+	reset(grating1);
 	close(sM); breakLoop = true;
-	ListenChar(0);ShowCursor;Priority(0);
+	ListenChar(0);ShowCursor;Priority(0);RestrictKeysForKbCheck([]);
 	
 	if exist(ana.ResultDir,'dir') > 0
 		cd(ana.ResultDir);
@@ -451,9 +429,9 @@ try
 
 catch ME
 	if exist('eL','var'); close(eL); end
-	reset(grating1);reset(grating2);
+	if exist('grating1','var');reset(grating1);end
 	if exist('sM','var'); close(sM); end
-	ListenChar(0);ShowCursor;Priority(0);Screen('CloseAll');
+	ListenChar(0);ShowCursor;Priority(0);Screen('CloseAll');RestrictKeysForKbCheck([]);
 	getReport(ME)
 end
 
@@ -470,11 +448,11 @@ end
 				ana.trial(seq.totalRuns).response = response;
 				v=ana.trial(seq.totalRuns).variable;
 				totalVals(v) = totalVals(v) + 1;
-				if response == LEFT
+				if response == NO
 					isLeft = 1;
 					ana.leftCount = ana.leftCount + 1;
 					responseVals(v) = responseVals(v) + 1;
-				elseif response == RIGHT
+				elseif response == YES
 					isLeft = 0;
 					ana.rightCount = ana.rightCount + 1;
 				elseif response == UNSURE
@@ -512,10 +490,10 @@ end
 		v = ana.trial(thisTrial).variable;
 		r = ana.trial(thisTrial).response;
 		p = [];
-		if r == LEFT
-			p = 'k-<';
-		elseif r == RIGHT
-			p = 'k->';
+		if r == NO
+			p = 'k-v';
+		elseif r == YES
+			p = 'k-^';
 		elseif r == UNSURE
 			p = 'k-x';
 		end
@@ -545,7 +523,7 @@ end
 			end
 			
 			bar(ana.plotAxis3, [ana.leftCount ana.rightCount ana.unsureCount]);
-			xticklabels(ana.plotAxis3, {'Left','Right','Unsure'});
+			xticklabels(ana.plotAxis3, {'NO','YES','Unsure'});
 			
 			drawnow;
 		end
