@@ -276,21 +276,22 @@ classdef pupilPower < analysisCore
 			data.maxDiameter = maxp;
 			data.diameterRange = maxp - minp;
 			
-			xlabel('Time (s)')
-			ylabel('Diameter')
+			xlabel('Time (secs)')
+			ylabel('Pupil Diameter')
 			if me.normaliseBaseline
 				title(['Normalised Pupil: # Trials = ' num2str(me.metadata.ana.trialNumber) ' | Subject = ' me.metadata.ana.subject  ' | baseline = ' num2str(me.baselineWindow,'%.2f ') 'secs'  ' | Range = ' num2str(data.diameterRange,'%.2f')]);
 			else
 				title(['Raw Pupil: # Trials = ' num2str(me.metadata.ana.trialNumber) ' | Subject = ' me.metadata.ana.subject  ' | Range = ' num2str(data.diameterRange,'%.2f')])
 			end
-			xlim([-0.2 me.measureRange(2)+0.05]);if minp == 0;minp = -1;end;if maxp==0;maxp = 1; end
+			xlim([-0.2 me.measureRange(2)+0.05]);
+			if minp == 0;minp = -1;end;
+			if maxp==0;maxp = 1; end
 			if minp <= 0
 				ylim([minp+(minp/10) maxp+(maxp/10)]);
 			else
 				ylim([minp-(minp/10) maxp+(maxp/10)]);
 			end
-			legend(colorLabels,'Location','bestoutside','FontSize',10,...
-				'Position',[0.9125 0.5673 0.0779 0.3550]);
+			legend(colorLabels,'FontSize',10,'Location','southwest'); %'Position',[0.955 0.75 0.04 0.24]
 			box on; grid on;
 			ax1.XMinorGrid = 'on';
 			ax1.FontSize = 12;
@@ -355,11 +356,15 @@ classdef pupilPower < analysisCore
 				e0 = me.varPowerValues0;
 			end
 			
-			h0PH = analysisCore.areabar(trlColors,m0,e0,[0.5 0.5 0.7],0.1,...
-				'LineWidth',1);
-			try
-				h0PH.plot.DataTipTemplate.DataTipRows(1).Label = 'Luminance';
-				h0PH.plot.DataTipTemplate.DataTipRows(2).Label = 'Power';
+			is0=false;
+			if max(me.meanPowerValues0) > 0.1 % only if there is a significant response
+				is0 = true;
+				h0PH = analysisCore.areabar(trlColors,m0,e0,[0.5 0.5 0.7],0.1,...
+					'LineWidth',1);
+				try %#ok<*TRYNC>
+					h0PH.plot.DataTipTemplate.DataTipRows(1).Label = 'Luminance';
+					h0PH.plot.DataTipTemplate.DataTipRows(2).Label = 'Power';
+				end
 			end
 			
 			if me.normalisePowerPlots
@@ -380,8 +385,13 @@ classdef pupilPower < analysisCore
 				h1PH.plot.DataTipTemplate.DataTipRows(2).Label = 'Power';
 			end
 			
-			mx = max([max(m+e) max(m0+e0)]);
-			mn = min([min(m-e) min(m0-e0)]);
+			if is0
+				mx = max([max(m+e) max(m0+e0)]);
+				mn = min([min(m-e) min(m0-e0)]);
+			else
+				mx = max(m+e);
+				mn = min(m-e);
+			end
 			ylim([mn mx]);
 			pr = (m .* m0);
 			pr = (pr / max(pr)) * mx;
@@ -415,8 +425,14 @@ classdef pupilPower < analysisCore
 			end
 			tit = sprintf('Harmonic Power: %s | %s Min@H1 = %.2f & Ratio = %.2f', tit, varName, data.minColor, data.ratio);
 			title(tit);
-			legend([h0PH.plot,h1PH.plot,phasePH.plot],{'H0','H1','Phase'},...
-				'Location','bestoutside','FontSize',10,'Position',[0.9125 0.2499 0.0816 0.0735])
+			
+			if is0
+				legend([h0PH.plot,h1PH.plot,phasePH.plot],{'H0','H1','Phase'},...
+				'FontSize',10,'Location','southwest'); %'Position',[0.9125 0.2499 0.0816 0.0735],
+			else
+				legend([h1PH.plot,phasePH.plot],{'H1','Phase'},...
+				'FontSize',10,'Location','southwest')	
+			end
 			
 			box on; grid on;
 			
@@ -426,13 +442,9 @@ classdef pupilPower < analysisCore
 			handles.PL1 = PL1;
 			handles.PL2 = PL2;
 			handles.PL3a = phasePH;
-			handles.PL3 = h0PH;
-			if exist('h1PH','var')
-				handles.PL4 = h1PH;
-			end
-			if exist('h0h1PH','var')
-				handles.PL5 = h0h1PH;
-			end
+			if exist('h0PH','var');handles.PL3 = h0PH;end
+			if exist('h1PH','var'); handles.PL4 = h1PH;end
+			if exist('h0h1PH','var');handles.PL5 = h0h1PH;end
 			drawnow;
 			figure(handles.h2);
 			
