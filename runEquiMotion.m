@@ -13,7 +13,7 @@ end
 %===========================compatibility for windows================================
 %if ispc; PsychJavaTrouble(); end
 KbName('UnifyKeyNames');
-RestrictKeysForKbCheck([KbName('q') KbName('c') KbName('d') KbName('v') KbName('leftarrow') KbName('righttarrow') KbName('uparrow')])
+RestrictKeysForKbCheck([KbName('q') KbName('c') KbName('d') KbName('v') KbName('leftarrow') KbName('rightarrow') KbName('uparrow')])
 %==========================Initiate out metadata=====================================
 ana.date = datestr(datetime);
 ana.version = Screen('Version');
