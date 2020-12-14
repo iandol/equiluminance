@@ -58,6 +58,7 @@ classdef pupilPower < analysisCore
 		meanP
 		varP
 		SortedPupil struct
+		taggingFrequency = []
 	end
 	
 	%------------------PROTECTED PROPERTIES----------%
@@ -138,6 +139,11 @@ classdef pupilPower < analysisCore
 		function [handles,data] = run(me, force)
 			if ~exist('force','var') || isempty(force); force = false; end
 			me.load(force);
+			if isfield(me.metadata.ana,'onFrames')
+				me.taggingFrequency = (me.metadata.sM.screenVals.fps/me.metadata.ana.onFrames) / 2;
+			else
+				me.taggingFrequency = me.metadata.ana.frequency;
+			end
 			me.calculate();
 			if me.doPlots; [handles,data] = me.plot(); end
 		end
@@ -213,7 +219,7 @@ classdef pupilPower < analysisCore
 			else
 				m = 1:2:101;
 			end
-			for i = 1 : floor(me.metadata.ana.trialDuration / f / 2)+1
+			for i = 1 : floor(me.metadata.ana.trialDuration / f / 2) + 1
 				rectangle('Position',[f*m(i) -10000 f 20000],'FaceColor',[0.8 0.8 0.8 0.3],'EdgeColor','none')
 			end
 			maxp = -inf;
@@ -284,8 +290,8 @@ classdef pupilPower < analysisCore
 				title(['Raw Pupil: # Trials = ' num2str(me.metadata.ana.trialNumber) ' | Subject = ' me.metadata.ana.subject  ' | Range = ' num2str(data.diameterRange,'%.2f')])
 			end
 			xlim([-0.2 me.measureRange(2)+0.05]);
-			if minp == 0;minp = -1;end;
-			if maxp==0;maxp = 1; end
+			if minp == 0; minp = -1;end
+			if maxp==0; maxp = 1; end
 			if minp <= 0
 				ylim([minp+(minp/10) maxp+(maxp/10)]);
 			else
@@ -322,9 +328,9 @@ classdef pupilPower < analysisCore
 				ax2.YScale = 'log';
 				ylabel('Power [log]');
 			end
-			line([me.metadata.ana.frequency me.metadata.ana.frequency],[ax2.YLim(1) ax2.YLim(2)],...
+			line([me.taggingFrequency me.taggingFrequency],[ax2.YLim(1) ax2.YLim(2)],...
 				'Color',[0.3 0.3 0.3 0.5],'linestyle',':','LineWidth',2);
-			title(['FFT Power: measure range = ' num2str(me.measureRange,'%.2f ') 'secs | F = ' num2str(me.metadata.ana.frequency) 'Hz, Hanning=' num2str(me.useHanning)]);
+			title(['FFT Power: range = ' num2str(me.measureRange,'%.2f ') 'secs | F = ' num2str(me.taggingFrequency) 'Hz\newlineHanning = ' num2str(me.useHanning)]);
 			
 			box on; grid on;
 			ax2.FontSize = 12;
@@ -554,7 +560,7 @@ classdef pupilPower < analysisCore
 				f = (0:NumUniquePts-1)*me.pupilData.sampleRate/L;
 			end
 			
-			idx = analysisCore.findNearest(f, me.metadata.ana.frequency);
+			idx = analysisCore.findNearest(f, me.taggingFrequency);
 			p1 = P(idx);
 			A = angle(Pi(idx));
 			idx = analysisCore.findNearest(f, 0);
