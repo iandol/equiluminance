@@ -96,7 +96,7 @@ classdef pupilPower < analysisCore
 		%> @return
 		% ===================================================================
 		function me = pupilPower(varargin)
-			defaults.measureRange = [0.72 3.57];
+			defaults.measureRange = [1.23 3.5];
 			defaults.baselineWindow = [-0.2 0.2];
 			defaults.plotRange = [];
 			varargin = optickaCore.addDefaults(varargin,defaults);
@@ -168,12 +168,16 @@ classdef pupilPower < analysisCore
 				'Name',['pupilPower: ' me.pupilData.file],'Papertype','a4','PaperUnits','centimeters',...
 				'PaperOrientation','landscape','Renderer','painters');
 			switch varName
+				case 'Grey'
+					plotColor = [0.5 0.5 0.5];
 				case 'Yellow'
 					plotColor = [0.8 0.8 0];
 				otherwise
 					plotColor = zeros(1,3);	plotColor(1,tColor)	= 0.8;
 			end
 			switch fixName
+				case 'Grey'
+					lineColor = [0.5 0.5 0.5];
 				case 'Yellow'
 					lineColor = [0.8 0.8 0];
 				otherwise
@@ -193,7 +197,7 @@ classdef pupilPower < analysisCore
 			PL.Parent.XTickLabelRotation = 30;
 			xlim([0.5 numVars+1.5])
 			ax = axis;
-			line([ax(1) ax(2)],[fixColor fixColor],'Color',lineColor,'Linewidth',2);
+			line([ax(1) ax(2)],[fixColor(1) fixColor(1)],'Color',lineColor,'Linewidth',2);
 			if max(me.maxLuminances) == 1
 				xlabel('Step (0 <-> 1)')
 			else
@@ -483,12 +487,26 @@ classdef pupilPower < analysisCore
 			if ~exist('ce','var') || isempty(ce); ce = me.metadata.ana.colorEnd; end
 			if ~exist('vals','var') || isempty(vals); vals = me.metadata.seq.nVar.values'; end
 			if size(me.maxLuminances,1) > 1; me.maxLuminances=me.maxLuminances';end
-			cNames = {'Red';'Green';'Blue';'Yellow';'Cyan';'Purple'};
+			cNames = {'Red';'Green';'Blue';'Yellow';'Grey';'Cyan';'Purple'};
 			fix = fc .* me.maxLuminances;
 			fColor=find(fix > 0); %get the position of not zero
-			if all([1 2] == fColor); fColor = 4; end
+			if length(fColor) == 1 && fColor <= 3
+				
+			elseif length(fColor) == 2 && all([1 2] == fColor)
+				fColor = 4;
+			elseif length(fColor) == 2 && all([1 3] == fColor)
+				fColor = 7;
+			elseif length(fColor) == 2 && all([2 3] == fColor)
+					fColor = 6;
+			elseif length(fColor) == 3 && isequal(fc(1),fc(2),fc(3))
+				fColor = 5;
+			else
+				warning('Cannot Define fixed color!');
+			end
 			fixName = cNames{fColor};
 			switch fixName
+				case 'Grey'
+					fixColor = fix(1) + fix(2) + fix(3);
 				case 'Yellow'
 					fixColor = fix(1) + fix(2);
 				otherwise
