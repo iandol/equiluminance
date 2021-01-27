@@ -16,7 +16,7 @@ classdef pupilPower < analysisCore
 		%> normalise the plots of power vs luminance?
 		normalisePowerPlots logical = true
 		%> color map to use
-		colorMap char = 'jet';
+		colorMap char = 'turbo';
 		%> actual R G B luminance maxima for display, if [1 1 1] then use 0<->1
 		%> floating point range
 		maxLuminances double = [1 1 1]
@@ -99,6 +99,9 @@ classdef pupilPower < analysisCore
 			defaults.measureRange = [1.23 3.5];
 			defaults.baselineWindow = [-0.2 0.2];
 			defaults.plotRange = [];
+			if ~exist('turbo.m','file')
+				defaults.colorMap = 'jet';
+			end
 			varargin = optickaCore.addDefaults(varargin,defaults);
 			me = me@analysisCore(varargin); %superclass constructor
 			if nargin>0; me.parseArgs(varargin, me.allowedProperties); end
