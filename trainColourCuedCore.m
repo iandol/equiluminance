@@ -46,6 +46,7 @@ cla(ana.plotAxis3);
 try
 	PsychDefaultSetup(2);
 	Screen('Preference', 'SkipSyncTests', 0);
+	aM = audioManager;
 	%===================open our screen====================
 	sM						= screenManager();
 	sM.name					= ana.nameExp
@@ -156,7 +157,6 @@ try
 	WaitSecs('YieldSecs',0.25);
 	
 	%==============================setup eyelink==========================
-	ana.strictFixation = false;
 	eL = eyelinkManager('IP',[]);
 	eL.name = ana.nameExp;
 	fprintf('--->>> Train eL setup starting: %s\n', eL.fullName);
@@ -489,7 +489,7 @@ try
 		if strcmpi(fixated,'fix')
 			if ana.sendTrigger == true;sendStrobe(dPP,251);flip(sM);end %CORRECT
 			rM.timedTTL(2, ana.Rewardms)
-			Beeper(1000,0.1,0.2);
+			aM.beep(1000,0.2,0.5);
 			trackerDrawText(eL,'CORRECT!');
 			fprintf('===>>> SUCCESS: Trial = %i (total:%.3g | reaction:%.3g)\n', seq.totalRuns, tEnd-tStart, tReaction);
 			ana.nSuccess = ana.nSuccess + 1;
@@ -524,7 +524,7 @@ try
 			end
 			stopRecording(eL);
 			setOffline(eL);
-			Beeper(180,1,2);
+			aM.beep(250,0.5,1);
 			ana.nFixBreak = ana.nFixBreak + 1;
 			ana.nTotal = ana.nTotal + 1;
 			ana.runningPerformance(ana.nTotal) = 0;
@@ -581,7 +581,7 @@ try
 	WaitSecs('YieldSecs', 2);
 	close(sM); breakLoop = true;
 	ListenChar(0);ShowCursor;Priority(0);
-	close(rM);
+	close(rM); close(aM);
 	
 	if exist(ana.ResultDir,'dir') > 0
 		cd(ana.ResultDir);
@@ -593,7 +593,8 @@ try
 	if ~isempty(ana.nameExp) && isempty(regexpi(ana.nameExp,'debug'))
 		ana.plotAxis1 = [];
 		ana.plotAxis2 = [];
-		fprintf('==>> SAVE %s, to: %s\n', ana.nameExp, pwd);
+		ana.plotAxis3 = [];
+		fprintf('==>> SAVE DATA %s, to: %s\n', ana.nameExp, pwd);
 		save([ana.nameExp '.mat'],'ana', 'seq', 'eL', 'sM', 'tL');
 	end
 	if IsWin
@@ -604,6 +605,7 @@ try
 catch ME
 	if exist('eL','var'); close(eL); end
 	if exist('sM','var'); close(sM); end
+	if exist('aM','var'); close(aM); end
 	ListenChar(0);ShowCursor;Priority(0);Screen('CloseAll');
 	getReport(ME)
 end
