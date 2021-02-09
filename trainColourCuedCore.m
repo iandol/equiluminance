@@ -138,6 +138,7 @@ try
 	setup(metaStim);
 	
 	%============================SET UP VARIABLES=====================================
+	colours = {[0.7 0.2 0.2],[0.25 0.55 0.25],[0.7 0.55 0],[0.2 0.2 0.8],[0.7 0.2 0.7]};
 	seq = stimulusSequence();
 	seq.nVar(1).name = 'xPosition';
 	seq.nVar(1).stimulus = 1;
@@ -147,7 +148,7 @@ try
 	seq.nVar(2).values = vals(3:4);
 	seq.nVar(3).name = 'colour';
 	seq.nVar(3).stimulus = 1;
-	seq.nVar(3).values = {ana.colour1,ana.colour2};
+	seq.nVar(3).values = colours;%{ana.colour1,ana.colour2};
 	seq.nBlocks = ana.trialNumber;
 	seq.fps = sM.screenVals.fps;
 	seq.initialise();
@@ -237,14 +238,22 @@ try
 		edfMessage(eL,['TRIALID ' num2str(seq.outIndex(seq.totalRuns))]);  %obj.getTaskIndex gives us which trial we're at
 		startRecording(eL);
 		ListenChar(-1);
+		circle2.alphaOut = 0.3;
 		circle1.xPositionOut = ana.fixX;
 		circle1.yPositionOut = ana.fixY;
 		circle1.colourOut = thisColour;
-		if all(thisColour == ana.colour1)
-			circle2.colourOut = ana.colour2;
-		else
-			circle2.colourOut = ana.colour1;
+		if all(thisColour == colours{1})
+			circle2.colourOut = colours{2};
+		elseif all(thisColour == colours{2})
+			circle2.colourOut = colours{3};
+		elseif all(thisColour == colours{3})
+			circle2.colourOut = colours{4};
+		elseif all(thisColour == colours{4})
+			circle2.colourOut = colours{5};
+		elseif all(thisColour == colours{5})
+			circle2.colourOut = colours{1};
 		end
+		circle2.alphaOut = 0.3;
 		update(circle1); update(circle2);
 		
 		%=========================MAINTAIN INITIAL FIXATION==========================
@@ -334,7 +343,8 @@ try
 			ana.nInitiateBreak = ana.nInitiateBreak + 1;
 			fprintf('===>>> BROKE CUE FIXATION Trial = %i\n', seq.totalRuns);
 			updatePlot(seq.totalRuns);
-			WaitSecs('YieldSecs',0.1);
+			flip(sM);
+			WaitSecs('YieldSecs',ana.punishDelay);
 			continue
 		end
 		
@@ -371,7 +381,8 @@ try
 			ana.nInitiateBreak = ana.nInitiateBreak + 1;
 			fprintf('===>>> BROKE DELAY FIXATION Trial = %i\n', seq.totalRuns);
 			updatePlot(seq.totalRuns);
-			WaitSecs('YieldSecs',0.1);
+			flip(sM);
+			WaitSecs('YieldSecs',ana.punishDelay);
 			continue
 		end
 		
@@ -581,7 +592,7 @@ try
 	WaitSecs('YieldSecs', 2);
 	close(sM); breakLoop = true;
 	ListenChar(0);ShowCursor;Priority(0);
-	close(rM); close(aM);
+	close(aM);
 	
 	if exist(ana.ResultDir,'dir') > 0
 		cd(ana.ResultDir);
