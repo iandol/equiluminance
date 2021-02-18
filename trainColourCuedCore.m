@@ -49,7 +49,7 @@ try
 	aM = audioManager;
 	%===================open our screen====================
 	sM						= screenManager();
-	sM.name					= ana.nameExp
+	sM.name					= ana.nameExp;
 	sM.screen				= ana.screenID;
 	sM.verbose				= thisVerbose;
 	sM.bitDepth				= ana.bitDepth;
@@ -98,7 +98,7 @@ try
 	circle3.size = ana.circle2Diameter;
 	circle4.size = ana.circle2Diameter;
 	
-	if false
+	if ana.DKL
 		cM = colourManager();
 		cM.backgroundColour = ana.backgroundColor;
 		cM.verbose = true;
@@ -121,6 +121,10 @@ try
 		circle2.colour = ana.colour2;
 		circle3.colour = ana.colour2;
 		circle4.colour = ana.colour2;
+		circle1.alpha  = 1.0;
+		circle2.alpha  = ana.alpha2;
+		circle3.alpha  = ana.alpha3;
+		circle4.alpha  = ana.alpha4;
 	end
 	
 	vals = [-6 +6 -6 +6];
@@ -133,12 +137,20 @@ try
 	circle3.yPosition = vals(4);
 	circle4.yPosition = vals(4);
 	
+	if ana.show34
+		show(circle3);
+		show(circle4);
+	else
+		hide(circle3);
+		hide(circle4);
+	end
+	
 	metaStim = metaStimulus('stimuli',{circle1,circle2,circle3,circle4},'screen',sM);
 	
 	setup(metaStim);
 	
 	%============================SET UP VARIABLES=====================================
-	colours = {[0.7 0.2 0.2],[0.25 0.55 0.25],[0.7 0.55 0],[0.2 0.2 0.8],[0.7 0.2 0.7]};
+	colours = ana.colours;
 	seq = stimulusSequence();
 	seq.nVar(1).name = 'xPosition';
 	seq.nVar(1).stimulus = 1;
@@ -238,23 +250,21 @@ try
 		edfMessage(eL,['TRIALID ' num2str(seq.outIndex(seq.totalRuns))]);  %obj.getTaskIndex gives us which trial we're at
 		startRecording(eL);
 		ListenChar(-1);
-		circle2.alphaOut = 0.3;
 		circle1.xPositionOut = ana.fixX;
 		circle1.yPositionOut = ana.fixY;
 		circle1.colourOut = thisColour;
 		if all(thisColour == colours{1})
-			circle2.colourOut = colours{2};
+			circle2.colourOut = colours{2};circle3.colourOut = colours{2};circle4.colourOut = colours{2};
 		elseif all(thisColour == colours{2})
-			circle2.colourOut = colours{3};
+			circle2.colourOut = colours{3};circle3.colourOut = colours{3};circle4.colourOut = colours{3};
 		elseif all(thisColour == colours{3})
-			circle2.colourOut = colours{4};
+			circle2.colourOut = colours{4};circle3.colourOut = colours{4};circle4.colourOut = colours{4};
 		elseif all(thisColour == colours{4})
-			circle2.colourOut = colours{5};
+			circle2.colourOut = colours{5};circle3.colourOut = colours{5};circle4.colourOut = colours{5};
 		elseif all(thisColour == colours{5})
-			circle2.colourOut = colours{1};
+			circle2.colourOut = colours{1};circle3.colourOut = colours{1};circle4.colourOut = colours{1};
 		end
-		circle2.alphaOut = 0.3;
-		update(circle1); update(circle2);
+		update(circle1); update(circle2);update(circle3); update(circle4);
 		
 		%=========================MAINTAIN INITIAL FIXATION==========================
 		statusMessage(eL,'INITIATE FIXATION...');
@@ -460,6 +470,10 @@ try
 
 			circle1.draw();
 			circle2.draw();
+			if ana.show34
+				circle3.draw();
+				circle4.draw();
+			end
 
 			finishDrawing(sM);
 			getSample(eL);
