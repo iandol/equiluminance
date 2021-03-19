@@ -12,6 +12,8 @@ if ~ana.useArduino
 end
 if ~rM.isOpen; open(rM); end %open our reward manager
 
+fixColour = [1 1 1];
+
 fprintf('\n--->>> trainColourCued Started: ana UUID = %s!\n',ana.uuid);
 
 %===================Initiate out metadata===================
@@ -231,7 +233,7 @@ try
 	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	%=====================START HERE====================
 	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-	while seq.totalRuns <= seq.nRuns && ~breakLoop
+	while ~seq.taskFinished && ~breakLoop
 		
 		xPos = seq.outValues{seq.totalRuns,1};
 		yPos = seq.outValues{seq.totalRuns,2};
@@ -254,15 +256,15 @@ try
 		circle1.yPositionOut = ana.fixY;
 		circle1.colourOut = thisColour;
 		if all(thisColour == colours{1})
-			circle2.colourOut = colours{2};circle3.colourOut = colours{2};circle4.colourOut = colours{2};
+			circle2.colourOut = colours{2};circle3.colourOut = colours{3};circle4.colourOut = colours{4};
 		elseif all(thisColour == colours{2})
-			circle2.colourOut = colours{3};circle3.colourOut = colours{3};circle4.colourOut = colours{3};
+			circle2.colourOut = colours{5};circle3.colourOut = colours{3};circle4.colourOut = colours{4};
 		elseif all(thisColour == colours{3})
-			circle2.colourOut = colours{4};circle3.colourOut = colours{4};circle4.colourOut = colours{4};
+			circle2.colourOut = colours{1};circle3.colourOut = colours{2};circle4.colourOut = colours{3};
 		elseif all(thisColour == colours{4})
-			circle2.colourOut = colours{5};circle3.colourOut = colours{5};circle4.colourOut = colours{5};
+			circle2.colourOut = colours{5};circle3.colourOut = colours{1};circle4.colourOut = colours{2};
 		elseif all(thisColour == colours{5})
-			circle2.colourOut = colours{1};circle3.colourOut = colours{1};circle4.colourOut = colours{1};
+			circle2.colourOut = colours{1};circle3.colourOut = colours{2};circle4.colourOut = colours{3};
 		end
 		update(circle1); update(circle2);update(circle3); update(circle4);
 		
@@ -272,7 +274,7 @@ try
 		if ana.sendTrigger == true;sendStrobe(dPP,248);flip(sM);end
 		syncTime(eL);
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
-			drawCross(sM,0.4,[1 1 1 1],ana.fixX,ana.fixY);
+			drawCross(sM,0.4,fixColour,ana.fixX,ana.fixY);
 			getSample(eL);
 			fixated=testSearchHoldFixation(eL,'fix','breakfix');
 			[keyIsDown, ~, keyCode] = KbCheck(-1);
@@ -303,6 +305,7 @@ try
 		ListenChar(0);
 		if strcmpi(fixated,'breakfix')
 			sM.drawBackground;
+			flip(sM);
 			if ana.sendTrigger == true;sendStrobe(dPP,249);flip(sM);end
 			if ana.sendTrigger == true;sendStrobe(dPP,255);flip(sM);flip(sM);end %STIM OFF
 			
@@ -318,10 +321,14 @@ try
 			
 			fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', seq.totalRuns);
 			updatePlot(seq.totalRuns);
-			WaitSecs('YieldSecs',0.1);
+		%	aM.beep(250,0.5,1);
+			WaitSecs('YieldSecs',ana.punishDelay);
 			continue
 		end
 		
+		if ana.fixOnly
+			tStart = GetSecs;
+		else
 		%=========================CUE TIME!==========================
 		
 		%sM.verbose = false; eL.verbose = false; sM.verbosityLevel = 4; eL.verbosityLevel = 4; %force lots of log output
@@ -345,6 +352,7 @@ try
 			if ana.sendTrigger == true;sendStrobe(dPP,255);flip(sM);flip(sM);end %STIM OFF
 			statusMessage(eL,'Subject Broke CUE Fixation!');
 			edfMessage(eL,'MSG:BreakCueFix');
+			edfMessage(eL,'TRIAL_RESULT -1');
 			resetFixation(eL);
 			stopRecording(eL);
 			setOffline(eL);
@@ -383,6 +391,7 @@ try
 			if ana.sendTrigger == true;sendStrobe(dPP,255);flip(sM);flip(sM);end %STIM OFF
 			statusMessage(eL,'Subject Broke Delay Fixation!');
 			edfMessage(eL,'MSG:BreakDelayFix');
+			edfMessage(eL,'TRIAL_RESULT -1');
 			resetFixation(eL);
 			stopRecording(eL);
 			setOffline(eL);
@@ -500,6 +509,7 @@ try
 
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+		end
 		
 		if ana.sendTrigger == true;sendStrobe(dPP,255);flip(sM);end %STIM OFF
 		sM.drawBackground();
@@ -549,7 +559,7 @@ try
 			end
 			stopRecording(eL);
 			setOffline(eL);
-			aM.beep(250,0.5,1);
+ 			aM.beep(250,0.5,1);
 			ana.nFixBreak = ana.nFixBreak + 1;
 			ana.nTotal = ana.nTotal + 1;
 			ana.runningPerformance(ana.nTotal) = 0;
@@ -584,7 +594,7 @@ try
 						stopRecording(eL);
 						driftCorrection(eL);
 						WaitSecs('YieldSecs',2);
-					case {'escape'}
+					case {'q'}
 						fprintf('===>>> Train escape pressed!!!\n');
 						trackerClearScreen(eL);
 						stopRecording(eL);
