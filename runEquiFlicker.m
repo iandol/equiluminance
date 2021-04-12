@@ -10,11 +10,10 @@ if ana.sendReward
 	open(rM) %open our reward manager
 end
 
-%===========================compatibility for windows================================
+%=================================general bits=======================================
 %if ispc; PsychJavaTrouble(); end
 KbName('UnifyKeyNames');
-RestrictKeysForKbCheck([KbName('q') KbName('c') KbName('d') KbName('v') ...
-	KbName('leftarrow') KbName('rightarrow') KbName('uparrow')]);
+PsychDefaultSetup(2);
 %==========================Initiate out metadata=====================================
 ana.date		= datestr(datetime);
 ana.version		= Screen('Version');
@@ -48,7 +47,6 @@ drawnow;
 
 try
 	%=======================open our screen==========================================
-	PsychDefaultSetup(2);
 	sM = screenManager();
 	if ana.debug || ismac || ispc || ~isempty(regexpi(ana.gpu.Vendor,'NVIDIA','ONCE'))
 		sM.disableSyncTests = true; 
@@ -151,7 +149,7 @@ try
 	
 	%==============================SETUP EYELINK=====================================
 	ana.strictFixation = true;
-	eL = eyelinkManager('IP',[]);
+	eL = eyelinkManager();
 	fprintf('--->>> runEquiFlicker eL setup starting: %s\n', eL.fullName);
 	eL.isDummy = ana.isDummy; %use dummy or real eyelink?
 	eL.name = ana.nameExp;
@@ -162,7 +160,7 @@ try
 	eL.calibrationStyle = ana.calibrationStyle; % calibration style
 	eL.modify.calibrationtargetcolour = [1 1 1];
 	eL.modify.calibrationtargetsize = 1;
-	eL.modify.calibrationtargetwidth = 0.05;
+	eL.modify.calibrationtargetwidth = 0.01;
 	eL.modify.waitformodereadytime = 500;
 	eL.modify.devicenumber = -1; % -1 = use any keyboard
 	% X, Y, FixInitTime, FixTime, Radius, StrictFix
@@ -194,7 +192,7 @@ try
 	
 	%================================================================================
 	%-------------------------------------TASK LOOP----------------------------------
-	while seq.taskFinished == false || breakLoop == false
+	while seq.taskFinished == false && breakLoop == false
 	
 		%=================Define stimulus colours for this run=======================
 		fprintf('\n===>>> runEquiFlicker START Run = %i / %i (%i:%i) | frames: %i | %s, %s\n',...

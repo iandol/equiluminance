@@ -176,6 +176,8 @@ try
 	halfisi			= sM.screenVals.halfisi;
 	Priority(MaxPriority(sM.win));
 	
+	%================================================================================
+	%-------------------------------------TASK LOOP----------------------------------
 	while ~seq.taskFinished && ~breakLoop
 		%=========================MAINTAIN INITIAL FIXATION==========================
 		fprintf('===>>> runIsoluminant START Run = %i / %i (%i:%i) | %s, %s\n', seq.totalRuns, seq.nRuns, seq.thisBlock, seq.thisRun, sM.fullName, eL.fullName);

@@ -13,7 +13,6 @@ end
 %===========================compatibility for windows================================
 %if ispc; PsychJavaTrouble(); end
 KbName('UnifyKeyNames');
-RestrictKeysForKbCheck([KbName('q') KbName('c') KbName('d') KbName('v') KbName('leftarrow') KbName('rightarrow') KbName('uparrow')])
 %==========================Initiate out metadata=====================================
 ana.date = datestr(datetime);
 ana.version = Screen('Version');
@@ -210,7 +209,7 @@ try
 	
 	%================================================================================
 	%-------------------------------------TASK LOOP----------------------------------
-	while ~seq.taskFinished || ~breakLoop
+	while seq.taskFinished == false || breakLoop == false
 	
 		%=================Define stimulus colours for this run=======================
 		fprintf('\n===>>> runEquiMotion START Run = %i / %i (%i:%i) | %s, %s\n', seq.totalRuns, seq.nRuns, seq.thisBlock, seq.thisRun, sM.fullName, eL.fullName);

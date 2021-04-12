@@ -22,6 +22,7 @@ plot(fxgray,fgray,'k-');
 plot(fxgreen,fgreen,'g-');
 plot(fxred,fred,'r-');
 plot(fxblue,fblue,'b-');
+ylim([-5 round(max(igray)+5)]);
 box on; grid on; grid minor;
 title('RGB Luminance Outputs')
 xlabel('RGB 0 <-> 1 Luminance')
@@ -33,41 +34,68 @@ switch reply
     case 1
         in = input('Input the Red 0-1 value\n > ');
 		incdm2 = in * max(ired);
-        [k,b] =  fitted(x,ired);
-        [kk,bb] = fitted(x,igreen);
+        [k,b,rx,ry] =  fitted(x,ired);
+        [kk,bb,gx,gy] = fitted(x,igreen);
         out = reversfit(in,k,b,kk,bb);
-        disp([num2str(in),' Red (' num2str(incdm2) 'cd/m2) = Green ',num2str(out)]);
-		disp(['Green @ ' num2str(out) ' = ' num2str(out*max(igreen)) ' cd/m2'])
+        [ix,iv,id] = findNearest(rx, in);
+		outRx = rx(ix);
+		outRy = ry(ix);
+		[ix,iv,id] = findNearest(gy, outRy);
+		outGx = gx(ix);
+		outGy = gy(ix);
+		fprintf('\nRESULTS:\n%.3f Red (%.3fcd/m2) = Green %.3f\n',in,outRy,outGx)
+		fprintf('Green @ %.2f = %.2f cd/m2\n',outGx,outGy);
 	case 2
         in = input('Input the Green 0-1 value\n > ');
 		incdm2 = in * max(igreen);
-        [k,b] =  fitted(x,igreen);
-        [kk,bb] = fitted(x,ired);
+        [k,b,rx,ry] =  fitted(x,igreen);
+        [kk,bb,gx,gy] = fitted(x,ired);
         out = reversfit(in,k,b,kk,bb);
-        disp([num2str(in),' Green (' num2str(incdm2) 'cd/m2) = Red ',num2str(out)]);
-		disp(['Red @ ' num2str(out) ' = ' num2str(out*max(ired)) ' cd/m2'])
+        [ix,iv,id] = findNearest(rx, in);
+		outRx = rx(ix);
+		outRy = ry(ix);
+		[ix,iv,id] = findNearest(gy, outRy);
+		outGx = gx(ix);
+		outGy = gy(ix);
+		fprintf('\nRESULTS:\n%.3f Green (%.3fcd/m2) = Red %.3f\n',in,outRy,outGx)
+		fprintf('Red @ %.3f = %.3f cd/m2\n',outGx,outGy);
 	case 3
         in = input('Input the Green 0-1 value\n > ');
 		incdm2 = in * max(igreen);
-        [k,b] =  fitted(x,igreen);
-        [kk,bb] = fitted(x,igray);
+        [k,b,rx,ry] =  fitted(x,igreen);
+        [kk,bb,gx,gy] = fitted(x,igray);
         out = reversfit(in,k,b,kk,bb);
-        disp([num2str(in),' Green (' num2str(incdm2) 'cd/m2) = Gray ',num2str(out)]);
-		disp(['Gray @ ' num2str(out) ' = ' num2str(out*max(igray)) ' cd/m2'])
+		[ix,iv,id] = findNearest(rx, in);
+		outRx = rx(ix);
+		outRy = ry(ix);
+		[ix,iv,id] = findNearest(gy, outRy);
+		outGx = gx(ix);
+		outGy = gy(ix);
+		fprintf('\nRESULTS:\n%.3f Green (%.3f cd/m2) = Gray %.3f\n',in,outRy,outGx)
+		fprintf('Gray @ %.3f = %.3f cd/m2\n',outGx,outGy);
     case 4 
         in = input('Input the Red 0-1 value\n > ');
-		incdm2 = in * max(ired);
-        [k,b] =  fitted(x,ired);
-        [kk,bb] = fitted(x,igray);
+		incdm2 = in * (max(ired)-min(ired));
+        [k,b,rx,ry] =  fitted(x,ired);
+        [kk,bb,gx,gy] = fitted(x,igray);
         out = reversfit(in,k,b,kk,bb);
-        disp([num2str(in),' Red (' num2str(incdm2) 'cd/m2) = Gray ',num2str(out)]);
-		disp(['Gray @ ' num2str(out) ' = ' num2str(out*max(igray)) ' cd/m2'])	
+		[ix,iv,id] = findNearest(rx, in);
+		outRx = rx(ix);
+		outRy = ry(ix);
+		[ix,iv,id] = findNearest(gy, outRy);
+		outGx = gx(ix);
+		outGy = gy(ix);
+		fprintf('\nRESULTS:\n%.3f Red (%.3f cd/m2) = Gray %.3f\n',in,outRy,outGx)
+		fprintf('Gray @ %.3f = %.3f cd/m2\n',outGx,outGy);
+
 end
+plot(rx,ry,'c--','LineWidth',1)
+plot(gx,gy,'c--','LineWidth',1)
 l=line(ax,[min(x) max(x)],[incdm2 incdm2],'LineStyle','--','Color','k','LineWidth',1);
 l.HitTest = 'off';
 l.PickableParts = 'none';
 
-clear igray igreen ired iblue fxgray fxgreen fxred fxblue fgray fgreen fred fblue in out
+clear igray igreen ired iblue fxgray fxgreen fxred fxblue fgray fgreen fred fblue in out rx ry gx gy kx ky
 
 % do the poly fitting
 function [p1,p2,xx,yy] = fitted(x,y)
@@ -81,6 +109,13 @@ end
 % fitting back
 function [valueColorkk] = reversfit(valueColork,k,b,kk,bb)
          valueColorkk = (valueColork*k+b-bb)/kk;
+end
+
+function [idx,val,delta]=findNearest(in,value)
+	%find nearest value in a vector, if more than 1 index return the first	
+	[~,idx] = min(abs(in - value));
+	val = in(idx);
+	delta = abs(value - val);
 end
 
 

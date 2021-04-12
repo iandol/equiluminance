@@ -1,5 +1,17 @@
 function trainColourCuedCore(ana)
 
+if ~exist('ana','var') || isempty(ana) 
+	ana = readstruct('~/Desktop/ana.xml');
+	fn = fieldnames(ana);
+	for i = 1:length(fn)
+		if isstring(ana.(fn{i})) && strcmp(ana.(fn{i}),"false")
+			ana.(fn{i}) = false;
+		elseif isstring(ana.(fn{i})) && strcmp(ana.(fn{i}),"true")
+			ana.(fn{i}) = true;
+		end
+	end
+end
+
 global rM
 if ~exist('rM','var') || isempty(rM)
 	rM = arduinoManager();
@@ -12,8 +24,16 @@ if ~ana.useArduino
 end
 if ~rM.isOpen; open(rM); end %open our reward manager
 
-fixColour = [1 1 1];
+global aM
+if ~exist('aM','var') || isempty(aM)
+	aM = audioManager;
+end
+if ~aM.isOpen; open(aM); end %open our audio manager
 
+fixColour = [1 1 1];
+if isstring(ana.colours)||ischar(ana.colours);ana.colours = eval(ana.colours);end
+
+commandwindow;
 fprintf('\n--->>> trainColourCued Started: ana UUID = %s!\n',ana.uuid);
 
 %===================Initiate out metadata===================
@@ -48,7 +68,6 @@ cla(ana.plotAxis3);
 try
 	PsychDefaultSetup(2);
 	Screen('Preference', 'SkipSyncTests', 0);
-	aM = audioManager;
 	%===================open our screen====================
 	sM						= screenManager();
 	sM.name					= ana.nameExp;
@@ -166,7 +185,6 @@ try
 	seq.nBlocks = ana.trialNumber;
 	seq.fps = sM.screenVals.fps;
 	seq.initialise();
-	drawnow;
 	ana.nTrials = seq.nRuns;
 	fprintf('--->>> Train # Trials: %i; # FPS: %i \n',seq.nRuns, sM.screenVals.fps);
 	WaitSecs('YieldSecs',0.25);
@@ -228,6 +246,7 @@ try
 	excludedN = 0;
 	tick = 1;
 	halfisi = sM.screenVals.halfisi;
+	if ~ana.debug;ListenChar(-1);end
 	Priority(MaxPriority(sM.win));
 	
 	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -251,7 +270,6 @@ try
 		edfMessage(eL,'V_RT MESSAGE END_FIX END_RT');  %this 3 lines set the trial info for the eyelink
 		edfMessage(eL,['TRIALID ' num2str(seq.outIndex(seq.totalRuns))]);  %obj.getTaskIndex gives us which trial we're at
 		startRecording(eL);
-		ListenChar(-1);
 		circle1.xPositionOut = ana.fixX;
 		circle1.yPositionOut = ana.fixY;
 		circle1.colourOut = thisColour;
@@ -302,7 +320,7 @@ try
 			end
 			flip(sM); %flip the buffer
 		end
-		ListenChar(0);
+		
 		if strcmpi(fixated,'breakfix')
 			sM.drawBackground;
 			flip(sM);
@@ -559,7 +577,7 @@ try
 			end
 			stopRecording(eL);
 			setOffline(eL);
- 			aM.beep(250,0.5,1);
+ 			aM.beep(300,0.5,1);
 			ana.nFixBreak = ana.nFixBreak + 1;
 			ana.nTotal = ana.nTotal + 1;
 			ana.runningPerformance(ana.nTotal) = 0;
@@ -577,7 +595,6 @@ try
 			end
 		end
 		
-		ListenChar(-1);
 		while GetSecs < (tEnd + waitTime) && ~breakLoop
 			[keyIsDown, ~, keyCode] = KbCheck(-1);
 			if keyIsDown == 1
@@ -603,9 +620,7 @@ try
 				end
 			end
 			WaitSecs('YieldSecs',sM.screenVals.ifi);
-			
 		end
-		ListenChar(0);
 		
 	end % while ~breakLoop
 	
@@ -625,7 +640,7 @@ try
 	stopRecording(eL);
 	setOffline(eL);
 	close(eL);
-	if ~isempty(ana.nameExp) && isempty(regexpi(ana.nameExp,'debug'))
+	if ~isempty(ana.nameExp) && isempty(regexpi(ana.nameExp, 'debug', 'once'))
 		ana.plotAxis1 = [];
 		ana.plotAxis2 = [];
 		ana.plotAxis3 = [];
@@ -672,7 +687,7 @@ end
 			plot(ana.plotAxis3,plotVals.t2,plotVals.p3,'ko-','MarkerFaceColor',[1,0,0]);
 			ylim(ana.plotAxis3,[0 100]);
 		end
-		drawnow
+		drawnow limitrate nocallbacks
 	end
 
 end
