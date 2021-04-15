@@ -278,7 +278,7 @@ try
 		elseif all(thisColour == colours{2})
 			circle2.colourOut = colours{5};circle3.colourOut = colours{3};circle4.colourOut = colours{4};
 		elseif all(thisColour == colours{3})
-			circle2.colourOut = colours{1};circle3.colourOut = colours{2};circle4.colourOut = colours{3};
+			circle2.colourOut = colours{1};circle3.colourOut = colours{4};circle4.colourOut = colours{5};
 		elseif all(thisColour == colours{4})
 			circle2.colourOut = colours{5};circle3.colourOut = colours{1};circle4.colourOut = colours{2};
 		elseif all(thisColour == colours{5})
@@ -471,6 +471,24 @@ try
 		stimulusPositions(4).size = circle4.size;
 		stimulusPositions(4).selected = false;
 		
+		if ana.exclusion
+			exc(1,:) = [stimulusPositions(2).x - (stimulusPositions(2).size/1.8) ...
+				stimulusPositions(2).x + (stimulusPositions(2).size/1.8) ...
+				stimulusPositions(2).y - (stimulusPositions(2).size/1.8) ...
+				stimulusPositions(2).y + (stimulusPositions(2).size/1.8)];
+			exc(2,:) = [stimulusPositions(3).x - (stimulusPositions(3).size/1.8) ...
+				stimulusPositions(3).x + (stimulusPositions(3).size/1.8) ...
+				stimulusPositions(3).y - (stimulusPositions(3).size/1.8) ...
+				stimulusPositions(3).y + (stimulusPositions(3).size/1.8)];
+			exc(3,:) = [stimulusPositions(4).x - (stimulusPositions(4).size/1.8) ...
+				stimulusPositions(4).x + (stimulusPositions(4).size/1.8) ...
+				stimulusPositions(4).y - (stimulusPositions(4).size/1.8) ...
+				stimulusPositions(4).y + (stimulusPositions(4).size/1.8)];
+		else
+			exc = [];
+		end
+		eL.exclusionZone = exc;
+		
 		fprintf('===>>> Target Position=%s | Foil Position=%s\n',num2str(circle1.xPositionOut),num2str(circle2.xPositionOut));
 		edfMessage(eL,['MSG:variable=' num2str(seq.outIndex(seq.totalRuns))]);
 		edfMessage(eL,['MSG:thisRun=' num2str(seq.totalRuns)]);
@@ -519,7 +537,7 @@ try
 			elseif strcmpi(fixated,'fix')
 				tFix = GetSecs; tReaction =  tFix - tStart;
 				break %break the while loop
-			elseif strcmp(fixated,'EXCLUDED!')
+			elseif strcmpi(fixated,'EXCLUDED!')
 				tFix = GetSecs; 	tReaction =  tFix - tStart;
 				break %break the while loop
 			end
