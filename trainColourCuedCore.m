@@ -78,7 +78,7 @@ try
 		sM.disableSyncTests = true; 
 	end
 	if ana.debug
-		%sM.windowed			= [0 0 1400 1000]; 
+		%sM.windowed		= [0 0 1400 1000]; 
 		sM.visualDebug		= true;
 		sM.debug			= true;
 		sM.verbosityLevel	= 5;
@@ -264,8 +264,8 @@ try
 		resetFixation(eL);
 		updateFixationValues(eL, ana.fixX, ana.fixY, ana.firstFixInit,...
 			ana.firstFixTime, ana.firstFixDiameter, ana.strictFixation);
+		eL.fixInit = struct('X',[],'Y',[],'time',0.1,'radius',2);
 		trackerClearScreen(eL);
-		%trackerDrawExclusion(eL);
 		trackerDrawFixation(eL); %draw fixation window on eyelink computer
 		edfMessage(eL,'V_RT MESSAGE END_FIX END_RT');  %this 3 lines set the trial info for the eyelink
 		edfMessage(eL,['TRIALID ' num2str(seq.outIndex(seq.totalRuns))]);  %obj.getTaskIndex gives us which trial we're at
@@ -489,6 +489,12 @@ try
 		end
 		eL.exclusionZone = exc;
 		
+		if ana.fixinit
+			eL.fixInit = struct('X',ana.fixX,'Y',ana.fixY,'time',0.1,'radius',ana.firstFixRadius);
+		else
+			eL.fixInit = struct('X',[],'Y',[],'time',0.1,'radius',2);
+		end
+		
 		fprintf('===>>> Target Position=%s | Foil Position=%s\n',num2str(circle1.xPositionOut),num2str(circle2.xPositionOut));
 		edfMessage(eL,['MSG:variable=' num2str(seq.outIndex(seq.totalRuns))]);
 		edfMessage(eL,['MSG:thisRun=' num2str(seq.totalRuns)]);
@@ -498,14 +504,14 @@ try
 		ana.trial(seq.totalRuns).pupil = [];
 		ana.trial(seq.totalRuns).frameN = [];
 		
-		resetFixation(eL);
 		% X, Y, FixInitTime, FixTime, Radius, StrictFix
 		updateFixationValues(eL, xPos, yPos,...
 			ana.initiateChoice, ana.maintainChoice,...
 			ana.circle1Diameter/1.8, ana.strictFixation);
-		fprintf('===>>> FIXX=%d | FIXY=%d\n',eL.fixationX,eL.fixationY);
+		fprintf('===>>> FIX X=%d | FIX Y=%d\n',eL.fixationX,eL.fixationY);
 		trackerDrawStimuli(eL,stimulusPositions,true);
-		trackerDrawFixation(eL); %draw fixation window on eyelink computer
+		trackerDrawExclusion(eL);
+		%trackerDrawFixation(eL); %draw fixation window on eyelink computer
 		statusMessage(eL,'Saccade to Target...');
 
 		if ana.sendTrigger == true;sendStrobe(dPP,seq.outIndex(seq.totalRuns));end
