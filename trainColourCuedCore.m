@@ -264,7 +264,7 @@ try
 		resetFixation(eL);
 		updateFixationValues(eL, ana.fixX, ana.fixY, ana.firstFixInit,...
 			ana.firstFixTime, ana.firstFixDiameter, ana.strictFixation);
-		eL.fixInit = struct('X',[],'Y',[],'time',0.1,'radius',2);
+		eL.fixInit = struct('X',[],'Y',[],'time',0.1,'radius',ana.firstFixDiameter);
 		trackerClearScreen(eL);
 		trackerDrawFixation(eL); %draw fixation window on eyelink computer
 		edfMessage(eL,'V_RT MESSAGE END_FIX END_RT');  %this 3 lines set the trial info for the eyelink
@@ -337,9 +337,10 @@ try
 			ana.runningPerformance(ana.nTotal) = -1;
 			ana.nInitiateBreak = ana.nInitiateBreak + 1;
 			
-			fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', seq.totalRuns);
+			fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', seq.totalRuns);	
+			flip(sM);
 			updatePlot(seq.totalRuns);
-		%	aM.beep(250,0.5,1);
+			aM.beep(250,0.5,1);
 			WaitSecs('YieldSecs',ana.punishDelay);
 			continue
 		end
@@ -378,8 +379,9 @@ try
 			ana.runningPerformance(ana.nTotal) = -1;
 			ana.nInitiateBreak = ana.nInitiateBreak + 1;
 			fprintf('===>>> BROKE CUE FIXATION Trial = %i\n', seq.totalRuns);
-			updatePlot(seq.totalRuns);
 			flip(sM);
+			aM.beep(250,0.5,1);
+			updatePlot(seq.totalRuns);
 			WaitSecs('YieldSecs',ana.punishDelay);
 			continue
 		end
@@ -417,8 +419,9 @@ try
 			ana.runningPerformance(ana.nTotal) = -1;
 			ana.nInitiateBreak = ana.nInitiateBreak + 1;
 			fprintf('===>>> BROKE DELAY FIXATION Trial = %i\n', seq.totalRuns);
-			updatePlot(seq.totalRuns);
 			flip(sM);
+			aM.beep(250,0.5,1);
+			updatePlot(seq.totalRuns);
 			WaitSecs('YieldSecs',ana.punishDelay);
 			continue
 		end
@@ -490,12 +493,12 @@ try
 		eL.exclusionZone = exc;
 		
 		if ana.fixinit
-			eL.fixInit = struct('X',ana.fixX,'Y',ana.fixY,'time',0.1,'radius',ana.firstFixRadius);
+			eL.fixInit = struct('X',ana.fixX,'Y',ana.fixY,'time',0.1,'radius',ana.firstFixDiameter);
 		else
-			eL.fixInit = struct('X',[],'Y',[],'time',0.1,'radius',2);
+			eL.fixInit = struct('X',[],'Y',[],'time',0.1,'radius',ana.firstFixDiameter);
 		end
-		
-		fprintf('===>>> Target Position=%s | Foil Position=%s\n',num2str(circle1.xPositionOut),num2str(circle2.xPositionOut));
+		eL.verbose = true;
+		fprintf('===>>> Target Position = %s | Foil Position = %s\n',num2str(circle1.xPositionOut),num2str(circle2.xPositionOut));
 		edfMessage(eL,['MSG:variable=' num2str(seq.outIndex(seq.totalRuns))]);
 		edfMessage(eL,['MSG:thisRun=' num2str(seq.totalRuns)]);
 		edfMessage(eL,'END_FIX');
@@ -508,10 +511,10 @@ try
 		updateFixationValues(eL, xPos, yPos,...
 			ana.initiateChoice, ana.maintainChoice,...
 			ana.circle1Diameter/1.8, ana.strictFixation);
-		fprintf('===>>> FIX X=%d | FIX Y=%d\n',eL.fixationX,eL.fixationY);
+		fprintf('===>>> FIX X = %d | FIX Y = %d\n',eL.fixation.X, eL.fixation.Y);
 		trackerDrawStimuli(eL,stimulusPositions,true);
 		trackerDrawExclusion(eL);
-		%trackerDrawFixation(eL); %draw fixation window on eyelink computer
+		trackerDrawFixation(eL);
 		statusMessage(eL,'Saccade to Target...');
 
 		if ana.sendTrigger == true;sendStrobe(dPP,seq.outIndex(seq.totalRuns));end
@@ -538,6 +541,7 @@ try
 			fixated=testSearchHoldFixation(eL,'fix','breakfix');
 			if strcmpi(fixated,'breakfix') 
 				if ana.sendTrigger == true;sendStrobe(dPP,253);flip(sM);end %BREAK CHOICE
+				fprintf('!!!>>> Exclusion = %i Fail Init = %i\n',eL.isExclusion,eL.isInitFail);
 				tFix = GetSecs; tReaction =  tFix - tStart;
 				break %break the while loop
 			elseif strcmpi(fixated,'fix')
@@ -545,6 +549,7 @@ try
 				break %break the while loop
 			elseif strcmpi(fixated,'EXCLUDED!')
 				tFix = GetSecs; 	tReaction =  tFix - tStart;
+				fprintf('!!!>>> Exclusion = %i Fail Init = %i\n',eL.isExclusion,eL.isInitFail);
 				break %break the while loop
 			end
 		end
@@ -584,7 +589,7 @@ try
 				Screen('DrawText', sM.win, '===>>> CORRECT!!!', 0, 0);
 				Screen('Flip',sM.win);
 			end
-			waitTime = ana.trialDelay;
+			waitTime = 0.75;
 		else
 			if ana.sendTrigger == true;sendStrobe(dPP,252);flip(sM);end %INCORRECT
 			if strcmpi(fixated,'breakfix')
