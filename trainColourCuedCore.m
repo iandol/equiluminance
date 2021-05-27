@@ -197,6 +197,7 @@ try
 	eL.saveFile = [ana.nameExp '.edf'];
 	eL.recordData = true; %save EDF file
 	eL.sampleRate = ana.sampleRate;
+	eL.verbose	= true;
 	eL.remoteCalibration = false; % manual calibration?
 	eL.calibrationStyle = ana.calibrationStyle; % calibration style
 	eL.modify.calibrationtargetcolour = [1 1 1];
@@ -493,9 +494,9 @@ try
 		eL.exclusionZone = exc;
 		
 		if ana.fixinit
-			eL.fixInit = struct('X',ana.fixX,'Y',ana.fixY,'time',0.1,'radius',ana.firstFixDiameter);
+			eL.fixInit = struct('X',ana.fixX,'Y',ana.fixY,'time',ana.fixInitTime,'radius',ana.firstFixDiameter);
 		else
-			eL.fixInit = struct('X',[],'Y',[],'time',0.1,'radius',ana.firstFixDiameter);
+			eL.fixInit = struct('X',[],'Y',[],'time',0.1,'radius',2);
 		end
 		eL.verbose = true;
 		fprintf('===>>> Target Position = %s | Foil Position = %s\n',num2str(circle1.xPositionOut),num2str(circle2.xPositionOut));
@@ -599,10 +600,16 @@ try
 				edfMessage(eL,'MSG:BreakFix');
 			elseif strcmp(fixated,'EXCLUDED!')
 				excludedN = excludedN + 1;
-				fprintf('===>>> EXCLUSION ZONE Trial = %i > %i (total:%.3g | reaction:%.3g)\n', seq.totalRuns, excludedN, tEnd-tStart, tReaction);
-				trackerDrawText(eL,'BREAK FIX (EXCLUSION)!');
+				if eL.isInitFail
+					fprintf('===>>> SACCADE TOO FAST Trial = %i > %i (total:%.3g | reaction:%.3g)\n', seq.totalRuns, excludedN, tEnd-tStart, tReaction);
+					trackerDrawText(eL,'BREAK FIX (FIX INIT)!');
+					edfMessage(eL,'MSG:BreakFixFixInit');
+				else
+					fprintf('===>>> EXCLUSION ZONE Trial = %i > %i (total:%.3g | reaction:%.3g)\n', seq.totalRuns, excludedN, tEnd-tStart, tReaction);
+					trackerDrawText(eL,'BREAK FIX (EXCLUSION)!');
+					edfMessage(eL,'MSG:BreakFixExclusion');
+				end
 				edfMessage(eL,'TRIAL_RESULT -1');
-				edfMessage(eL,'MSG:BreakFixExclusion');
 			end
 			stopRecording(eL);
 			setOffline(eL);
