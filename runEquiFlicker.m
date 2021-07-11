@@ -79,76 +79,29 @@ try
 	
 	if IsLinux
 		Screen('Preference', 'TextRenderer', 1);
-		Screen('Preference', 'DefaultFontName', 'DejaVu Serif');
+		Screen('Preference', 'DefaultFontName', 'Liberation Sans');
 	end
 	
 	%===========================SETUP STIMULI========================================
-	grating1			= colourGratingStimulus;
-	grating1.size		= ana.size;
-	grating1.colour		= ana.colorFixed;
-	grating1.colour2	= ana.colorStart;
-	grating1.contrast	= 1;
-	grating1.type		= ana.type;
-	grating1.mask		= ana.mask;
-	grating1.tf			= 0;
-	grating1.sf			= ana.sf;
+	grating				= colourGratingStimulus();
+	grating.size		= ana.size;
+	grating.colour		= ana.colorFixed;
+	grating.colour2		= ana.colorStart;
+	grating.contrast	= 1;
+	grating.type		= ana.type;
+	grating.mask		= ana.mask;
+	grating.tf			= 0;
+	grating.sf			= ana.sf;
 	
-	setup(grating1,sM); 
+	setup(grating,sM); 
 		
 	%============================SETUP VARIABLES=====================================
-	len = 0;
-	r = cell(3,1);
-	for i = 1:length(r)
-		step = (ana.colorEnd(i) - ana.colorStart(i)) / (ana.colorStep-1);
-		r{i} = [ana.colorStart(i) : step : ana.colorEnd(i)]';
-		if length(r{i}) > len; len = length(r{i}); end
-	end
-	for i = 1:length(r)
-		if isempty(r{i})
-			r{i} = zeros(len,1);
-		end
-	end
-	vals = cell(len,1);
-	for i = 1:len
-		vals{i} = [r{1}(i) r{2}(i) r{3}(i)];
-	end
-	fixC = find(ana.colorFixed == max(ana.colorFixed));
-	switch fixC
-		case 1
-			fixLabel='Red';
-		case 2
-			fixLabel='Green';
-		case 3
-			fixLabel='Blue';
-	end
-	fixV			= ana.colorFixed(fixC); 
-	%varC			= find(ana.colorEnd > 0);
-	variableVals	= r{ana.colorEnd > 0}'; ana.variableVals = variableVals;
-	responseVals	= zeros(size(variableVals));
-	totalVals		= responseVals;
-	varLabels		= arrayfun(@(a) num2str(a,3),variableVals,'UniformOutput',false);
-	
-	% to plot the psychometric function
-	PF				= @PAL_Weibull;
-	space.alpha		= linspace(min(variableVals), max(variableVals), 100);
-	space.beta		= linspace(1, 100, 100);
-	space.gamma		= 0;
-	space.lambda	= 0.02;
-	pfx				= linspace(min(variableVals),max(variableVals),100);
-	
-	%============================SETUP SEQUENCE======================================
-	seq					= stimulusSequence;
-	seq.nVar(1).name	= 'colour';
-	seq.nVar(1).stimulus = 1;
-	seq.nVar(1).values	= vals;
-	seq.nBlocks			= ana.trialNumber;
-	seq.initialise();
-	ana.nTrials			= seq.nRuns;
-	ana.onFrames		= round( ( (1/ana.frequency) * sM.screenVals.fps ) ); % video frames for each color
-	fprintf('--->>> runEquiFlicker # Trials: %i; # Freq/frames: %i:%i; FPS: %i \n',seq.nRuns, ana.frequency, ana.onFrames, sM.screenVals.fps);
+	varC			= find(ana.colorEnd == max(ana.colorEnd));
+	varC			= varC(1);
+	varColour		= grating.colour2;
 	
 	%==============================SETUP EYELINK=====================================
-	ana.strictFixation = true;
+	ana.strictFixation = false;
 	eL = eyelinkManager();
 	fprintf('--->>> runEquiFlicker eL setup starting: %s\n', eL.fullName);
 	eL.isDummy = ana.isDummy; %use dummy or real eyelink?
@@ -176,69 +129,53 @@ try
 	%================================================================================
 	%-------------prepare variables needed for task loop-----------------------------
 	NO = 1; YES = 2; UNSURE = 3; REDO = -10; BREAKFIX = -1;
-	map = analysisCore.optimalColours(seq.minBlocks);	
 	tL				= timeLogger();
 	tL.screenLog.beforeDisplay = GetSecs();
 	tL.screenLog.stimTime(1) = 1;
 	breakLoop		= false;
 	ana.trial		= struct();
+	ana.onFrames	= (ana.screenVals.fps/ana.frequency)+1
 	ana.leftCount	= 0;
 	ana.rightCount	= 0;
 	ana.unsureCount = 0;
+	thisTrial		= 0;
 	tick			= 1;
+	fInc			= 6;
 	response		= BREAKFIX;
 	halfisi			= sM.screenVals.halfisi;
+	commandwindow
+	if ~ana.debug; ListenChar(-1); end
 	Priority(MaxPriority(sM.win));
+	colours = {};
 	
 	%================================================================================
 	%-------------------------------------TASK LOOP----------------------------------
-	while seq.taskFinished == false && breakLoop == false
-	
+	while breakLoop == false
+		thisTrial = thisTrial + 1;
 		%=================Define stimulus colours for this run=======================
-		fprintf('\n===>>> runEquiFlicker START Run = %i / %i (%i:%i) | frames: %i | %s, %s\n',...
-			seq.totalRuns, seq.nRuns, seq.thisBlock, seq.thisRun, ana.onFrames, sM.fullName, eL.fullName);
-		modColor			= [seq.outValues{seq.totalRuns}(1:3) 1];
-		fixedColor			= [ana.colorFixed(1:3) 1];
-		grating1.colourOut	= modColor;
-		grating1.colour2Out = fixedColor;
-		update(grating1);
-		fprintf('===>>> MOD=%s | FIX=%s\n',num2str(grating1.colourOut(1:3)),num2str(grating1.colour2Out(1:3)));
+		grating.colour2Out = [ana.colorStart(1:3) 1]; varColour = grating.colour2Out;
+		update(grating);
+		fprintf('===>>> FIX=%s | MOD=%s\n',num2str(grating.colourOut(1:3)),num2str(grating.colour2Out(1:3)));
 		
 		%======================prepare eyelink for this trial ==============
 		resetFixation(eL);
 		trackerClearScreen(eL);
 		trackerDrawFixation(eL); %draw fixation window on eyelink computer
 		trackerMessage(eL,'V_RT MESSAGE END_FIX END_RT');  %this 3 lines set the trial info for the eyelink
-		trackerMessage(eL,['TRIALID ' num2str(seq.outIndex(seq.totalRuns))]);  %obj.getTaskIndex gives us which trial we're at
-		trackerMessage(eL,['MSG:fixColor=' num2str(fixedColor)]);
-		trackerMessage(eL,['MSG:modColor=' num2str(modColor)]);
-		trackerMessage(eL,['MSG:variable=' num2str(seq.outIndex(seq.totalRuns))]);
-		trackerMessage(eL,['MSG:totalRuns=' num2str(seq.totalRuns)]);
+		trackerMessage(eL,['TRIALID ' thisTrial]);  %obj.getTaskIndex gives us which trial we're at
 		startRecording(eL);
 		statusMessage(eL,'INITIATE FIXATION...');
 		fixated = '';
 		
 		%=======================Prepare for the stimulus loop========================
-		ii = 1;
-		stroke = 1; %motion is 4-stroke start at stroke 1
-		tr = seq.totalRuns;
-		ana.trial(tr).n = tr;
-		ana.trial(tr).variable = seq.outIndex(tr);
-		ana.trial(tr).value = variableVals(ana.trial(tr).variable);
-		ana.trial(tr).mColor = grating1.colour;
-		ana.trial(tr).fColor = grating1.colour2;
-		ana.trial(tr).pupil = [];
-		ana.trial(tr).frameN = [];
-		ListenChar(-1);
+
 		vbl=Screen('Flip',sM.win);
 		%================================initiate fixation===========================
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
 			drawCross(sM, 0.5, [1 1 1 1], ana.fixX, ana.fixY, 0.05, true);
-            drawPhotoDiode(sM,[0 0 0 1]);
 			finishDrawing(sM);
 			getSample(eL);
 			fixated=testSearchHoldFixation(eL,'fix','breakfix');
-			%flip(sM); %flip the buffer
 			[tL.vbl(tick), tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);
             tL.stimTime(tick) = 0;
 			tick = tick + 1;
@@ -268,7 +205,7 @@ try
 		end
 		ListenChar(0);
 		if strcmpi(fixated,'breakfix')
-			fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', seq.totalRuns);
+			fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', thisTrial);
 			statusMessage(eL,'Subject Broke Initial Fixation!');
 			trackerMessage(eL,'MSG:BreakInitialFix');
 			response = BREAKFIX;
@@ -282,41 +219,76 @@ try
 		
 		statusMessage(eL,'Show Stimulus...');
 		%=======================Our actual stimulus drawing loop=====================
-		startTick = tick; keepRunning = true;
+		startTick = tick; keepRunning = true; stroke = 1; ii = 1; keyTicks = 0; keyHold = 0;
 		tStart = GetSecs; vbl = tStart;if isempty(tL.vbl);tL.vbl(1) = tStart;tL.startTime = tStart; end
 		while keepRunning
 			switch stroke
 				case 1
-					grating1.driftPhase = 0; %see Cavanagh 1987 Fig. 1,darker red=left
-					draw(grating1)
+					grating.driftPhase = 0; %see Cavanagh 1987 Fig. 1,darker red=left
+					draw(grating)
 				case 2
-					grating1.driftPhase = 180;
-					draw(grating1)
+					grating.driftPhase = 180;
+					draw(grating)
 			end
-			if mod(ii,ana.onFrames) == 0 
+			if mod(tick,ana.onFrames) == 0 
 				stroke = stroke + 1;
 				if stroke > 2; stroke = 1; end
 			end
 
 			drawCross(sM, 0.5, [1 1 1 1], ana.fixX, ana.fixY, 0.05, true);
-            drawPhotoDiode(sM,[1 1 1 1]);
 			finishDrawing(sM);
 			
 			[vbl, tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);
 			if tick == startTick; trackerMessage(eL,'END_FIX'); end
-			tL.vbl(tick) = vbl; tL.stimTime(tick) = 1;
-			tick = tick + 1;
-
-			getSample(eL);
+			tL.vbl(tick) = vbl; tL.stimTime(tick) = 1+(stroke/10);
+			tick = tick + 1; 
 			ii = ii + 1;
-			if ~isFixated(eL)
-				fixated = 'breakfix';
-				break %break the while loop
-			end
-			if ana.debug
-				keepRunning = tick < startTick + 60;
-			else
-				keepRunning = vbl < tStart + ana.trialDuration;
+
+			keyTicks = keyTicks + 1;
+			[keyIsDown, ~, keyCode] = KbCheck(-1);
+			rchar = KbName(keyCode); if iscell(rchar);rchar=rchar{1};end
+			if keyIsDown
+				switch lower(rchar)
+					case {'downarrow','down'}
+						if keyTicks > keyHold
+							varColour(varC) = varColour(varC) - 0.01;
+							if varColour(varC) < 0; varColour(varC) = 0; end
+							grating.colour2Out = varColour; 
+							update(grating);
+							fprintf('Variable Colour is: %s\n',num2str(varColour,'%.3f '));
+							keyHold = keyTicks + fInc;
+						end
+					case {'uparrow','up'}
+						if keyTicks > keyHold
+							varColour(varC) = varColour(varC) + 0.01;
+							if varColour(varC) > 1; varColour(varC) = 1; end
+							grating.colour2Out = varColour; 
+							update(grating);
+							fprintf('Variable Colour is: %s\n',num2str(varColour,'%.3f '));
+							keyHold = keyTicks + fInc;
+						end
+					case {'space'}
+						keepRunning = false;
+						response = YES;
+					case {'c'}
+						fprintf('===>>> runEquiFlicker recalibrate pressed!\n');
+						stopRecording(eL);
+						setOffline(eL);
+						trackerSetup(eL);
+						keepRunning = false;
+						WaitSecs('YieldSecs',2);
+					case {'d'}
+						fprintf('===>>> runEquiFlicker drift correct pressed!\n');
+						stopRecording(eL);
+						driftCorrection(eL);
+						keepRunning = false;
+						WaitSecs('YieldSecs',2);
+					case {'q'}
+						fprintf('===>>> runEquiFlicker Q pressed!!!\n');
+						fixated = 'breakfix';
+						breakLoop = true;
+						keepRunning = false; 
+				end
 			end
 		end
 		%============================================================================
@@ -324,87 +296,38 @@ try
 		tEnd=Screen('Flip',sM.win);
 		
 		if strcmp(fixated,'breakfix')
-			fprintf('===>>> BROKE FIXATION Trial = %i (%i secs)\n\n', seq.totalRuns, tEnd-tStart);
+			fprintf('===>>> BROKE FIXATION Trial = %i (%i secs)\n\n', thisTrial, tEnd-tStart);
 			response = BREAKFIX;
-			statusMessage(eL,'Subject Broke Fixation!');
-			trackerMessage(eL,['TRIAL_RESULT ' response]);
-			trackerMessage(eL,'MSG:BreakFix');
-			resetFixation(eL);
-			stopRecording(eL);
-			setOffline(eL);
-			continue;
 		end
+		
+		if response == YES
+			colours{end+1,1} = grating.colour2Out;
+			disp(cell2mat(colours));
+			disp(['Isoluminant flicker point = ' num2str(mean(cell2mat(colours)))]);
+		end
+		
+		trackerMessage(eL,['TRIAL_RESULT ' response]);
+		trackerMessage(eL,'MSG:BreakFix');
+		resetFixation(eL);
+		stopRecording(eL);
+		setOffline(eL);
 		
 		tL.tick = tick;
-		ana.trial(seq.totalRuns).totalFrames = ii-1;
 		
-		drawPhotoDiode(sM,[0 0 0 1]);
-		DrawFormattedText2(['DID YOU SEE FLICKER (press arrow button)?:\n  [<b>LEFT<b>] = NO'...
-			'\n  [<b>RIGHT<b>]=YES \n  [<b>UP<b>]=REDO'],...
-			'win',sM.win,'sx','center','sy','center','xalign','center','yalign','center');
-		Screen('Flip',sM.win);
-		statusMessage(eL,'Waiting for Subject Response!');
-		edfMessage(eL,'Subject Responding')
-		edfMessage(eL,'END_RT'); ...
-		response = -1;
-		ListenChar(-1);
-		[~, keyCode] = KbWait(-1);
-		ListenChar(0);
-		rchar = KbName(keyCode); if iscell(rchar);rchar=rchar{1};end
-		switch lower(rchar)
-			case {'leftarrow','left'}
-				response = NO;
-				updateResponse();
-				trackerDrawText(eL,'Subject Pressed LEFT = NO!');
-				edfMessage(eL,'Subject Pressed LEFT = NO');
-				fprintf('Response: LEFT = NO\n');
-			case {'rightarrow','right'}
-				response = YES;
-				updateResponse();
-				trackerDrawText(eL,'Subject Pressed RIGHT = YES!');
-				edfMessage(eL,'Subject Pressed RIGHT = YES')
-				fprintf('Response: RIGHT = YES\n');
-% 			case {'downarrow','down'}
-% 				response = UNSURE;
-% 				updateResponse();
-% 				trackerDrawText(eL,'Subject Pressed UNSURE!');
-% 				edfMessage(eL,'Subject Pressed UNSURE')
-% 				fprintf('Response: UNSURE\n');
-			case {'downarrow','down','uparrow','up'}
-				response = REDO;
-				updateResponse();
-				trackerDrawText(eL,'Subject Pressed REDO!');
-				edfMessage(eL,'Subject Pressed REDO')
-				fprintf('Response: REDO\n');
-			case {'c'}
-				fprintf('===>>> runEquiFlicker recalibrate pressed!\n');
-				stopRecording(eL);
-				setOffline(eL);
-				trackerSetup(eL);
-				WaitSecs('YieldSecs',2);
-			case {'d'}
-				fprintf('===>>> runEquiFlicker drift correct pressed!\n');
-				stopRecording(eL);
-				driftCorrection(eL);
-				WaitSecs('YieldSecs',2);
-			case {'q'}
-				fprintf('===>>> runEquiFlicker quit pressed!!!\n');
-				trackerClearScreen(eL);
-				stopRecording(eL);
-				setOffline(eL);
-				breakLoop = true;
-		end
-		drawPhotoDiode(sM,[0 0 0 1]);flip(sM);
 		WaitSecs('YieldSecs',ana.trialInterval);
+		
+		if size(colours,2) > ana.trialNumber; breakLoop = true; end
 		
 	end % while ~breakLoop
 	
 	%===============================Clean up============================
-	fprintf('===>>> runEquiFlicker Finished Trials: %i\n',seq.totalRuns);
+	disp(colours);
+	disp(['Isoluminant flicker point = ' num2str(mean(cell2mat(colours)))]);
+	fprintf('===>>> runEquiFlicker Finished Trials: %i\n',thisTrial);
 	Screen('DrawText', sM.win, '===>>> FINISHED!!!',50,50);
 	Screen('Flip',sM.win);
 	WaitSecs('YieldSecs', 2);
-	reset(grating1);
+	reset(grating);
 	close(sM); breakLoop = true;
 	ListenChar(0);ShowCursor;Priority(0);RestrictKeysForKbCheck([]);
 	
@@ -416,18 +339,19 @@ try
 	setOffline(eL);
 	close(eL);
 	if ~isempty(ana.nameExp) || ~strcmpi(ana.nameExp,'debug')
+		ana.colours = colours;
 		ana.plotAxis1 = [];
 		ana.plotAxis2 = [];
 		ana.plotAxis3 = [];
 		fprintf('==>> SAVE %s, to: %s\n', ana.nameExp, pwd);
-		save([ana.nameExp '.mat'],'ana', 'seq', 'eL', 'sM', 'tL');
+		save([ana.nameExp '.mat'],'ana', 'eL', 'sM', 'tL', 'colours');
 	end
 	tL.printRunLog;
 	clear ana seq eL sM tL
 
 catch ME
 	if exist('eL','var'); close(eL); end
-	if exist('grating1','var');reset(grating1);end
+	if exist('grating','var');reset(grating);end
 	if exist('sM','var'); close(sM); end
 	ListenChar(0);ShowCursor;Priority(0);Screen('CloseAll');RestrictKeysForKbCheck([]);
 	getReport(ME)
@@ -436,95 +360,17 @@ end
 	
 	%==================================================================updateResponse
 	function updateResponse
-		ListenChar(0);
 		switch response
 			case {1, 2, 3}
-				fprintf('===>>> SUCCESS: Trial = %i, response = %i (%.2f secs)\n\n', seq.totalRuns, response, tEnd-tStart);
-				if ana.sendReward; rM.timedTTL(2,150); end
-				edfMessage(eL,['TRIAL_RESULT ' num2str(response)]);
-				ana.trial(seq.totalRuns).success = true;
-				ana.trial(seq.totalRuns).response = response;
-				v=ana.trial(seq.totalRuns).variable;
-				totalVals(v) = totalVals(v) + 1;
-				if response == NO
-					isLeft = 1;
-					ana.leftCount = ana.leftCount + 1;
-					responseVals(v) = responseVals(v) + 1;
-				elseif response == YES
-					isLeft = 0;
-					ana.rightCount = ana.rightCount + 1;
-				elseif response == UNSURE
-					isLeft = 0;
-					ana.unsureCount = ana.unsureCount + 1;
-				elseif response == REDO
-					isLeft = 0;
-				end
-				ana.trial(seq.totalRuns).responseIsLeft = isLeft;
-				ana.trial(seq.totalRuns).responseVals = responseVals;
-				ana.trial(seq.totalRuns).totalVals = totalVals;
-				responseInfo.response = response;
-				responseInfo.N = seq.totalRuns;
-				responseInfo.times = [tStart tEnd];
-				responseInfo.fixedColor = fixedColor;
-				responseInfo.responseIsLeft = isLeft;
-				resetFixation(eL);
-				stopRecording(eL);
-				setOffline(eL);
-				updatePlot(seq.totalRuns);
-				updateTask(seq,response,tEnd,responseInfo); %updates our current run number
+				
 			case -10
-				fprintf('===>>> REDO: Trial = %i (%i secs)\n\n', seq.totalRuns, tEnd-tStart);
-				edfMessage(eL,['TRIAL_RESULT ' num2str(response)]);
-				trackerMessage(eL,'MSG:Redo');
-				resetFixation(eL);
-				stopRecording(eL);
-				setOffline(eL);
-			
+				
 		end
 	end
 
 	%==================================================================updatePlot
 	function updatePlot(thisTrial)
-		v = ana.trial(thisTrial).variable;
-		r = ana.trial(thisTrial).response;
-		p = [];
-		if r == NO
-			p = 'k-v';
-		elseif r == YES
-			p = 'k-^';
-		elseif r == UNSURE
-			p = 'k-x';
-		end
-		if ~isempty(p)
-			hold(ana.plotAxis1,'on');
-			plot(ana.plotAxis1,v,thisTrial,p,'Color',map(v,:),'MarkerSize',8,'MarkerFaceColor', map(v,:));
-			title(ana.plotAxis1, [fixLabel ' Fixed Value: ' num2str(fixV)]);
-			xticks(ana.plotAxis1,1:length(varLabels));
-			xlim(ana.plotAxis1, [0 length(varLabels)+1]);
-			xlabel(ana.plotAxis1,'Varying Color Value');
-			xticklabels(ana.plotAxis1,varLabels);
-			
-			try
-				hold(ana.plotAxis2,'off');
-				try scatter(ana.plotAxis2,variableVals,(responseVals./totalVals),(totalVals+1).*20,...
-					'filled','MarkerFaceAlpha',0.5); end
-				xlim(ana.plotAxis2, [min(variableVals)-0.05 max(variableVals)+0.05]);
-				ylim(ana.plotAxis2, [-0.05 1.05]);
-				hold(ana.plotAxis2,'on');
-				%pv = PAL_PFML_Fit(variableVals,responseVals,totalVals,space,[1 1 0 0],PF);
-				%if isinf(pv(1)); pv(1) = max(variableVals); end
-				%if isinf(pv(2)); pv(2) = 30; end
-				%pfvals = PF(pv,pfx);
-				%plot(ana.plotAxis2,pfx,pfvals,'k-');
-			catch ME
-				fprintf('===>>> Cannot plot psychometric curve yet...\n');
-			end
-			
-			bar(ana.plotAxis3, [ana.leftCount ana.rightCount ana.unsureCount]);
-			xticklabels(ana.plotAxis3, {'NO','YES','Unsure'});
-			
-			drawnow;
-		end
+		
 	end
 
 
