@@ -23,7 +23,7 @@ ana.gpu			= opengl('data');
 %==========================experiment parameters=====================================
 if ana.debug
 	ana.screenID = 0;
-	ana.windowed = [0 0 1600 1000];
+	ana.windowed = [0 0 1000 1000];
 	ana.bitDepth = '8bit';
 else
 	ana.screenID = max(Screen('Screens'));%-1;
@@ -112,8 +112,8 @@ try
 	eL.remoteCalibration = false; % manual calibration?
 	eL.calibrationStyle = ana.calibrationStyle; % calibration style
 	eL.modify.calibrationtargetcolour = [1 1 1];
-	eL.modify.calibrationtargetsize = 1;
-	eL.modify.calibrationtargetwidth = 0.01;
+	eL.modify.calibrationtargetsize = 1.75;
+	eL.modify.calibrationtargetwidth = 0.03;
 	eL.modify.waitformodereadytime = 500;
 	eL.modify.devicenumber = -1; % -1 = use any keyboard
 	% X, Y, FixInitTime, FixTime, Radius, StrictFix
@@ -134,7 +134,7 @@ try
 	tL.screenLog.stimTime(1) = 1;
 	breakLoop		= false;
 	ana.trial		= struct();
-	ana.onFrames	= (ana.screenVals.fps/ana.frequency)+1
+	ana.onFrames	= round((ana.screenVals.fps/ana.frequency));
 	ana.leftCount	= 0;
 	ana.rightCount	= 0;
 	ana.unsureCount = 0;
@@ -142,6 +142,7 @@ try
 	tick			= 1;
 	fInc			= 6;
 	response		= BREAKFIX;
+	nresponse		= 0;
 	halfisi			= sM.screenVals.halfisi;
 	commandwindow
 	if ~ana.debug; ListenChar(-1); end
@@ -153,7 +154,12 @@ try
 	while breakLoop == false
 		thisTrial = thisTrial + 1;
 		%=================Define stimulus colours for this run=======================
-		grating.colour2Out = [ana.colorStart(1:3) 1]; varColour = grating.colour2Out;
+		if mod(thisTrial, 2) == 0
+			grating.colour2Out = [ana.colorStart(1:3) 1]; 
+		else
+			grating.colour2Out = [ana.colorEnd(1:3) 1]; 
+		end
+		varColour = grating.colour2Out;
 		update(grating);
 		fprintf('===>>> FIX=%s | MOD=%s\n',num2str(grating.colourOut(1:3)),num2str(grating.colour2Out(1:3)));
 		
@@ -168,11 +174,11 @@ try
 		fixated = '';
 		
 		%=======================Prepare for the stimulus loop========================
-
 		vbl=Screen('Flip',sM.win);
+		
 		%================================initiate fixation===========================
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
-			drawCross(sM, 0.5, [1 1 1 1], ana.fixX, ana.fixY, 0.05, true);
+			drawCross(sM, 0.75, [1 1 1 1], ana.fixX, ana.fixY, 0.1, true, 0.5);
 			finishDrawing(sM);
 			getSample(eL);
 			fixated=testSearchHoldFixation(eL,'fix','breakfix');
@@ -203,7 +209,7 @@ try
 				end
 			end
 		end
-		ListenChar(0);
+		
 		if strcmpi(fixated,'breakfix')
 			fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', thisTrial);
 			statusMessage(eL,'Subject Broke Initial Fixation!');
@@ -235,7 +241,7 @@ try
 				if stroke > 2; stroke = 1; end
 			end
 
-			drawCross(sM, 0.5, [1 1 1 1], ana.fixX, ana.fixY, 0.05, true);
+			drawCross(sM, 0.75, [1 1 1 1], ana.fixX, ana.fixY, 0.1, true, 0.5);
 			finishDrawing(sM);
 			
 			[vbl, tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);
@@ -251,20 +257,20 @@ try
 				switch lower(rchar)
 					case {'downarrow','down'}
 						if keyTicks > keyHold
-							varColour(varC) = varColour(varC) - 0.01;
+							varColour(varC) = varColour(varC) - 0.005;
 							if varColour(varC) < 0; varColour(varC) = 0; end
 							grating.colour2Out = varColour; 
 							update(grating);
-							fprintf('Variable Colour is: %s\n',num2str(varColour,'%.3f '));
+							fprintf('Variable Colour is: %s\n',num2str(grating.colour2Out,'%.3f '));
 							keyHold = keyTicks + fInc;
 						end
 					case {'uparrow','up'}
 						if keyTicks > keyHold
-							varColour(varC) = varColour(varC) + 0.01;
+							varColour(varC) = varColour(varC) + 0.005;
 							if varColour(varC) > 1; varColour(varC) = 1; end
 							grating.colour2Out = varColour; 
 							update(grating);
-							fprintf('Variable Colour is: %s\n',num2str(varColour,'%.3f '));
+							fprintf('Variable Colour is: %s\n',num2str(grating.colour2Out,'%.3f '));
 							keyHold = keyTicks + fInc;
 						end
 					case {'space'}
@@ -301,6 +307,7 @@ try
 		end
 		
 		if response == YES
+			nresponse = nresponse + 1;
 			colours{end+1,1} = grating.colour2Out;
 			disp(cell2mat(colours));
 			disp(['Isoluminant flicker point = ' num2str(mean(cell2mat(colours)))]);
@@ -314,22 +321,26 @@ try
 		
 		tL.tick = tick;
 		
-		WaitSecs('YieldSecs',ana.trialInterval);
-		
-		if size(colours,2) > ana.trialNumber; breakLoop = true; end
+		if nresponse >= ana.trialNumber 
+			breakLoop = true; 
+		else
+			WaitSecs('YieldSecs',ana.trialInterval);
+		end
 		
 	end % while ~breakLoop
 	
 	%===============================Clean up============================
-	disp(colours);
-	disp(['Isoluminant flicker point = ' num2str(mean(cell2mat(colours)))]);
-	fprintf('===>>> runEquiFlicker Finished Trials: %i\n',thisTrial);
 	Screen('DrawText', sM.win, '===>>> FINISHED!!!',50,50);
 	Screen('Flip',sM.win);
 	WaitSecs('YieldSecs', 2);
 	reset(grating);
 	close(sM); breakLoop = true;
 	ListenChar(0);ShowCursor;Priority(0);RestrictKeysForKbCheck([]);
+	
+	
+	disp(colours);
+	disp(['Isoluminant flicker point = ' num2str(mean(cell2mat(colours)))]);
+	fprintf('===>>> runEquiFlicker Finished Trials: %i\n',thisTrial);
 	
 	if exist(ana.ResultDir,'dir') > 0
 		cd(ana.ResultDir);
@@ -347,8 +358,7 @@ try
 		save([ana.nameExp '.mat'],'ana', 'eL', 'sM', 'tL', 'colours');
 	end
 	tL.printRunLog;
-	clear ana seq eL sM tL
-
+	clear ana eL sM tL
 catch ME
 	if exist('eL','var'); close(eL); end
 	if exist('grating','var');reset(grating);end

@@ -209,7 +209,7 @@ try
 	
 	%================================================================================
 	%-------------------------------------TASK LOOP----------------------------------
-	while seq.taskFinished == false || breakLoop == false
+	while seq.taskFinished == false && breakLoop == false
 	
 		%=================Define stimulus colours for this run=======================
 		fprintf('\n===>>> runEquiMotion START Run = %i / %i (%i:%i) | %s, %s\n', seq.totalRuns, seq.nRuns, seq.thisBlock, seq.thisRun, sM.fullName, eL.fullName);
