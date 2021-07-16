@@ -110,6 +110,7 @@ try
 	eL.recordData = true; %save EDF file
 	eL.sampleRate = ana.sampleRate;
 	eL.remoteCalibration = false; % manual calibration?
+	eL.calibrationProportion = [0.5 0.5];
 	eL.calibrationStyle = ana.calibrationStyle; % calibration style
 	eL.modify.calibrationtargetcolour = [1 1 1];
 	eL.modify.calibrationtargetsize = 1.75;
@@ -238,7 +239,7 @@ try
 				if stroke > 2; stroke = 1; end
 			end
 
-			drawCross(sM, 0.75, [1 1 1 1], ana.fixX, ana.fixY, 0.1, true, 0.5);
+			drawCross(sM, 0.75, [1 1 1 1], ana.fixX, ana.fixY, 0.1, true, 0.2);
 			finishDrawing(sM);
 			
 			[vbl, tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);

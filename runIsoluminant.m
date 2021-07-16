@@ -142,9 +142,10 @@ try
 	eL.sampleRate = ana.sampleRate;
 	eL.remoteCalibration = ana.fixManual; % manual calibration?
 	eL.calibrationStyle = 'HV5'; % calibration style
-	eL.modify.calibrationtargetcolour = ana.fixColour;
-	eL.modify.calibrationtargetsize = 1;
-	eL.modify.calibrationtargetwidth = 0.1;
+	eL.calibrationProportion = [0.5 0.5];
+	eL.modify.calibrationtargetcolour = [1 1 1];
+	eL.modify.calibrationtargetsize = 1.75;
+	eL.modify.calibrationtargetwidth = 0.03;
 	eL.modify.waitformodereadytime = 500;
 	eL.modify.devicenumber = -1; % -1 = use any keyboard
 	% X, Y, FixInitTime, FixTime, Radius, StrictFix
@@ -194,7 +195,7 @@ try
 		%syncTime(eL);
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
 			if ana.fixCross
-				drawCross(sM, 0.4, ana.fixColour, ana.fixX, ana.fixY, 0.05, false, 0.25);
+				drawCross(sM, 0.5, ana.fixColour, ana.fixX, ana.fixY, 0.075, false);
 			else
 				drawSpot(sM, 0.2, ana.fixColour, ana.fixX, ana.fixY);
 			end
@@ -289,7 +290,7 @@ try
 			circle1.draw();
 			
 			if ana.fixCross
-				drawCross(sM, 0.4, ana.fixColour, ana.fixX, ana.fixY, 0.05, false, 0.2);
+				drawCross(sM, 0.5, ana.fixColour, ana.fixX, ana.fixY, 0.075, false);
 			else
 				drawSpot(sM, 0.2, ana.fixColour, ana.fixX, ana.fixY);
 			end

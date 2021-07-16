@@ -178,9 +178,10 @@ try
 	eL.sampleRate = ana.sampleRate;
 	eL.remoteCalibration = false; % manual calibration?
 	eL.calibrationStyle = ana.calibrationStyle; % calibration style
+	eL.calibrationProportion = [0.5 0.5];
 	eL.modify.calibrationtargetcolour = [1 1 1];
-	eL.modify.calibrationtargetsize = 1;
-	eL.modify.calibrationtargetwidth = 0.05;
+	eL.modify.calibrationtargetsize = 1.75;
+	eL.modify.calibrationtargetwidth = 0.03;
 	eL.modify.waitformodereadytime = 500;
 	eL.modify.devicenumber = -1; % -1 = use any keyboard
 	% X, Y, FixInitTime, FixTime, Radius, StrictFix
@@ -265,7 +266,7 @@ try
 		vbl						= Screen('Flip',sM.win);
 		%================================initiate fixation===========================
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix') && breakLoop == false
-			drawCross(sM, 0.75, [1 1 1 1], ana.fixX, ana.fixY, 0.1, true,0.2);
+			drawCross(sM, 0.75, [1 1 1 1], ana.fixX, ana.fixY, 0.1, true, 0.5);
             drawPhotoDiode(sM,[0 0 0 1]);
 			finishDrawing(sM);
 			getSample(eL);
@@ -340,7 +341,7 @@ try
 				if stroke > 4; stroke = 1; end
 			end
 
-			drawCross(sM, 0.75, [1 1 1 1], ana.fixX, ana.fixY, 0.1, true,0.2);
+			drawCross(sM, 0.75, [1 1 1 1], ana.fixX, ana.fixY, 0.1, true, 0.2);
             drawPhotoDiode(sM,[1 1 1 1]);
 			finishDrawing(sM);
 			
