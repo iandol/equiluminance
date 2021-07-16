@@ -135,9 +135,6 @@ try
 	breakLoop		= false;
 	ana.trial		= struct();
 	ana.onFrames	= round((ana.screenVals.fps/ana.frequency));
-	ana.leftCount	= 0;
-	ana.rightCount	= 0;
-	ana.unsureCount = 0;
 	thisTrial		= 0;
 	tick			= 1;
 	fInc			= 6;
@@ -174,8 +171,8 @@ try
 		fixated = '';
 		
 		%=======================Prepare for the stimulus loop========================
-		vbl=Screen('Flip',sM.win);
-		
+		vbl		= Screen('Flip',sM.win);
+		tFix	= vbl;
 		%================================initiate fixation===========================
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
 			drawCross(sM, 0.75, [1 1 1 1], ana.fixX, ana.fixY, 0.1, true, 0.5);
@@ -246,7 +243,7 @@ try
 			
 			[vbl, tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);
 			if tick == startTick; trackerMessage(eL,'END_FIX'); end
-			tL.vbl(tick) = vbl; tL.stimTime(tick) = 1+(stroke/10);
+			tL.vbl(tick) = vbl; tL.stimTime(tick) =  1 + (stroke/10);
 			tick = tick + 1; 
 			ii = ii + 1;
 

@@ -14,9 +14,9 @@ end
 %if ispc; PsychJavaTrouble(); end
 KbName('UnifyKeyNames');
 %==========================Initiate out metadata=====================================
-ana.date = datestr(datetime);
-ana.version = Screen('Version');
-ana.computer = Screen('Computer');
+ana.date		= datestr(datetime);
+ana.version		= Screen('Version');
+ana.computer	= Screen('Computer');
 ana.gpu			= opengl('data');
 
 %==========================experiment parameters=====================================
@@ -31,12 +31,12 @@ end
 %=======================Make a name for this run=====================================
 pf='EquiMotion_';
 if ~isempty(ana.subject)
-	nameExp = [pf ana.subject];
-	c = sprintf(' %i',fix(clock()));
-	nameExp = [nameExp c];
-	ana.nameExp = regexprep(nameExp,' ','_');
+	nameExp			= [pf ana.subject];
+	c				= sprintf(' %i',fix(clock()));
+	nameExp			= [nameExp c];
+	ana.nameExp		= regexprep(nameExp,' ','_');
 else
-	ana.nameExp = 'debug';
+	ana.nameExp		= 'debug';
 end
 
 cla(ana.plotAxis1);
@@ -103,7 +103,8 @@ try
 	grating2.size		= ana.size;
 	grating2.colour		= (1+ana.contrastMultiplier) * blend;
 	grating2.colour2	= (1-ana.contrastMultiplier) * blend;
-	grating2.colour		= [grating2.colour(1:3) 1]; grating2.colour2 = [grating2.colour2(1:3) 1];
+	grating2.colour		= [grating2.colour(1:3) 1]; 
+	grating2.colour2	= [grating2.colour2(1:3) 1];
 	grating2.contrast	= 1;
 	grating2.type		= ana.type;
 	grating2.mask		= ana.mask;
@@ -139,7 +140,9 @@ try
 			fixLabel='Blue';
 	end
 	fixV			= ana.colorFixed(fixC); 
-	%varC			= find(ana.colorEnd > 0);
+	varC			= find(ana.colorEnd == max(ana.colorEnd));
+	varC			= varC(1);
+	varColour		= grating1.colour;
 	variableVals	= r{ana.colorEnd > 0}'; ana.variableVals = variableVals;
 	responseVals	= zeros(size(variableVals));
 	totalVals		= responseVals;
@@ -192,8 +195,8 @@ try
 	
 	%================================================================================
 	%-------------prepare variables needed for task loop-----------------------------
-	LEFT = 1; 	RIGHT = 2; UNSURE = 3; REDO = -10; BREAKFIX = -1;
-	map = analysisCore.optimalColours(seq.minBlocks);	
+	LEFT = 1; 	RIGHT = 2; UNSURE = 3; YES = 4; REDO = -10; BREAKFIX = -1; INVALID = -100;
+	map				= analysisCore.optimalColours(seq.minBlocks);	
 	tL				= timeLogger();
 	tL.screenLog.beforeDisplay = GetSecs();
 	tL.screenLog.stimTime(1) = 1;
@@ -203,13 +206,18 @@ try
 	ana.rightCount	= 0;
 	ana.unsureCount = 0;
 	tick			= 1;
-	response		= BREAKFIX;
+	nresponse		= 0;
+	colours			= {};
+	keyHold			= 0;
+	keyTicks		= keyHold;
+	fInc			= 5;
 	halfisi			= sM.screenVals.halfisi;
+	if ~ana.debug; ListenChar(-1); end
 	Priority(MaxPriority(sM.win));
 	
 	%================================================================================
 	%-------------------------------------TASK LOOP----------------------------------
-	while seq.taskFinished == false && breakLoop == false
+	while breakLoop == false
 	
 		%=================Define stimulus colours for this run=======================
 		fprintf('\n===>>> runEquiMotion START Run = %i / %i (%i:%i) | %s, %s\n', seq.totalRuns, seq.nRuns, seq.thisBlock, seq.thisRun, sM.fullName, eL.fullName);
@@ -221,9 +229,10 @@ try
 		grating2.colourOut	= [grating2.colourOut(1:3) 1];
 		grating2.colour2Out = ((1-ana.contrastMultiplier) * (fixedColor + modColor)) / 2.0; 
 		grating2.colour2Out = [grating2.colour2Out(1:3) 1];
+		varColour			= grating1.colourOut;
 		update(grating1); update(grating2);
-		fprintf('===>>> MOD=%s | FIX=%s\n',num2str(grating1.colourOut(1:3)),num2str(grating1.colour2Out(1:3)));
-		fprintf('===>>> B=%s | D=%s\n',num2str(grating2.colourOut(1:3)),num2str(grating2.colour2Out(1:3)));
+		fprintf('===>>> MOD=%s | FIX=%s\n',num2str(grating1.colourOut(1:3), '%.2f '),num2str(grating1.colour2Out(1:3),'%.2f'));
+		fprintf('===>>> B=%s | D=%s\n',num2str(grating2.colourOut(1:3),'%.2f'),num2str(grating2.colour2Out(1:3),'%.2f'));
 		
 		%======================prepare eyelink for this trial ==============
 		resetFixation(eL);
@@ -238,25 +247,25 @@ try
 		startRecording(eL);
 		statusMessage(eL,'INITIATE FIXATION...');
 		fixated = '';
-		ListenChar(2);
 		
 		%=======================Prepare for the stimulus loop========================
-		ii = 1;
-		stroke = 1; %motion is 4-stroke start at stroke 1
-		tr = seq.totalRuns;
-		ana.trial(tr).n = tr;
-		ana.trial(tr).variable = seq.outIndex(tr);
-		ana.trial(tr).value = variableVals(ana.trial(tr).variable);
-		ana.trial(tr).mColor = grating1.colour;
-		ana.trial(tr).fColor = grating1.colour2;
+		response				= INVALID;
+		ii						= 1;
+		stroke					= 1; %motion is 4-stroke start at stroke 1
+		tr						= seq.totalRuns;
+		ana.trial(tr).n			= tr;
+		ana.trial(tr).variable	= seq.outIndex(tr);
+		ana.trial(tr).value		= variableVals(ana.trial(tr).variable);
+		ana.trial(tr).mColor	= grating1.colour;
+		ana.trial(tr).fColor	= grating1.colour2;
 		ana.trial(tr).blendColor1 = grating2.colour;
 		ana.trial(tr).blendColor2 = grating2.colour2;
-		ana.trial(tr).pupil = [];
-		ana.trial(tr).frameN = [];
-		vbl=Screen('Flip',sM.win);
+		ana.trial(tr).pupil		= [];
+		ana.trial(tr).frameN	= [];
+		vbl						= Screen('Flip',sM.win);
 		%================================initiate fixation===========================
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix') && breakLoop == false
-			drawCross(sM, 0.4, [1 1 1 1], ana.fixX, ana.fixY, 0.05, false);
+			drawCross(sM, 0.75, [1 1 1 1], ana.fixX, ana.fixY, 0.1, true,0.2);
             drawPhotoDiode(sM,[0 0 0 1]);
 			finishDrawing(sM);
 			getSample(eL);
@@ -289,7 +298,6 @@ try
 				end
 			end
 		end
-		ListenChar(0);
 		if strcmpi(fixated,'breakfix')
 			fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', seq.totalRuns);
 			statusMessage(eL,'Subject Broke Initial Fixation!');
@@ -306,9 +314,13 @@ try
 		statusMessage(eL,'Show Stimulus...');
 		
 		%=======================Our actual stimulus drawing loop=====================
-		startTick = tick;
-		tStart = GetSecs; vbl = tStart;if isempty(tL.vbl);tL.vbl(1) = tStart;tL.startTime = tStart; end
-		while vbl < tStart + ana.trialDuration
+		startTick = tick; 
+		keepRunning = true;
+		ii = 1;
+		tStart = GetSecs;
+		vbl = tStart;
+		if isempty(tL.vbl);tL.vbl(1) = tStart;tL.startTime = tStart; end
+		while keepRunning
 			switch stroke
 				case 1
 					grating1.driftPhase = 180; %see Cavanagh 1987 Fig. 1,darker red=left
@@ -328,21 +340,33 @@ try
 				if stroke > 4; stroke = 1; end
 			end
 
-			drawCross(sM, 0.4, [1 1 1 1], ana.fixX, ana.fixY, 0.05, false);
+			drawCross(sM, 0.75, [1 1 1 1], ana.fixX, ana.fixY, 0.1, true,0.2);
             drawPhotoDiode(sM,[1 1 1 1]);
 			finishDrawing(sM);
 			
 			[vbl, tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);
 			if tick == startTick; trackerMessage(eL,'END_FIX'); end
-			tL.vbl(tick) = vbl; tL.stimTime(tick) = 1;
+			tL.vbl(tick) = vbl; tL.stimTime(tick) = 1 + (stroke/10);
 			tick = tick + 1;
-
-			getSample(eL);
 			ii = ii + 1;
-			if ~isFixated(eL)
-				fixated = 'breakfix';
-				break %break the while loop
+			
+			if ana.isMOC
+				getSample(eL);
+				if ~isFixated(eL)
+					fixated = 'breakfix';
+					break %break the while loop
+				end
+				keepRunning = vbl < tStart + ana.trialDuration;
+			else
+				matchingKeys();
+				if response == YES
+					nresponse = nresponse + 1;
+					colours{end+1,1} = grating1.colourOut;
+					disp(cell2mat(colours));
+					disp(['Isoluminant flicker point = ' num2str(mean(cell2mat(colours)))]);
+				end
 			end
+			
 		end
 		%============================================================================
 		
@@ -363,6 +387,114 @@ try
 		tL.tick = tick;
 		ana.trial(seq.totalRuns).totalFrames = ii-1;
 		
+		if ana.isMOC
+			getResponse();
+			if seq.taskFinished == true; breakLoop = true; end
+		else
+			if nresponse >= ana.trialNumber 
+				breakLoop = true;
+			end
+		end
+		
+	end % while ~breakLoop
+	
+	%===============================Clean up============================
+	fprintf('===>>> runEquiMotion Finished Trials: %i\n',seq.totalRuns);
+	Screen('DrawText', sM.win, '===>>> FINISHED!!!',50,50);
+	Screen('Flip',sM.win);
+	WaitSecs('YieldSecs', 2);
+	reset(grating1);reset(grating2);
+	close(sM); breakLoop = true;
+	ListenChar(0);ShowCursor;Priority(0);RestrictKeysForKbCheck([]);
+	
+	if exist(ana.ResultDir,'dir') > 0
+		cd(ana.ResultDir);
+	end
+	trackerClearScreen(eL);
+	stopRecording(eL);
+	setOffline(eL);
+	close(eL);
+	if ~isempty(ana.nameExp) || ~strcmpi(ana.nameExp,'debug')
+		ana.plotAxis1 = [];
+		ana.plotAxis2 = [];
+		ana.plotAxis3 = [];
+		fprintf('==>> SAVE %s, to: %s\n', ana.nameExp, pwd);
+		save([ana.nameExp '.mat'],'ana', 'seq', 'eL', 'sM', 'tL');
+	end
+	tL.printRunLog;
+	clear ana seq eL sM tL
+
+catch ME
+	if exist('eL','var'); close(eL); end
+	reset(grating1);reset(grating2);
+	if exist('sM','var'); close(sM); end
+	ListenChar(0);ShowCursor;Priority(0);Screen('CloseAll');
+	getReport(ME)
+end
+
+	function matchingKeys()
+		keyTicks = keyTicks + 1;
+		[keyIsDown, ~, keyCode] = KbCheck(-1);
+		rchar = KbName(keyCode); if iscell(rchar);rchar=rchar{1};end
+		if keyIsDown
+			switch lower(rchar)
+				case {'downarrow','down'}
+					if keyTicks > keyHold
+						varColour(varC) = varColour(varC) - 0.01;
+						if varColour(varC) < 0; varColour(varC) = 0; end
+						grating1.colourOut = varColour; 
+						grating2.colourOut	= ((1+ana.contrastMultiplier) * (grating1.colour2Out + grating1.colourOut)) / 2.0; 
+						grating2.colourOut	= [grating2.colourOut(1:3) 1];
+						grating2.colour2Out = ((1-ana.contrastMultiplier) * (grating1.colour2Out + grating1.colourOut)) / 2.0; 
+						grating2.colour2Out = [grating2.colour2Out(1:3) 1];
+						update(grating1); update(grating2)
+						fprintf('Variable Colour is: %s; Mod Colour is: %s %s\n',...
+							num2str(grating1.colourOut,'%.3f '), num2str(grating2.colourOut,'%.3f '), num2str(grating2.colour2Out,'%.3f '));
+						keyHold = keyTicks + fInc;
+					end
+				case {'uparrow','up'}
+					if keyTicks > keyHold
+						varColour(varC) = varColour(varC) + 0.01;
+						if varColour(varC) > 1; varColour(varC) = 1; end
+						grating1.colourOut = varColour; 
+						grating2.colourOut	= ((1+ana.contrastMultiplier) * (grating1.colour2Out + grating1.colourOut)) / 2.0; 
+						grating2.colourOut	= [grating2.colourOut(1:3) 1];
+						grating2.colour2Out = ((1-ana.contrastMultiplier) * (grating1.colour2Out + grating1.colourOut)) / 2.0; 
+						grating2.colour2Out = [grating2.colour2Out(1:3) 1];
+						update(grating1); update(grating2)
+						fprintf('Variable Colour is: %s; Mod Colour is: %s %s\n',...
+							num2str(grating1.colourOut,'%.3f '), num2str(grating2.colourOut,'%.3f '), num2str(grating2.colour2Out,'%.3f '));
+						keyHold = keyTicks + fInc;
+					end
+				case {'space'}
+					keepRunning = false;
+					response = YES;
+				case {'c'}
+					fprintf('===>>> runEquiFlicker recalibrate pressed!\n');
+					response = INVALID;
+					stopRecording(eL);
+					setOffline(eL);
+					trackerSetup(eL);
+					keepRunning = false;
+					WaitSecs('YieldSecs',2);
+				case {'d'}
+					fprintf('===>>> runEquiFlicker drift correct pressed!\n');
+					response = INVALID;
+					stopRecording(eL);
+					driftCorrection(eL);
+					keepRunning = false;
+					WaitSecs('YieldSecs',2);
+				case {'q'}
+					fprintf('===>>> runEquiFlicker Q pressed!!!\n');
+					response = INVALID;
+					fixated = 'breakfix';
+					breakLoop = true;
+					keepRunning = false; 
+			end
+		end
+	end
+
+	function getResponse()
 		drawPhotoDiode(sM,[0 0 0 1]);
 		DrawFormattedText2(['Which Direction (press arrow button)?:\n  [<b>LEFT<b>] = LEFT MOTION'...
 			'\n  [<b>RIGHT<b>]=RIGHT MOTION \n  [<b>UP<b>]=REDO'],...
@@ -370,11 +502,9 @@ try
 		Screen('Flip',sM.win);
 		statusMessage(eL,'Waiting for Subject Response!');
 		edfMessage(eL,'Subject Responding')
-		edfMessage(eL,'END_RT'); ...
+		edfMessage(eL,'END_RT'); 
 		response = -1;
-		ListenChar(2);
 		[~, keyCode] = KbWait(-1);
-		ListenChar(0);
 		rchar = KbName(keyCode); if iscell(rchar);rchar=rchar{1};end
 		switch lower(rchar)
 			case {'leftarrow','left'}
@@ -403,17 +533,20 @@ try
 				fprintf('Response: REDO\n');
 			case {'c'}
 				fprintf('===>>> runEquiMotion recalibrate pressed!\n');
+				response = INVALID;
 				stopRecording(eL);
 				setOffline(eL);
 				trackerSetup(eL);
 				WaitSecs('YieldSecs',2);
 			case {'d'}
 				fprintf('===>>> runEquiMotion drift correct pressed!\n');
+				response = INVALID;
 				stopRecording(eL);
 				driftCorrection(eL);
 				WaitSecs('YieldSecs',2);
 			case {'q'}
 				fprintf('===>>> runEquiMotion quit pressed!!!\n');
+				response = INVALID;
 				trackerClearScreen(eL);
 				stopRecording(eL);
 				setOffline(eL);
@@ -421,47 +554,10 @@ try
 		end
 		drawPhotoDiode(sM,[0 0 0 1]);flip(sM);
 		WaitSecs('YieldSecs',ana.trialInterval);
-		
-	end % while ~breakLoop
-	
-	%===============================Clean up============================
-	fprintf('===>>> runEquiMotion Finished Trials: %i\n',seq.totalRuns);
-	Screen('DrawText', sM.win, '===>>> FINISHED!!!',50,50);
-	Screen('Flip',sM.win);
-	WaitSecs('YieldSecs', 2);
-	reset(grating1);reset(grating2);
-	close(sM); breakLoop = true;
-	ListenChar(0);ShowCursor;Priority(0);
-	
-	if exist(ana.ResultDir,'dir') > 0
-		cd(ana.ResultDir);
 	end
-	trackerClearScreen(eL);
-	stopRecording(eL);
-	setOffline(eL);
-	close(eL);
-	if ~isempty(ana.nameExp) || ~strcmpi(ana.nameExp,'debug')
-		ana.plotAxis1 = [];
-		ana.plotAxis2 = [];
-		ana.plotAxis3 = [];
-		fprintf('==>> SAVE %s, to: %s\n', ana.nameExp, pwd);
-		save([ana.nameExp '.mat'],'ana', 'seq', 'eL', 'sM', 'tL');
-	end
-	tL.printRunLog;
-	clear ana seq eL sM tL
-
-catch ME
-	if exist('eL','var'); close(eL); end
-	reset(grating1);reset(grating2);
-	if exist('sM','var'); close(sM); end
-	ListenChar(0);ShowCursor;Priority(0);Screen('CloseAll');
-	getReport(ME)
-end
-
 	
 	%==================================================================updateResponse
-	function updateResponse
-		ListenChar(0);
+	function updateResponse()
 		switch response
 			case {1, 2, 3}
 				fprintf('===>>> SUCCESS: Trial = %i, response = %i (%.2f secs)\n\n', seq.totalRuns, response, tEnd-tStart);
