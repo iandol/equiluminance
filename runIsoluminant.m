@@ -142,8 +142,8 @@ try
 	eL.sampleRate = ana.sampleRate;
 	eL.remoteCalibration = ana.fixManual; % manual calibration?
 	eL.calibrationStyle = 'HV5'; % calibration style
-	eL.modify.calibrationtargetcolour = ana.fixColour;
-	eL.modify.calibrationtargetsize = 1;
+	eL.modify.calibrationtargetcolour = [1 1 1];
+	eL.modify.calibrationtargetsize = 1.75;
 	eL.modify.calibrationtargetwidth = 0.1;
 	eL.modify.waitformodereadytime = 500;
 	eL.modify.devicenumber = -1; % -1 = use any keyboard
@@ -156,8 +156,7 @@ try
 	map = analysisCore.optimalColours(seq.minBlocks);
 	
 	initialise(eL, sM); %use sM to pass screen values to eyelink
-	
-	setup(eL); % do setup and calibration
+	ListenChar(-1); setup(eL); ListenChar(0); % do setup and calibration
 	fprintf('--->>> runIsoluminant eL setup complete: %s\n', eL.fullName);
 	WaitSecs('YieldSecs',0.5);
 	getSample(eL); %make sure everything is in memory etc.
@@ -174,6 +173,7 @@ try
 	ana.nBreakFix	= 0;
 	tick			= 1;
 	halfisi			= sM.screenVals.halfisi;
+	if ~ana.debug; ListenChar(-1); end
 	Priority(MaxPriority(sM.win));
 	
 	%================================================================================
@@ -189,12 +189,11 @@ try
 		startRecording(eL);
 		statusMessage(eL,'INITIATE FIXATION...');
 		fixated = '';
-		ListenChar(2);
 		fprintf('===>>> runIsoluminant initiating fixation to start run...\n');
 		%syncTime(eL);
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
 			if ana.fixCross
-				drawCross(sM, 0.4, ana.fixColour, ana.fixX, ana.fixY, 0.05, false, 0.25);
+				drawCross(sM, 0.7, ana.fixColour, ana.fixX, ana.fixY, 0.05, false, 0.25);
 			else
 				drawSpot(sM, 0.2, ana.fixColour, ana.fixX, ana.fixY);
 			end
@@ -226,7 +225,6 @@ try
 				end
 			end
 		end
-		ListenChar(0);
 		if strcmpi(fixated,'breakfix')
 			fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', seq.totalRuns);
 			ana.nBreakInit = ana.nBreakInit + 1;
@@ -289,7 +287,7 @@ try
 			circle1.draw();
 			
 			if ana.fixCross
-				drawCross(sM, 0.4, ana.fixColour, ana.fixX, ana.fixY, 0.05, false, 0.2);
+				drawCross(sM, 0.7, ana.fixColour, ana.fixX, ana.fixY, 0.05, false, 0.2);
 			else
 				drawSpot(sM, 0.2, ana.fixColour, ana.fixX, ana.fixY);
 			end
@@ -346,7 +344,6 @@ try
 		end
         
 		tEnd=Screen('Flip',sM.win);
-        ListenChar(2);
 		while GetSecs < tEnd + 0.01
 			[keyIsDown, ~, keyCode] = KbCheck(-1);
 			if keyIsDown == 1
@@ -373,7 +370,6 @@ try
 			end
 			WaitSecs('YieldSecs',sM.screenVals.ifi);
 		end
-		ListenChar(0);
 		
 	end % while ~breakLoop
 	

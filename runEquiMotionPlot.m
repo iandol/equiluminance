@@ -71,12 +71,14 @@ for i = 1:length(ana.trial)
 end
 ax.FontName = 'Fira Code';
 ylabel('Trial Number');
+fprintf('%s fixed raw: %s\n',fixLabel,num2str(ana.colorFixed,'%.3f '));
 title([fixLabel ' Fixed Value: ' num2str(ana.colorFixed .* maxLuminances)]);
 xticks(1:length(varLabels));
 xlim([0.5 length(varLabels)+0.5]);
 xticklabels(varLabels); box on; grid on;
 pl(1).Parent.XTickLabelRotation=45;
 
+fixVal = ana.colorFixed(fixC) * maxLuminances(fixC);
 ax = nexttile(2);
 responseVals = ana.trial(end).responseVals;
 totalVals = ana.trial(end).totalVals;
@@ -107,6 +109,8 @@ try
 	tit=regexprep(tit,'_','-');
 	title(tit);
 end
+line([fixVal fixVal],[0 1],'Color',[.3 .3 .3],'LineStyle','--','LineWidth',2);
+fprintf('%s var raw: %s\n',varLabel,num2str(pv(1)/maxLuminances(varC),'%.3f '));
 xticks(variableVals);
 xticklabels(varLabels); 
 ax.FontName			= 'Fira code';
