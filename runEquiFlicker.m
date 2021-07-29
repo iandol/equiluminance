@@ -114,7 +114,7 @@ try
 	eL.calibrationStyle = ana.calibrationStyle; % calibration style
 	eL.modify.calibrationtargetcolour = [1 1 1];
 	eL.modify.calibrationtargetsize = 1.75;
-	eL.modify.calibrationtargetwidth = 0.03;
+	eL.modify.calibrationtargetwidth = 0.1;
 	eL.modify.waitformodereadytime = 500;
 	eL.modify.devicenumber = -1; % -1 = use any keyboard
 	% X, Y, FixInitTime, FixTime, Radius, StrictFix
@@ -122,7 +122,7 @@ try
 		ana.firstFixTime, ana.firstFixDiameter, ana.strictFixation);
 	%sM.verbose = true; eL.verbose = true; sM.verbosityLevel = 10; eL.verbosityLevel = 4; %force lots of log output
 	initialise(eL, sM); %use sM to pass screen values to eyelink
-	setup(eL); % do setup and calibration
+	ListenChar(-1); setup(eL); ListenChar(0); % do setup and calibration
 	fprintf('--->>> runEquiFlicker eL setup complete: %s\n', eL.fullName);
 	WaitSecs('YieldSecs',0.5);
 	getSample(eL); %make sure everything is in memory etc.

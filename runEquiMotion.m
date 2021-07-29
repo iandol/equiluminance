@@ -18,6 +18,7 @@ ana.date		= datestr(datetime);
 ana.version		= Screen('Version');
 ana.computer	= Screen('Computer');
 ana.gpu			= opengl('data');
+ana.colours		= {};
 
 %==========================experiment parameters=====================================
 if ana.debug
@@ -30,6 +31,7 @@ end
 
 %=======================Make a name for this run=====================================
 pf='EquiMotion_';
+if ~ana.isMOC; pf = [pf 'Match_']; end
 if ~isempty(ana.subject)
 	nameExp			= [pf ana.subject];
 	c				= sprintf(' %i',fix(clock()));
@@ -181,7 +183,7 @@ try
 	eL.calibrationProportion = [0.5 0.5];
 	eL.modify.calibrationtargetcolour = [1 1 1];
 	eL.modify.calibrationtargetsize = 1.75;
-	eL.modify.calibrationtargetwidth = 0.03;
+	eL.modify.calibrationtargetwidth = 0.1;
 	eL.modify.waitformodereadytime = 500;
 	eL.modify.devicenumber = -1; % -1 = use any keyboard
 	% X, Y, FixInitTime, FixTime, Radius, StrictFix
@@ -189,7 +191,6 @@ try
 		ana.firstFixTime, ana.firstFixDiameter, ana.strictFixation);
 	%sM.verbose = true; eL.verbose = true; sM.verbosityLevel = 10; eL.verbosityLevel = 4; %force lots of log output
 	initialise(eL, sM); %use sM to pass screen values to eyelink
-	setup(eL); % do setup and calibration
 	fprintf('--->>> runEquiMotion eL setup complete: %s\n', eL.fullName);
 	WaitSecs('YieldSecs',0.5);
 	getSample(eL); %make sure everything is in memory etc.
@@ -360,12 +361,6 @@ try
 				keepRunning = vbl < tStart + ana.trialDuration;
 			else
 				matchingKeys();
-				if response == YES
-					nresponse = nresponse + 1;
-					colours{end+1,1} = grating1.colourOut;
-					disp(cell2mat(colours));
-					disp(['Isoluminant flicker point = ' num2str(mean(cell2mat(colours)))]);
-				end
 			end
 			
 		end
@@ -390,8 +385,11 @@ try
 		
 		if ana.isMOC
 			getResponse();
+			updateResponse();
 			if seq.taskFinished == true; breakLoop = true; end
 		else
+			updateResponse();
+			ana.colours = colours;
 			if nresponse >= ana.trialNumber 
 				breakLoop = true;
 			end
@@ -510,13 +508,11 @@ end
 		switch lower(rchar)
 			case {'leftarrow','left'}
 				response = LEFT;
-				updateResponse();
 				trackerDrawText(eL,'Subject Pressed LEFT!');
 				edfMessage(eL,'Subject Pressed LEFT');
 				fprintf('Response: LEFT\n');
 			case {'rightarrow','right'}
 				response = RIGHT;
-				updateResponse();
 				trackerDrawText(eL,'Subject Pressed RIGHT!');
 				edfMessage(eL,'Subject Pressed RIGHT')
 				fprintf('Response: RIGHT\n');
@@ -528,7 +524,6 @@ end
 % 				fprintf('Response: UNSURE\n');
 			case {'downarrow','down','uparrow','up'}
 				response = REDO;
-				updateResponse();
 				trackerDrawText(eL,'Subject Pressed REDO!');
 				edfMessage(eL,'Subject Pressed REDO')
 				fprintf('Response: REDO\n');
@@ -560,49 +555,56 @@ end
 	%==================================================================updateResponse
 	function updateResponse()
 		switch response
-			case {1, 2, 3}
+			case {1, 2, 3, 4}
 				fprintf('===>>> SUCCESS: Trial = %i, response = %i (%.2f secs)\n\n', seq.totalRuns, response, tEnd-tStart);
 				if ana.sendReward; rM.timedTTL(2,150); end
 				edfMessage(eL,['TRIAL_RESULT ' num2str(response)]);
-				ana.trial(seq.totalRuns).success = true;
-				ana.trial(seq.totalRuns).response = response;
-				v=ana.trial(seq.totalRuns).variable;
-				totalVals(v) = totalVals(v) + 1;
-				if response == LEFT
-					isLeft = 1;
-					ana.leftCount = ana.leftCount + 1;
-					responseVals(v) = responseVals(v) + 1;
-				elseif response == RIGHT
-					isLeft = 0;
-					ana.rightCount = ana.rightCount + 1;
-				elseif response == UNSURE
-					isLeft = 0;
-					ana.unsureCount = ana.unsureCount + 1;
-				elseif response == REDO
-					isLeft = 0;
+				if ana.isMOC
+					ana.trial(seq.totalRuns).success = true;
+					ana.trial(seq.totalRuns).response = response;
+					v=ana.trial(seq.totalRuns).variable;
+					totalVals(v) = totalVals(v) + 1;
+					if response == LEFT
+						isLeft = 1;
+						ana.leftCount = ana.leftCount + 1;
+						responseVals(v) = responseVals(v) + 1;
+					elseif response == RIGHT
+						isLeft = 0;
+						ana.rightCount = ana.rightCount + 1;
+					elseif response == UNSURE
+						isLeft = 0;
+						ana.unsureCount = ana.unsureCount + 1;
+					elseif response == REDO
+						isLeft = 0;
+					end
+					ana.trial(seq.totalRuns).responseIsLeft = isLeft;
+					ana.trial(seq.totalRuns).responseVals = responseVals;
+					ana.trial(seq.totalRuns).totalVals = totalVals;
+					responseInfo.response = response;
+					responseInfo.N = seq.totalRuns;
+					responseInfo.times = [tStart tEnd];
+					responseInfo.fixedColor = fixedColor;
+					responseInfo.responseIsLeft = isLeft;
+					updatePlot(seq.totalRuns);
+					updateTask(seq,response,tEnd,responseInfo); %updates our current run number
+				elseif ~ana.isMOC && response == YES
+					nresponse = nresponse + 1;
+					colours{end+1,1} = grating1.colourOut;
+					disp(cell2mat(colours));
+					disp(['Isoluminant flicker point = ' num2str(mean(cell2mat(colours)))]);
 				end
-				ana.trial(seq.totalRuns).responseIsLeft = isLeft;
-				ana.trial(seq.totalRuns).responseVals = responseVals;
-				ana.trial(seq.totalRuns).totalVals = totalVals;
-				responseInfo.response = response;
-				responseInfo.N = seq.totalRuns;
-				responseInfo.times = [tStart tEnd];
-				responseInfo.fixedColor = fixedColor;
-				responseInfo.responseIsLeft = isLeft;
-				resetFixation(eL);
-				stopRecording(eL);
-				setOffline(eL);
-				updatePlot(seq.totalRuns);
-				updateTask(seq,response,tEnd,responseInfo); %updates our current run number
 			case -10
 				fprintf('===>>> REDO: Trial = %i (%i secs)\n\n', seq.totalRuns, tEnd-tStart);
 				edfMessage(eL,['TRIAL_RESULT ' num2str(response)]);
 				trackerMessage(eL,'MSG:Redo');
-				resetFixation(eL);
-				stopRecording(eL);
-				setOffline(eL);
-			
+			otherwise
+				fprintf('===>>> UNKNOWN: Trial = %i (%i secs)\n\n', seq.totalRuns, tEnd-tStart);
+				edfMessage(eL,['TRIAL_RESULT ' num2str(response)]);
+				trackerMessage(eL,'MSG:UNKNOWN');
 		end
+		resetFixation(eL);
+		stopRecording(eL);
+		setOffline(eL);
 	end
 
 	%==================================================================updatePlot
