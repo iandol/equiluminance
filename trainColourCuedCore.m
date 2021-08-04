@@ -43,13 +43,6 @@ ana.computer	= Screen('Computer');
 ana.gpu			= opengl('data');
 thisVerbose		= false;
 
-%===================experiment parameters===================
-if ana.debug
-	ana.screenID = 0;
-else
-	ana.screenID = max(Screen('Screens'));%-1;
-end
-
 %===================Make a name for this run===================
 pf='ColorCued_';
 if ~isempty(ana.subject)
@@ -71,7 +64,7 @@ try
 	%===================open our screen====================
 	sM						= screenManager();
 	sM.name					= ana.nameExp;
-	sM.screen				= ana.screenID;
+	sM.screen				= max(Screen('Screens'));
 	sM.verbose				= thisVerbose;
 	sM.bitDepth				= ana.bitDepth;
 	if ana.debug || ismac || ispc || ~isempty(regexpi(ana.gpu.Vendor,'NVIDIA','ONCE'))
@@ -196,16 +189,18 @@ try
 	eL.isDummy = ana.isDummy; %use dummy or real eyelink?
 	eL.saveFile = [ana.nameExp '.edf'];
 	eL.recordData = true; %save EDF file
+	eL.calibrationProportion = ana.calibprop;
 	eL.sampleRate = ana.sampleRate;
 	eL.verbose	= true;
-	eL.remoteCalibration = false; % manual calibration?
+	eL.remoteCalibration = ana.manualCalibration; % manual calibration?
 	eL.calibrationStyle = ana.calibrationStyle; % calibration style
 	eL.modify.calibrationtargetcolour = [1 1 1];
-	eL.modify.calibrationtargetsize = 1;
-	eL.modify.calibrationtargetwidth = 0.05;
+	eL.modify.calibrationtargetsize = 1.5;
+	eL.modify.calibrationtargetwidth = 0.08;
 	eL.modify.waitformodereadytime = 500;
 	eL.modify.devicenumber = -1; % -1 = use any keyboard
 	% X, Y, FixInitTime, FixTime, Radius, StrictFix
+	targetFixModifier = 1.6;
 	updateFixationValues(eL, ana.fixX, ana.fixY, ana.firstFixInit,...
 		ana.firstFixTime, ana.firstFixDiameter, ana.strictFixation);
 	
@@ -258,11 +253,13 @@ try
 		xPos = seq.outValues{seq.totalRuns,1};
 		yPos = seq.outValues{seq.totalRuns,2};
 		thisColour = seq.outValues{seq.totalRuns,3};
+		colourNumber = seq.outMap(seq.totalRuns,3);
+		maxC = length(colours);
 		
 		fprintf('\n===>>> Train START Trial = %i / %i | %s, %s\n', seq.totalRuns, seq.nRuns, sM.fullName, eL.fullName);
 		
 		if ana.sendTrigger == true;sendStrobe(dPP,0);flip(sM);flip(sM);end
-		resetFixation(eL);
+		resetFixation(eL); eL.exclusionZone	= [];
 		updateFixationValues(eL, ana.fixX, ana.fixY, ana.firstFixInit,...
 			ana.firstFixTime, ana.firstFixDiameter, ana.strictFixation);
 		eL.fixInit = struct('X',[],'Y',[],'time',0.1,'radius',ana.firstFixDiameter);
@@ -274,25 +271,27 @@ try
 		circle1.xPositionOut = ana.fixX;
 		circle1.yPositionOut = ana.fixY;
 		circle1.colourOut = thisColour;
-		if all(thisColour == colours{1})
-			circle2.colourOut = colours{2};circle3.colourOut = colours{3};circle4.colourOut = colours{4};
-		elseif all(thisColour == colours{2})
-			circle2.colourOut = colours{5};circle3.colourOut = colours{3};circle4.colourOut = colours{4};
-		elseif all(thisColour == colours{3})
-			circle2.colourOut = colours{1};circle3.colourOut = colours{4};circle4.colourOut = colours{5};
-		elseif all(thisColour == colours{4})
-			circle2.colourOut = colours{5};circle3.colourOut = colours{1};circle4.colourOut = colours{2};
-		elseif all(thisColour == colours{5})
-			circle2.colourOut = colours{1};circle3.colourOut = colours{2};circle4.colourOut = colours{3};
+		
+		n1 = NaN;	n2 = NaN;	n3 = NaN;
+		while any(isnan([n1 n2 n3]))
+			x = randi([1 maxC],1,1);
+			if x == colourNumber || x == n1 || x == n2 || x == n3
+				continue
+			end
+			if isnan(n1); n1 = x; continue; end
+			if isnan(n2); n2 = x; continue; end
+			if isnan(n3); n3 = x; continue; end
 		end
-		update(circle1); update(circle2);update(circle3); update(circle4);
+		
+		circle2.colourOut = colours{n1};circle3.colourOut = colours{n2};circle4.colourOut = colours{n3};
+		update(circle1); update(circle2); update(circle3); update(circle4);
 		
 		%=========================MAINTAIN INITIAL FIXATION==========================
 		statusMessage(eL,'INITIATE FIXATION...');
 		fixated = '';
 		if ana.sendTrigger == true;sendStrobe(dPP,248);flip(sM);end
 		syncTime(eL);
-		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
+		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix') && ~strcmpi(fixated,'EXCLUDED!')
 			drawCross(sM,0.4,fixColour,ana.fixX,ana.fixY);
 			getSample(eL);
 			fixated=testSearchHoldFixation(eL,'fix','breakfix');
@@ -311,6 +310,7 @@ try
 						fprintf('===>>> Drift correct pressed!\n');
 						fixated = 'breakfix';
 						stopRecording(eL);
+						setOffline(eL);
 						driftCorrection(eL);
 						WaitSecs('YieldSecs',2);
 					case {'q'}
@@ -322,7 +322,7 @@ try
 			flip(sM); %flip the buffer
 		end
 		
-		if strcmpi(fixated,'breakfix')
+		if ~strcmpi(fixated,'fix')
 			sM.drawBackground;
 			flip(sM);
 			if ana.sendTrigger == true;sendStrobe(dPP,249);flip(sM);end
@@ -358,7 +358,7 @@ try
 		vbl = flip(sM); tStart = vbl;
 		while vbl <= tStart + ana.cueTime
 			draw(circle1);
-			drawCross(sM,0.4,[1 1 1 1],ana.fixX,ana.fixY);
+			drawCross(sM,0.4,[1 1 1 1],ana.fixX,ana.fixY,[],true,0.5);
 			vbl = Screen('Flip',sM.win, vbl + halfisi);
 			getSample(eL);
 			if ~isFixated(eL)
@@ -398,7 +398,7 @@ try
 		drawCross(sM,0.4,[1 1 1 1],ana.fixX,ana.fixY);
 		vbl = flip(sM); tStart = vbl;
 		while vbl <= tStart + delayToChoice
-			drawCross(sM,0.4,[1 1 1 1],ana.fixX,ana.fixY);
+			drawCross(sM,0.4,[1 1 1 1],ana.fixX,ana.fixY,[],true,0.5);
 			vbl = Screen('Flip',sM.win, vbl + halfisi);
 			getSample(eL);
 			if ~isFixated(eL)
@@ -476,18 +476,18 @@ try
 		stimulusPositions(4).selected = false;
 		
 		if ana.exclusion
-			exc(1,:) = [stimulusPositions(2).x - (stimulusPositions(2).size/1.8) ...
-				stimulusPositions(2).x + (stimulusPositions(2).size/1.8) ...
-				stimulusPositions(2).y - (stimulusPositions(2).size/1.8) ...
-				stimulusPositions(2).y + (stimulusPositions(2).size/1.8)];
-			exc(2,:) = [stimulusPositions(3).x - (stimulusPositions(3).size/1.8) ...
-				stimulusPositions(3).x + (stimulusPositions(3).size/1.8) ...
-				stimulusPositions(3).y - (stimulusPositions(3).size/1.8) ...
-				stimulusPositions(3).y + (stimulusPositions(3).size/1.8)];
-			exc(3,:) = [stimulusPositions(4).x - (stimulusPositions(4).size/1.8) ...
-				stimulusPositions(4).x + (stimulusPositions(4).size/1.8) ...
-				stimulusPositions(4).y - (stimulusPositions(4).size/1.8) ...
-				stimulusPositions(4).y + (stimulusPositions(4).size/1.8)];
+			exc(1,:) = [stimulusPositions(2).x - (stimulusPositions(2).size/targetFixModifier) ...
+				stimulusPositions(2).x + (stimulusPositions(2).size/targetFixModifier) ...
+				stimulusPositions(2).y - (stimulusPositions(2).size/targetFixModifier) ...
+				stimulusPositions(2).y + (stimulusPositions(2).size/targetFixModifier)];
+			exc(2,:) = [stimulusPositions(3).x - (stimulusPositions(3).size/targetFixModifier) ...
+				stimulusPositions(3).x + (stimulusPositions(3).size/targetFixModifier) ...
+				stimulusPositions(3).y - (stimulusPositions(3).size/targetFixModifier) ...
+				stimulusPositions(3).y + (stimulusPositions(3).size/targetFixModifier)];
+			exc(3,:) = [stimulusPositions(4).x - (stimulusPositions(4).size/targetFixModifier) ...
+				stimulusPositions(4).x + (stimulusPositions(4).size/targetFixModifier) ...
+				stimulusPositions(4).y - (stimulusPositions(4).size/targetFixModifier) ...
+				stimulusPositions(4).y + (stimulusPositions(4).size/targetFixModifier)];
 		else
 			exc = [];
 		end
@@ -511,7 +511,7 @@ try
 		% X, Y, FixInitTime, FixTime, Radius, StrictFix
 		updateFixationValues(eL, xPos, yPos,...
 			ana.initiateChoice, ana.maintainChoice,...
-			ana.circle1Diameter/1.8, ana.strictFixation);
+			ana.circle1Diameter/targetFixModifier, false);
 		fprintf('===>>> FIX X = %d | FIX Y = %d\n',eL.fixation.X, eL.fixation.Y);
 		trackerDrawStimuli(eL,stimulusPositions,true);
 		trackerDrawExclusion(eL);
@@ -645,6 +645,7 @@ try
 					case {'d'}
 						fprintf('===>>> Train drift correct pressed!\n');
 						stopRecording(eL);
+						setOffline(eL);
 						driftCorrection(eL);
 						WaitSecs('YieldSecs',2);
 					case {'q'}
