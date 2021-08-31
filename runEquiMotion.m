@@ -425,7 +425,7 @@ try
 
 catch ME
 	if exist('eL','var'); close(eL); end
-	reset(grating1);reset(grating2);
+	if exist('grating1','var'); reset(grating1);reset(grating2);end
 	if exist('sM','var'); close(sM); end
 	ListenChar(0);ShowCursor;Priority(0);Screen('CloseAll');
 	getReport(ME)
