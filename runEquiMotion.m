@@ -159,7 +159,7 @@ try
 	pfx				= linspace(min(variableVals),max(variableVals),100);
 	
 	%============================SETUP SEQUENCE======================================
-	seq					= stimulusSequence;
+	seq					= taskSequence;
 	seq.nVar(1).name	= 'colour';
 	seq.nVar(1).stimulus = 1;
 	seq.nVar(1).values	= vals;
@@ -198,7 +198,7 @@ try
 	%================================================================================
 	%-------------prepare variables needed for task loop-----------------------------
 	LEFT = 1; 	RIGHT = 2; UNSURE = 3; YES = 4; REDO = -10; BREAKFIX = -1; INVALID = -100;
-	map				= analysisCore.optimalColours(seq.minBlocks);	
+	map				= analysisCore.optimalColours(seq.minTrials);	
 	tL				= timeLogger();
 	tL.screenLog.beforeDisplay = GetSecs();
 	tL.screenLog.stimTime(1) = 1;

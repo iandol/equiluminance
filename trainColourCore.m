@@ -128,7 +128,7 @@ try
 	setup(metaStim);
 	
 	%============================SET UP VARIABLES=====================================
-	seq = stimulusSequence();
+	seq = taskSequence();
 	seq.nVar(1).name = 'xPosition';
 	seq.nVar(1).stimulus = 1;
 	seq.nVar(1).values = vals(1:2);

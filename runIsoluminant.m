@@ -120,7 +120,7 @@ try
 		end
 	end
 	
-	seq = stimulusSequence;
+	seq = taskSequence;
 	seq.nVar(1).name = 'colour';
 	seq.nVar(1).stimulus = 1;
 	seq.nVar(1).values = vals;
@@ -153,7 +153,7 @@ try
 	
 	%sM.verbose = true; eL.verbose = true; sM.verbosityLevel = 10; eL.verbosityLevel = 4; %force lots of log output
 	
-	map = analysisCore.optimalColours(seq.minBlocks);
+	map = analysisCore.optimalColours(seq.minTrials);
 	
 	initialise(eL, sM); %use sM to pass screen values to eyelink
 	ListenChar(-1); setup(eL); ListenChar(0); % do setup and calibration
@@ -166,7 +166,7 @@ try
 	tL.screenLog.beforeDisplay = GetSecs();
 	tL.screenLog.stimTime(1) = 1;
 	powerValues		= [];
-	powerValuesV	= cell(1,seq.minBlocks);
+	powerValuesV	= cell(1,seq.minTrials);
 	breakLoop		= false;
 	ana.trial		= struct();
 	ana.nBreakInit	= 0;

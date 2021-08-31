@@ -657,17 +657,22 @@ classdef pupilPower < analysisCore
 			smoothSamples = me.smoothWindow / (T1 * 1e3);
 			me.SortedPupil = [];me.powerValues=[];me.powerValues0=[];me.rawP = []; me.rawF = []; me.rawPupil = []; me.rawTimes=[];
 			thisTrials = me.pupilData.trials(me.pupilData.correct.idx);
+			if isa(me.metadata.seq,'stimulusSequence')
+				minTrials = me.metadata.seq.minBlocks;
+			else
+				minTrials = me.metadata.seq.minTrials;
+			end
 			for i=1:length(thisTrials)
 				
-				me.SortedPupil(1).anaTrials(me.metadata.seq.outIndex(i),ceil(i/me.metadata.seq.minBlocks))=me.metadata.ana.trial(i);
-				me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/me.metadata.seq.minBlocks))=thisTrials(i);
-				idx=me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/me.metadata.seq.minBlocks)).times>=-1000;
-				me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/me.metadata.seq.minBlocks)).times=me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/me.metadata.seq.minBlocks)).times(idx);
-				me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/me.metadata.seq.minBlocks)).gx=me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/me.metadata.seq.minBlocks)).gx(idx);
-				me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/me.metadata.seq.minBlocks)).gy=me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/me.metadata.seq.minBlocks)).gy(idx);
-				me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/me.metadata.seq.minBlocks)).hx=me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/me.metadata.seq.minBlocks)).hx(idx);
-				me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/me.metadata.seq.minBlocks)).hy=me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/me.metadata.seq.minBlocks)).hy(idx);
-				me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/me.metadata.seq.minBlocks)).pa=me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/me.metadata.seq.minBlocks)).pa(idx);
+				me.SortedPupil(1).anaTrials(me.metadata.seq.outIndex(i),ceil(i/minTrials))=me.metadata.ana.trial(i);
+				me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/minTrials))=thisTrials(i);
+				idx=me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/minTrials)).times>=-1000;
+				me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/minTrials)).times=me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/minTrials)).times(idx);
+				me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/minTrials)).gx=me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/minTrials)).gx(idx);
+				me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/minTrials)).gy=me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/minTrials)).gy(idx);
+				me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/minTrials)).hx=me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/minTrials)).hx(idx);
+				me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/minTrials)).hy=me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/minTrials)).hy(idx);
+				me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/minTrials)).pa=me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/minTrials)).pa(idx);
 				
 			end
 			

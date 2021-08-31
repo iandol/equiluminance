@@ -74,7 +74,7 @@ try
 		%sM.windowed		= [0 0 1400 1000]; 
 		sM.visualDebug		= true;
 		sM.debug			= true;
-		sM.verbosityLevel	= 5;
+		sM.verbosityLevel	= 4;
 	else
 		sM.debug			= false;
 		sM.verbosityLevel	= 3;
@@ -165,7 +165,7 @@ try
 	
 	%============================SET UP VARIABLES=====================================
 	colours = ana.colours;
-	seq = stimulusSequence();
+	seq = taskSequence();
 	seq.nVar(1).name = 'xPosition';
 	seq.nVar(1).stimulus = 1;
 	seq.nVar(1).values = vals(1:2);
