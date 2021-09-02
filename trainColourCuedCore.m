@@ -21,6 +21,9 @@ if ~ana.useArduino
 	ana.rewardDuring=false;
 	ana.rewardEnd=false;
 	ana.rewardStart=false;
+else
+	rM.reset;
+	rM.silentMode = false;
 end
 if ~rM.isOpen; open(rM); end %open our reward manager
 
@@ -57,6 +60,7 @@ end
 cla(ana.plotAxis1);
 cla(ana.plotAxis2);
 cla(ana.plotAxis3);
+cla(ana.plotAxis4);
 
 try
 	PsychDefaultSetup(2);
@@ -92,7 +96,8 @@ try
 	end
 	sM.open;
 	ana.gpuInfo				= Screen('GetWindowInfo',sM.win);
-	fprintf('\n--->>> ColourTrain Opened Screen %i : %s\n', sM.win, sM.fullName);
+	ana.ppd = sM.ppd;
+	fprintf('\n--->>> ColourTrainCued Opened Screen %i : %s\n', sM.win, sM.fullName);
 	
 	%===========================set up stimuli====================
 	circle1 = discStimulus;
@@ -256,10 +261,8 @@ try
 		colourNumber = seq.outMap(seq.totalRuns,3);
 		maxC = length(colours);
 		
-		fprintf('\n===>>> Train START Trial = %i / %i | %s, %s\n', seq.totalRuns, seq.nRuns, sM.fullName, eL.fullName);
-		
 		if ana.sendTrigger == true;sendStrobe(dPP,0);flip(sM);flip(sM);end
-		resetFixation(eL); eL.exclusionZone	= [];
+		resetFixation(eL,true); resetExclusionZones(eL);
 		updateFixationValues(eL, ana.fixX, ana.fixY, ana.firstFixInit,...
 			ana.firstFixTime, ana.firstFixDiameter, ana.strictFixation);
 		eL.fixInit = struct('X',[],'Y',[],'time',0.1,'radius',ana.firstFixDiameter);
@@ -283,8 +286,25 @@ try
 			if isnan(n3); n3 = x; continue; end
 		end
 		
-		circle2.colourOut = colours{n1};circle3.colourOut = colours{n2};circle4.colourOut = colours{n3};
+		circle2.colourOut = colours{n1};
+		circle3.colourOut = colours{n2};
+		circle4.colourOut = colours{n3};
 		update(circle1); update(circle2); update(circle3); update(circle4);
+		
+		ana.nTotal = ana.nTotal + 1;
+		ana.trial(ana.nTotal).n = seq.totalRuns;
+		ana.trial(ana.nTotal).variable = seq.outIndex(seq.totalRuns);
+		ana.trial(ana.nTotal).thisColour = thisColour;
+		ana.trial(ana.nTotal).colourNumber = colourNumber;
+		ana.trial(ana.nTotal).maxC = maxC;
+		ana.trial(ana.nTotal).colour1 = circle1.colourOut;
+		ana.trial(ana.nTotal).colour2 = circle2.colourOut;
+		ana.trial(ana.nTotal).colour3 = circle3.colourOut;
+		ana.trial(ana.nTotal).colour4 = circle4.colourOut;
+		
+		fprintf('\n===>>> Train START Trial = %i : %i / %i | %s, %s\n', ana.nTotal,...
+			seq.totalRuns, seq.nRuns, sM.fullName, eL.fullName);
+		
 		
 		%=========================MAINTAIN INITIAL FIXATION==========================
 		statusMessage(eL,'INITIATE FIXATION...');
@@ -330,18 +350,21 @@ try
 			
 			statusMessage(eL,'Subject Broke Initial Fixation!');
 			edfMessage(eL,'MSG:BreakInitialFix');
+			
+			ana.runningPerformance(ana.nTotal) = -1;
+			ana.nInitiateBreak = ana.nInitiateBreak + 1;
+			ana.trial(ana.nTotal).success = false;
+			ana.trial(ana.nTotal).xAll = eL.xAll;
+			ana.trial(ana.nTotal).yAll = eL.yAll;
+			
 			resetFixation(eL);
 			stopRecording(eL);
 			setOffline(eL);
 			
-			ana.nTotal = ana.nTotal + 1;
-			ana.runningPerformance(ana.nTotal) = -1;
-			ana.nInitiateBreak = ana.nInitiateBreak + 1;
-			
 			fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', seq.totalRuns);	
 			flip(sM);
 			updatePlot(seq.totalRuns);
-			aM.beep(250,0.5,1);
+			aM.beep(250,1,1);
 			WaitSecs('YieldSecs',ana.punishDelay);
 			continue
 		end
@@ -373,15 +396,20 @@ try
 			statusMessage(eL,'Subject Broke CUE Fixation!');
 			edfMessage(eL,'MSG:BreakCueFix');
 			edfMessage(eL,'TRIAL_RESULT -1');
+			
+			ana.runningPerformance(ana.nTotal) = -1;
+			ana.nInitiateBreak = ana.nInitiateBreak + 1;
+			ana.trial(ana.nTotal).success = false;
+			ana.trial(ana.nTotal).xAll = eL.xAll;
+			ana.trial(ana.nTotal).yAll = eL.yAll;
+			
 			resetFixation(eL);
 			stopRecording(eL);
 			setOffline(eL);
-			ana.nTotal = ana.nTotal + 1;
-			ana.runningPerformance(ana.nTotal) = -1;
-			ana.nInitiateBreak = ana.nInitiateBreak + 1;
+			
 			fprintf('===>>> BROKE CUE FIXATION Trial = %i\n', seq.totalRuns);
 			flip(sM);
-			aM.beep(250,0.5,1);
+			aM.beep(250,1,1);
 			updatePlot(seq.totalRuns);
 			WaitSecs('YieldSecs',ana.punishDelay);
 			continue
@@ -413,15 +441,20 @@ try
 			statusMessage(eL,'Subject Broke Delay Fixation!');
 			edfMessage(eL,'MSG:BreakDelayFix');
 			edfMessage(eL,'TRIAL_RESULT -1');
+			
+			ana.runningPerformance(ana.nTotal) = -1;
+			ana.nInitiateBreak = ana.nInitiateBreak + 1;
+			ana.trial(ana.nTotal).success = false;
+			ana.trial(ana.nTotal).xAll = eL.xAll;
+			ana.trial(ana.nTotal).yAll = eL.yAll;
+			
 			resetFixation(eL);
 			stopRecording(eL);
 			setOffline(eL);
-			ana.nTotal = ana.nTotal + 1;
-			ana.runningPerformance(ana.nTotal) = -1;
-			ana.nInitiateBreak = ana.nInitiateBreak + 1;
+			
 			fprintf('===>>> BROKE DELAY FIXATION Trial = %i\n', seq.totalRuns);
 			flip(sM);
-			aM.beep(250,0.5,1);
+			aM.beep(250,1,1);
 			updatePlot(seq.totalRuns);
 			WaitSecs('YieldSecs',ana.punishDelay);
 			continue
@@ -503,10 +536,15 @@ try
 		edfMessage(eL,['MSG:variable=' num2str(seq.outIndex(seq.totalRuns))]);
 		edfMessage(eL,['MSG:thisRun=' num2str(seq.totalRuns)]);
 		edfMessage(eL,'END_FIX');
-		ana.trial(seq.totalRuns).n = seq.totalRuns;
-		ana.trial(seq.totalRuns).variable = seq.outIndex(seq.totalRuns);
-		ana.trial(seq.totalRuns).pupil = [];
-		ana.trial(seq.totalRuns).frameN = [];
+		
+		ana.trial(ana.nTotal).x1 = circle1.xPositionOut;
+		ana.trial(ana.nTotal).y1 = circle1.yPositionOut;
+		ana.trial(ana.nTotal).x2 = circle2.xPositionOut;
+		ana.trial(ana.nTotal).y2 = circle2.yPositionOut;
+		ana.trial(ana.nTotal).x3 = circle3.xPositionOut;
+		ana.trial(ana.nTotal).y3 = circle3.yPositionOut;
+		ana.trial(ana.nTotal).x4 = circle4.xPositionOut;
+		ana.trial(ana.nTotal).y4 = circle4.yPositionOut;
 		
 		% X, Y, FixInitTime, FixTime, Radius, StrictFix
 		updateFixationValues(eL, xPos, yPos,...
@@ -566,20 +604,25 @@ try
 		tL.tick = tick;
 		tick = tick + 1;
 		tEnd = tL.vbl(end);
+		ana.trial(ana.nTotal).reactionTime = tReaction;
+		ana.trial(ana.nTotal).isExclusion = eL.isExclusion;
+		ana.trial(ana.nTotal).isInitFail = eL.isInitFail;
+		ana.trial(ana.nTotal).xAll = eL.xAll;
+		ana.trial(ana.nTotal).yAll = eL.yAll;
 		
 		
 		%=========================================check if we got fixation
 		if strcmpi(fixated,'fix')
 			if ana.sendTrigger == true;sendStrobe(dPP,251);flip(sM);end %CORRECT
 			rM.timedTTL(2, ana.Rewardms)
-			aM.beep(1000,0.2,0.5);
+			aM.beep(1000,0.1,0.1);
 			trackerDrawText(eL,'CORRECT!');
 			fprintf('===>>> SUCCESS: Trial = %i (total:%.3g | reaction:%.3g)\n', seq.totalRuns, tEnd-tStart, tReaction);
+			
 			ana.nSuccess = ana.nSuccess + 1;
-			ana.nTotal = ana.nTotal + 1;
 			ana.runningPerformance(ana.nTotal) = 1;
-			ana.trial(seq.totalRuns).success = true;
-			ana.trial(seq.totalRuns).reactionTime = tReaction;
+			ana.trial(ana.nTotal).success = true;
+			
 			stopRecording(eL);
 			edfMessage(eL,'TRIAL_RESULT 1');
 			setOffline(eL);
@@ -613,10 +656,12 @@ try
 			end
 			stopRecording(eL);
 			setOffline(eL);
- 			aM.beep(300,0.5,1);
+ 			aM.beep(250,1,1);
+			
 			ana.nFixBreak = ana.nFixBreak + 1;
-			ana.nTotal = ana.nTotal + 1;
 			ana.runningPerformance(ana.nTotal) = 0;
+			ana.trial(ana.nTotal).success = false;
+			
 			seq.verbose = true;
 			resetRun(seq); %randomise within block
 			seq.verbose = false;
@@ -711,7 +756,7 @@ end
 		hold(ana.plotAxis2,'on');
 		plot(ana.plotAxis2,plotVals.t1,plotVals.p2,'ko-','MarkerFaceColor',[1,0,0]);
 		hold(ana.plotAxis2,'off');
-		ylim(ana.plotAxis2,[0 100])
+		ylim(ana.plotAxis2,[0 100]);
 		
 		if ana.nTotal >= 10
 			recentList = ana.runningPerformance(end-9:end);
@@ -724,6 +769,16 @@ end
 			plot(ana.plotAxis3,plotVals.t2,plotVals.p3,'ko-','MarkerFaceColor',[1,0,0]);
 			ylim(ana.plotAxis3,[0 100]);
 		end
+		
+		if ~isempty(ana.trial(ana.nTotal).xAll)
+			plot(ana.plotAxis4,ana.trial(ana.nTotal).xAll,ana.trial(ana.nTotal).yAll,'k-');
+			hold(ana.plotAxis4,'on');
+			plot(ana.plotAxis4,ana.trial(ana.nTotal).xAll(1),ana.trial(ana.nTotal).yAll(1),'go');
+			plot(ana.plotAxis4,ana.trial(ana.nTotal).xAll(end),ana.trial(ana.nTotal).yAll(end),'bo');
+			xlim(ana.plotAxis4,[-12 12]);
+			ylim(ana.plotAxis4,[-12 12]);
+		end
+		
 		drawnow limitrate nocallbacks
 	end
 
