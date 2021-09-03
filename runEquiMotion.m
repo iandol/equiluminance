@@ -191,6 +191,7 @@ try
 		ana.firstFixTime, ana.firstFixDiameter, ana.strictFixation);
 	%sM.verbose = true; eL.verbose = true; sM.verbosityLevel = 10; eL.verbosityLevel = 4; %force lots of log output
 	initialise(eL, sM); %use sM to pass screen values to eyelink
+	ListenChar(-1); setup(eL); ListenChar(0); % do setup and calibration
 	fprintf('--->>> runEquiMotion eL setup complete: %s\n', eL.fullName);
 	WaitSecs('YieldSecs',0.5);
 	getSample(eL); %make sure everything is in memory etc.

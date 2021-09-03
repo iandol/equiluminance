@@ -167,7 +167,7 @@ classdef pupilPower < analysisCore
 			data.varName = varName;
 			data.trlColors = trlColors;
 			
-			handles.h1=figure;figpos(1,[900 500]);set(handles.h1,'Color',[1 1 1],'NumberTitle','off',...
+			handles.h1=figure;figpos(1,[1000 500]);set(handles.h1,'Color',[1 1 1],'NumberTitle','off',...
 				'Name',['pupilPower: ' me.pupilData.file],'Papertype','a4','PaperUnits','centimeters',...
 				'PaperOrientation','landscape','Renderer','painters');
 			switch varName
@@ -187,9 +187,9 @@ classdef pupilPower < analysisCore
 					lineColor = zeros(1,3);	lineColor(1,fColor)	= 0.8;
 			end
 			pCorrect = (length(me.pupilData.correct.idx)/length(me.pupilData.trials))*100;
-			t2 = sprintf(' | %i / %i = %.2f%%',...
+			t2 = sprintf(' | %i / %i = %.2f%% | background: %s',...
 				length(me.pupilData.correct.idx),length(me.pupilData.trials), ...
-				pCorrect);
+				pCorrect,num2str(me.metadata.ana.backgroundColor,'%.3f '));
 			numVars	= length(colorLabels);
 			csteps = trlColors;
 			csteps(numVars+1) = csteps(numVars);

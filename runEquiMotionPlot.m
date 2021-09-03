@@ -31,7 +31,12 @@ end
 variableVals		= variableVals .* maxLuminances(varC);
 varLabels			= arrayfun(@(a) num2str(a,3),variableVals,'UniformOutput',false);
 LEFT = 1; 	RIGHT = 2; UNSURE = 3; REDO = -10; BREAKFIX = -1;
-map					= analysisCore.optimalColours(seq.minTrials);
+if isa(seq,'StimulusSequence')
+	map				= analysisCore.optimalColours(seq.minBlocks);
+else
+	map				= analysisCore.optimalColours(seq.minTrials);
+end
+
 % to plot the psychometric function
 PF					= @PAL_Quick;
 maxbeta				= 200;
