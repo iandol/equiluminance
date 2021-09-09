@@ -381,7 +381,7 @@ try
 			fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', seq.totalRuns);	
 			flip(sM);
 			updatePlot(seq.totalRuns);
-			aM.beep(250,1,1);
+			aM.beep(150,0.5,1);
 			WaitSecs('YieldSecs',ana.punishDelay);
 			continue
 		end
@@ -614,13 +614,14 @@ try
 		if strcmpi(fixated,'fix')
 			if ana.sendTrigger == true;sendStrobe(dPP,251);flip(sM);end %CORRECT
 			rM.timedTTL(2, ana.Rewardms)
-			aM.beep(1000,0.1,0.1);
+			aM.beep(1000,0.1,0.2);
 			trackerDrawText(eL,'CORRECT!');
 			fprintf('===>>> SUCCESS: Trial = %i (total:%.3g | reaction:%.3g)\n', seq.totalRuns, tEnd-tStart, tReaction);
 			
 			ana.nSuccess = ana.nSuccess + 1;
 			ana.runningPerformance(ana.nTotal) = 1;
 			ana.trial(ana.nTotal).success = true;
+			ana.trial(ana.nTotal).message = '';
 			
 			stopRecording(eL);
 			edfMessage(eL,'TRIAL_RESULT 1');
@@ -662,7 +663,8 @@ try
 			ana.trial(ana.nTotal).success = false;
 			
 			seq.verbose = true;
-			resetRun(seq); %randomise within block
+			[~,message] = resetRun(seq); %randomise within block
+			ana.trial(ana.nTotal).message = message;
 			seq.verbose = false;
 			updatePlot(seq.totalRuns);
 			if ana.debug

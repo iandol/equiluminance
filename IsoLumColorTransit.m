@@ -1,11 +1,33 @@
 % function IsoLumColorTransit
 clear c igray igreen ired iblue fxgray fxgreen fxred fxblue fgray fgreen fred fblue in out
-load('Display++Color++Mode-Ubuntu-RadeonPsychlab.mat')
-igray	= c.inputValues(1).in;
-igreen	= c.inputValues(3).in;
-ired	= c.inputValues(2).in;
-iblue	= c.inputValues(4).in;
-x		= c.ramp;
+
+list = {'Old monkey win calibration','Old monkey win calibration', 'New monkey calibration','Human lab calibration'};
+[reply1,~] = listdlg('ListString',list,'PromptString',...
+	'Choose calibration to load','SelectionMode','single');
+
+if reply1 == 1
+	load('Display++Color++Mode-Win10-NvidiaP600Lab.mat')
+elseif reply1 == 2
+	load('Display++Color++Mode-Ubuntu-NvidiaP600Lab.mat')
+elseif reply1 == 3
+	load('Display++Color++Mode-Ubuntu-RadeonMonkeyLab1.mat')
+else
+	load('Display++Color++Mode-Ubuntu-RadeonPsychlab.mat')
+end
+
+useCorrected = false;
+x			= c.ramp;
+if useCorrected
+	igray	= c.inputValuesTest(1).in;
+	ired	= c.inputValuesTest(2).in;
+	igreen	= c.inputValuesTest(3).in;
+	iblue	= c.inputValuesTest(4).in;
+else
+	igray	= c.inputValues(1).in;
+	ired	= c.inputValues(2).in;
+	igreen	= c.inputValues(3).in;
+	iblue	= c.inputValues(4).in;
+end
 
 [k,b,fx, fgray]		= fitted(x,igray);
 [kr,br,~, fred]		= fitted(x,ired);
