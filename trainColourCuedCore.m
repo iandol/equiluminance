@@ -146,15 +146,15 @@ try
 		circle4.alpha  = ana.alpha4;
 	end
 	
-	vals = [-6 +6 -6 +6];
-	circle1.xPosition = vals(1);
-	circle2.xPosition = vals(2);
-	circle3.xPosition = vals(1);
-	circle4.xPosition = vals(2);
-	circle1.yPosition = vals(3);
-	circle2.yPosition = vals(3);
-	circle3.yPosition = vals(4);
-	circle4.yPosition = vals(4);
+	vals = {ana.pos1, ana.pos2, ana.pos3, ana.pos4};
+	circle1.xPosition = ana.pos1(1);
+	circle2.xPosition = ana.pos2(1);
+	circle3.xPosition = ana.pos3(1);
+	circle4.xPosition = ana.pos4(1);
+	circle1.yPosition = ana.pos1(2);
+	circle2.yPosition = ana.pos2(2);
+	circle3.yPosition = ana.pos3(2);
+	circle4.yPosition = ana.pos4(2);
 	
 	if ana.show34
 		show(circle3);
@@ -171,15 +171,12 @@ try
 	%============================SET UP VARIABLES=====================================
 	colours = ana.colours;
 	seq = taskSequence();
-	seq.nVar(1).name = 'xPosition';
+	seq.nVar(1).name = 'xyPosition';
 	seq.nVar(1).stimulus = 1;
-	seq.nVar(1).values = vals(1:2);
-	seq.nVar(2).name = 'yPosition';
+	seq.nVar(1).values = vals;
+	seq.nVar(2).name = 'colour';
 	seq.nVar(2).stimulus = 1;
-	seq.nVar(2).values = vals(3:4);
-	seq.nVar(3).name = 'colour';
-	seq.nVar(3).stimulus = 1;
-	seq.nVar(3).values = colours;%{ana.colour1,ana.colour2};
+	seq.nVar(2).values = colours;
 	seq.nBlocks = ana.trialNumber;
 	seq.fps = sM.screenVals.fps;
 	seq.initialise();
@@ -255,10 +252,24 @@ try
 	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	while ~seq.taskFinished && ~breakLoop
 		
-		xPos = seq.outValues{seq.totalRuns,1};
-		yPos = seq.outValues{seq.totalRuns,2};
-		thisColour = seq.outValues{seq.totalRuns,3};
-		colourNumber = seq.outMap(seq.totalRuns,3);
+		xyPos = seq.outValues{seq.totalRuns,1};
+		xPos = xyPos(1); yPos = xyPos(2);
+		fpos = cellfun(@isequal,vals,repmat({xyPos},1,4));
+		nvals = vals(~fpos);
+		rList = randsample(3,3);
+		nvals = nvals(rList); % shuffled
+		circle1.xPositionOut = ana.fixX;
+		circle1.yPositionOut = ana.fixY;
+		circle2.xPositionOut = nvals{1}(1);
+		circle2.yPositionOut = nvals{1}(2);
+		circle3.xPositionOut = nvals{2}(1);
+		circle3.yPositionOut = nvals{2}(2);
+		circle4.xPositionOut = nvals{3}(1);
+		circle4.yPositionOut = nvals{3}(2);
+		
+		thisColour = seq.outValues{seq.totalRuns,2};
+		circle1.colourOut = thisColour;
+		colourNumber = seq.outMap(seq.totalRuns,2);
 		maxC = length(colours);
 		
 		if ana.sendTrigger == true;sendStrobe(dPP,0);flip(sM);flip(sM);end
@@ -271,9 +282,7 @@ try
 		edfMessage(eL,'V_RT MESSAGE END_FIX END_RT');  %this 3 lines set the trial info for the eyelink
 		edfMessage(eL,['TRIALID ' num2str(seq.outIndex(seq.totalRuns))]);  %obj.getTaskIndex gives us which trial we're at
 		startRecording(eL);
-		circle1.xPositionOut = ana.fixX;
-		circle1.yPositionOut = ana.fixY;
-		circle1.colourOut = thisColour;
+		
 		
 		n1 = NaN;	n2 = NaN;	n3 = NaN;
 		while any(isnan([n1 n2 n3]))
@@ -301,6 +310,14 @@ try
 		ana.trial(ana.nTotal).colour2 = circle2.colourOut;
 		ana.trial(ana.nTotal).colour3 = circle3.colourOut;
 		ana.trial(ana.nTotal).colour4 = circle4.colourOut;
+		ana.trial(ana.nTotal).x1 = xPos;
+		ana.trial(ana.nTotal).y1 = yPos;
+		ana.trial(ana.nTotal).x2 = nvals{1}(1);
+		ana.trial(ana.nTotal).y2 = nvals{1}(2);
+		ana.trial(ana.nTotal).x3 = nvals{2}(1);
+		ana.trial(ana.nTotal).y3 = nvals{2}(2);
+		ana.trial(ana.nTotal).x4 = nvals{3}(1);
+		ana.trial(ana.nTotal).y4 = nvals{3}(2);
 		
 		fprintf('\n===>>> Train START Trial = %i : %i / %i | %s, %s\n', ana.nTotal,...
 			seq.totalRuns, seq.nRuns, sM.fullName, eL.fullName);
@@ -461,18 +478,9 @@ try
 		end
 		
 		%=========================Our actual stimulus drawing loop==========================
+		
 		circle1.xPositionOut = xPos;
 		circle1.yPositionOut = yPos;
-		
-		%we randomise the remaining circle positions
-		rList = randsample(3,3);
-		rPos = [-xPos yPos; xPos -yPos; -xPos -yPos];
-		circle2.xPositionOut = rPos(rList(1),1);
-		circle2.yPositionOut = rPos(rList(1),2);
-		circle3.xPositionOut = rPos(rList(2),1);
-		circle3.yPositionOut = rPos(rList(2),2);
-		circle4.xPositionOut = rPos(rList(3),1);
-		circle4.yPositionOut = rPos(rList(3),2);
 		
 		if ana.DKL
 			if thisColour == ana.colour1
@@ -495,16 +503,16 @@ try
 		stimulusPositions(1).y = yPos;
 		stimulusPositions(1).size = circle1.size;
 		stimulusPositions(1).selected = true;
-		stimulusPositions(2).x = rPos(rList(1),1);
-		stimulusPositions(2).y = rPos(rList(1),2);
+		stimulusPositions(2).x = nvals{1}(1);
+		stimulusPositions(2).y = nvals{1}(2);
 		stimulusPositions(2).size = circle2.size;
 		stimulusPositions(2).selected = false;
-		stimulusPositions(3).x = rPos(rList(2),1);
-		stimulusPositions(3).y = rPos(rList(2),2);
+		stimulusPositions(3).x = nvals{2}(1);
+		stimulusPositions(3).y = nvals{2}(2);
 		stimulusPositions(3).size = circle3.size;
 		stimulusPositions(3).selected = false;
-		stimulusPositions(4).x = rPos(rList(3),1);
-		stimulusPositions(4).y = rPos(rList(3),2);
+		stimulusPositions(4).x = nvals{3}(1);
+		stimulusPositions(4).y = nvals{3}(2);
 		stimulusPositions(4).size = circle4.size;
 		stimulusPositions(4).selected = false;
 		
@@ -532,19 +540,10 @@ try
 			eL.fixInit = struct('X',[],'Y',[],'time',0.1,'radius',2);
 		end
 		eL.verbose = true;
-		fprintf('===>>> Target Position = %s | Foil Position = %s\n',num2str(circle1.xPositionOut),num2str(circle2.xPositionOut));
+		fprintf('===>>> Target Position = %s\n',num2str(xyPos,'%.2f '));
 		edfMessage(eL,['MSG:variable=' num2str(seq.outIndex(seq.totalRuns))]);
 		edfMessage(eL,['MSG:thisRun=' num2str(seq.totalRuns)]);
 		edfMessage(eL,'END_FIX');
-		
-		ana.trial(ana.nTotal).x1 = circle1.xPositionOut;
-		ana.trial(ana.nTotal).y1 = circle1.yPositionOut;
-		ana.trial(ana.nTotal).x2 = circle2.xPositionOut;
-		ana.trial(ana.nTotal).y2 = circle2.yPositionOut;
-		ana.trial(ana.nTotal).x3 = circle3.xPositionOut;
-		ana.trial(ana.nTotal).y3 = circle3.yPositionOut;
-		ana.trial(ana.nTotal).x4 = circle4.xPositionOut;
-		ana.trial(ana.nTotal).y4 = circle4.yPositionOut;
 		
 		% X, Y, FixInitTime, FixTime, Radius, StrictFix
 		updateFixationValues(eL, xPos, yPos,...

@@ -10,7 +10,7 @@ x		= c.ramp;
 [k,b,fx, fgray]		= fitted(x,igray);
 [kr,br,~, fred]		= fitted(x,ired);
 [kg,bg,~, fgreen]	= fitted(x,igreen);
-[kb,bb,~, fblue]= fitted(x,iblue);
+[kb,bb,~, fblue]	= fitted(x,iblue);
 
 figure('Units','normalized','Position',[0.2 0.2 0.6 0.6]);
 hold on
@@ -38,7 +38,8 @@ in = str2num(in{1});
 
 switch reply1
 	case 1
-		incdm2 = in * max(ired);
+		incdm = in * (max(igreen)-min(igreen))
+		incdm2 = in * max(ired)
 		out = reversfit(in,kr,br,kg,bg);
 		[ix,iv,id] = findNearest(fx, in);
 		outx1 = fx(ix);
@@ -48,7 +49,8 @@ switch reply1
 		outy2 = fgreen(ix);
 		tout = sprintf('RESULTS:\n%.3f Red (%.3f cd/m2) = Green %.3f (%.3f cd/m2)\n',in,outy1,outx2,outy2);
 	case 2
-		incdm2 = in * max(igreen);
+		incdm = in * (max(igreen)-min(igreen))
+		incdm2 = in * max(igreen)
 		out = reversfit(in,kg,bg,kr,br);
 		[ix,iv,id] = findNearest(fx, in);
 		outx1 = fx(ix);
@@ -58,7 +60,8 @@ switch reply1
 		outy2 = fred(ix);
 		tout = sprintf('RESULTS:\n%.3f Green (%.3f cd/m2) = Red %.3f (%.3f cd/m2)\n',in,outy1,outx2,outy2);
 	case 3
-		incdm2 = in * max(igreen);
+		incdm = in * (max(igreen)-min(igreen))
+		incdm2 = in * max(igreen)
 		out = reversfit(in,kg,bg,k,b);
 		[ix,iv,id] = findNearest(fx, in);
 		outx1 = fx(ix);
@@ -68,8 +71,8 @@ switch reply1
 		outy2 = fgray(ix);
 		tout = sprintf('RESULTS:\n%.3f Green (%.3f cd/m2) = Gray %.3f (%.3f cd/m2)\n',in,outy1,outx2,outy2);
 	case 4
-		incdm2 = in * (max(ired)-min(ired));
-		incdm2 = in * max(ired);
+		incdm = in * (max(ired)-min(ired))
+		incdm2 = in * max(ired)
 		out = reversfit(in,kr,br,k,b);
 		[ix,iv,id] = findNearest(fx, in);
 		outx1 = fx(ix);
@@ -87,7 +90,9 @@ text(0.05, 80, tout);
 
 % do the poly fitting
 function [p1,p2,xx,yy] = fitted(x,y)
-	f = fit(x',y','poly5');
+	if size(x,1)<size(x,2);x=x';end
+	if size(y,1)<size(y,2);y=y';end
+	f = fit(x,y,'poly1');
 	xx = linspace(min(x),max(x),2^11)';
 	yy = feval(f,xx);
 	p1 = f.p1;

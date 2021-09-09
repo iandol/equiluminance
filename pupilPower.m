@@ -34,6 +34,8 @@ classdef pupilPower < analysisCore
 		error char = 'SE';
 		%> downsample raw pupil for plotting only (every N points)
 		downSample double = 20;
+		%> the calibration data from the display++
+		calibrationFile = ''
 	end
 	
 	properties (Hidden = true)
@@ -41,6 +43,8 @@ classdef pupilPower < analysisCore
 		%> floating point range, compatibility with older code, use
 		%> maxLumiances
 		defLuminances double = [1 1 1]
+		simpleMode = true
+		xpoints = []
 	end
 	
 	%------------------VISIBLE PROPERTIES----------%
@@ -77,10 +81,14 @@ classdef pupilPower < analysisCore
 	
 	%------------------PRIVATE PROPERTIES----------%
 	properties (SetAccess = private, GetAccess = private)
+		%> the luminance data
+		c
+		%> processed luminance data
+		l
 		%> raw data removed, cannot reparse from EDF events.
 		isRawDataRemoved logical = false
 		%> allowed properties passed to object upon construction, see parseArgs
-		allowedProperties char = ['useHanning|defLuminances|fileName|pupilData|'...
+		allowedProperties char = ['calibrationFile|useHanning|defLuminances|fileName|pupilData|'...
 			'normaliseBaseline|normalisePowerPlots|error|colorMap|'...
 			'maxLuminances|smoothPupil|smoothMethod|drawError|downSample']
 	end
@@ -140,8 +148,10 @@ classdef pupilPower < analysisCore
 		%> @return
 		% ===================================================================
 		function [handles,data] = run(me, force)
+			loadCalibration(me); fitLuminances(me);
 			if ~exist('force','var') || isempty(force); force = false; end
 			me.load(force);
+			
 			if isfield(me.metadata.ana,'onFrames')
 				me.taggingFrequency = (me.metadata.sM.screenVals.fps/me.metadata.ana.onFrames) / 2;
 			else
@@ -190,8 +200,18 @@ classdef pupilPower < analysisCore
 			t2 = sprintf(' | %i / %i = %.2f%% | background: %s',...
 				length(me.pupilData.correct.idx),length(me.pupilData.trials), ...
 				pCorrect,num2str(me.metadata.ana.backgroundColor,'%.3f '));
-			numVars	= length(colorLabels);
-			csteps = trlColors;
+			
+			if isempty(me.xpoints)
+				start = 1;
+				finish = length(colorLabels);
+				numVars	= finish;
+			else
+				start = me.xpoints(1);
+				finish = me.xpoints(2);
+				numVars = (finish-start) + 1;
+			end
+			
+			csteps = trlColors(start:finish);
 			csteps(numVars+1) = csteps(numVars);
 			PL = stairs(1:numVars+1, csteps, 'Color',plotColor,'LineWidth',2);
 			PL.Parent.FontSize = 11;
@@ -475,8 +495,112 @@ classdef pupilPower < analysisCore
 			save(file,'me','-v7.3');
 
 		end
+		
+		% ===================================================================
+		%> @brief save
+		%>
+		%> @param file filename to save to
+		%> @return
+		% ===================================================================
+		function fitLuminances(me)
+			if isempty(me.c); loadCalibration(me); end
+			if isa(me.c,'calibrateLuminance') && isempty(me.l) 
+				
+				l.igray		= me.c.inputValues(1).in; %#ok<*PROP>
+				l.igreen	= me.c.inputValues(3).in;
+				l.ired		= me.c.inputValues(2).in;
+				l.iblue		= me.c.inputValues(4).in;
+				l.x			= me.c.ramp;
+
+				[l.fx, l.fgray]	= analysisCore.linearFit(l.x, l.igray);
+				[~, l.fred]		= analysisCore.linearFit(l.x, l.ired);
+				[~, l.fgreen]	= analysisCore.linearFit(l.x, l.igreen);
+				[~, l.fblue]	= analysisCore.linearFit(l.x, l.iblue);
+				l.fred(l.fred<0)=0; l.fgreen(l.fgreen<0)=0; l.fblue(l.fblue<0)=0; l.fgray(l.fgray<0)=0;
+				me.l = l;
+			end
+		end
+		
+		% ===================================================================
+		%> @brief save
+		%>
+		%> @param file filename to save to
+		%> @return
+		% ===================================================================
+		function [x1, y1, x2, y2] = getLuminances(me, value, from, to)
+			if isempty(me.l); me.fitLuminances; end
+			l = me.l;
+			fx = l.fx;
+			switch from
+				case 'red'
+					fy = l.fred;
+				case 'green'
+					fy = l.fgreen;
+				case 'blue'
+					fy = l.fble;
+				case 'gray'
+					fy = l.fgray;
+			end
+			
+			switch to
+				case 'red'
+					ty = l.fred;
+				case 'green'
+					ty = l.fgreen;
+				case 'blue'
+					ty = l.fble;
+				case 'gray'
+					ty = l.fgray;
+			end
+			
+			[ix,~,~] = analysisCore.findNearest(fx, value);
+			x1 = fx(ix);
+			y1 = fy(ix);
+			[ix,~,~] = analysisCore.findNearest(ty, y1);
+			x2 = fx(ix);
+			y2 = ty(ix);
+		end
+		
+		% ===================================================================
+		%> @brief save
+		%>
+		%> @param file filename to save to
+		%> @return
+		% ===================================================================
+		function [y, x] = getLuminance(me, value, color)
+			if isempty(me.l); me.fitLuminances; end
+			l = me.l;
+			fx = l.fx;
+			if ~exist('color','var') && length(value) == 3
+				fy{1} = l.fred;
+				fy{2} = l.fgreen;
+				fy{3} = l.fblue;
+				for i = 1:3
+					[ix,~,~] = analysisCore.findNearest(fx, value(i));
+					x(i) = fx(ix);
+					y(i) = fy{i}(ix);
+				end
+			else
+				switch color
+					case 'red'
+						fy = l.fred;
+					case 'green'
+						fy = l.fgreen;
+					case 'blue'
+						fy = l.fblue;
+					case 'gray'
+						fy = l.fgray;
+				end
+				for i = 1:length(value)
+					[ix,~,~] = analysisCore.findNearest(fx, value(i));
+					x(i) = fx(ix);
+					y(i) = fy(ix);
+				end
+			end
+			y( y < 0 ) = 0;
+		end
 	
-	% ===================================================================
+		% ===================================================================
 		%> @brief make the color variables used in plotting
 		%>
 		%> @param
@@ -491,8 +615,8 @@ classdef pupilPower < analysisCore
 			if ~exist('vals','var') || isempty(vals); vals = me.metadata.seq.nVar.values'; end
 			if size(me.maxLuminances,1) > 1; me.maxLuminances=me.maxLuminances';end
 			cNames = {'Red';'Green';'Blue';'Yellow';'Grey';'Cyan';'Purple'};
-			fix = fc .* me.maxLuminances;
-			fColor=find(fix > 0); %get the position of not zero
+			
+			fColor=find(fc > 0); %get the position of not zero
 			if length(fColor) == 1 && fColor <= 3
 				
 			elseif length(fColor) == 2 && all([1 2] == fColor)
@@ -506,6 +630,11 @@ classdef pupilPower < analysisCore
 			else
 				warning('Cannot Define fixed color!');
 			end
+			if me.simpleMode
+				fix = fc .* me.maxLuminances;
+			else
+				fix = me.getLuminance(fc);
+			end
 			fixName = cNames{fColor};
 			switch fixName
 				case 'Grey'
@@ -516,8 +645,13 @@ classdef pupilPower < analysisCore
 					fixColor = fix(fColor);
 			end
 			
-			cE = ce .* me.maxLuminances;
-			cS = cs .* me.maxLuminances;
+			if me.simpleMode
+				cE = ce .* me.maxLuminances;
+				cS = cs .* me.maxLuminances;
+			else
+				cE = me.getLuminance(ce);
+				cS = me.getLuminance(cs);
+			end
 			vColor=find(cE > 0); %get the position of not zero
 			if all([1 2] == vColor); vColor = 4; end
 			varName = cNames{vColor};
@@ -527,15 +661,19 @@ classdef pupilPower < analysisCore
 				otherwise
 					varColor = cS(vColor);
 			end
-
-			vals = cellfun(@(x) x .* me.maxLuminances, vals, 'UniformOutput', false);
+			
+			if me.simpleMode
+				vals = cellfun(@(x) x .* me.maxLuminances, vals, 'UniformOutput', false);
+			else
+				vals = cellfun(@(x) getLuminance(me,x), vals, 'UniformOutput', false);
+			end
+			trlColor=cell2mat(vals);
 			tit = num2str(fix,'%.2f ');
 			tit = regexprep(tit,'0\.00','0');
 			tit = ['Fix color (' fixName ') = ' tit ' | Var color (' varName ')'];
 			colorChange= cE - cS;
 			tColor=find(colorChange~=0); %get the position of not zero
 			step=abs(colorChange(tColor)/me.metadata.ana.colorStep);
-			trlColor=cell2mat(vals);
 			switch varName
 				case 'Yellow'
 					trlColors = trlColor(:,1)' + trlColor(:,2)';
@@ -768,6 +906,21 @@ classdef pupilPower < analysisCore
 			me.isCalculated = true;
 		end
 		
+		% ===================================================================
+		%> @brief
+		%>
+		%> @param
+		%> @return
+		% ===================================================================
+		function loadCalibration(me)
+			if (isempty(me.c) || ~isa(me.c,'calibrateLuminance')) && exist(me.calibrationFile,'file')
+				in = load(me.calibrationFile);
+				fprintf('--->>> Using %s calibration and max luminances: ',me.calibrationFile);
+				me.c = in.c; clear in;
+				me.maxLuminances = me.c.maxLuminances(2:4);
+				fprintf('%.3f ',me.maxLuminances); fprintf('\n\n');
+			end
+		end
 		
 		% ===================================================================
 		%> @brief
