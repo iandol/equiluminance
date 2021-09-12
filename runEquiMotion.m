@@ -214,6 +214,8 @@ try
 	keyHold			= 0;
 	keyTicks		= keyHold;
 	fInc			= 5;
+	animcycle		= sin(linspace(0,2*pi,screenVals.fps*2)) * (ana.size/2);
+	animTick		= 1;
 	halfisi			= sM.screenVals.halfisi;
 	if ~ana.debug; ListenChar(-1); end
 	Priority(MaxPriority(sM.win));
@@ -268,7 +270,7 @@ try
 		vbl						= Screen('Flip',sM.win);
 		%================================initiate fixation===========================
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix') && breakLoop == false
-			drawCross(sM, 0.75, [1 1 1 1], ana.fixX, ana.fixY, 0.1, true, 0.5);
+			drawCross(sM, 0.75, [1 1 1], ana.fixX, ana.fixY, 0.1, true, 0.5);
             drawPhotoDiode(sM,[0 0 0 1]);
 			finishDrawing(sM);
 			getSample(eL);
@@ -343,7 +345,11 @@ try
 				if stroke > 4; stroke = 1; end
 			end
 
-			drawCross(sM, 0.75, [1 1 1 1], ana.fixX, ana.fixY, 0.1, true, 0.2);
+			if ~ana.isMOC
+				drawCross(sM, 0.75, [1 1 1], animcycle(animTick), ana.fixY, 0.1, true, 0.1,0.2);
+			else
+				%drawCross(sM, 0.75, [1 1 1], ana.fixX, ana.fixY, 0.1, true, 0.2);
+			end
             drawPhotoDiode(sM,[1 1 1 1]);
 			finishDrawing(sM);
 			
@@ -351,6 +357,8 @@ try
 			if tick == startTick; trackerMessage(eL,'END_FIX'); end
 			tL.vbl(tick) = vbl; tL.stimTime(tick) = 1 + (stroke/10);
 			tick = tick + 1;
+			animTick = animTick + 1;
+			if animTick > length(animcycle); animTick = 1; end
 			ii = ii + 1;
 			
 			if ana.isMOC
@@ -421,7 +429,7 @@ try
 		fprintf('==>> SAVE %s, to: %s\n', ana.nameExp, pwd);
 		save([ana.nameExp '.mat'],'ana', 'seq', 'eL', 'sM', 'tL');
 	end
-	tL.printRunLog;
+	if ana.isMOC; tL.printRunLog; end
 	clear ana seq eL sM tL
 
 catch ME

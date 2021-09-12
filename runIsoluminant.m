@@ -171,6 +171,7 @@ try
 	ana.trial		= struct();
 	ana.nBreakInit	= 0;
 	ana.nBreakFix	= 0;
+	ana.nCorrect	= 0;
 	tick			= 1;
 	halfisi			= sM.screenVals.halfisi;
 	if ~ana.debug; ListenChar(-1); end
@@ -226,7 +227,7 @@ try
 			end
 		end
 		if strcmpi(fixated,'breakfix')
-			fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', seq.totalRuns);
+			fprintf('===>>> BROKE INITIATE FIX: Trial = %i; break inits: %i\n', seq.totalRuns,ana.nBreakInit);
 			ana.nBreakInit = ana.nBreakInit + 1;
 			statusMessage(eL,'Subject Broke Initial Fixation!');
 			trackerMessage(eL,'TRIAL_RESULT -100');
@@ -319,28 +320,35 @@ try
 		
 		% check if we lost fixation
 		if ~strcmpi(fixated,'fix')
-			fprintf('===>>> BROKE FIXATION Trial = %i (%i secs)\n\n', seq.totalRuns, tEnd-tStart);
 			ana.nBreakFix = ana.nBreakFix + 1;
+			cr = ana.nCorrect / (ana.nCorrect+ana.nBreakFix);
+			cr2 = ana.nCorrect / (ana.nCorrect+ana.nBreakFix+ana.nBreakInit);
 			statusMessage(eL,'Subject Broke Fixation!');
 			stopRecording(eL);
 			trackerMessage(eL,'TRIAL_RESULT -1');
 			trackerMessage(eL,'MSG:BreakFix');
 			setOffline(eL);
 			resetFixation(eL);
-            WaitSecs('YieldSecs',ana.trialInterval)
+			fprintf('===>>> BROKE FIX: Trial = %i (%i secs) correct rate: %.2f (break+init: %.2f)\n\n',...
+				seq.totalRuns, tEnd-tStart,  cr, cr2);
+            WaitSecs('YieldSecs',ana.trialInterval+1)
 		else
-			fprintf('===>>> SUCCESS: Trial = %i (%i secs)\n\n', seq.totalRuns, tEnd-tStart);
             if ana.sendReward; rM.timedTTL(2,ana.rewardTime); end
 			ana.trial(seq.totalRuns).success = true;
+			ana.nCorrect = ana.nCorrect + 1;
+			cr = ana.nCorrect / (ana.nCorrect+ana.nBreakFix);
+			cr2 = ana.nCorrect / (ana.nCorrect+ana.nBreakFix+ana.nBreakInit);
 			statusMessage(eL,'CORRECT!');trackerMessage(eL,'MSG:Correct');
 			trackerClearScreen(eL);
-            WaitSecs('YieldSecs',ana.trialInterval);
 			stopRecording(eL);
 			trackerMessage(eL,'TRIAL_RESULT 1');
 			setOffline(eL);
 			resetFixation(eL);
             updatePlot(seq.totalRuns);
 			updateTask(seq,true,tEnd-tStart); %updates our current run number
+			fprintf('===>>> SUCCESS: Trial = %i (%i secs) correct rate: %.2f (break+init: %.2f)\n\n',...
+				seq.totalRuns, tEnd-tStart, cr, cr2);
+            WaitSecs('YieldSecs',ana.trialInterval);
 		end
         
 		tEnd=Screen('Flip',sM.win);

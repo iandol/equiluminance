@@ -239,7 +239,7 @@ try
 				if stroke > 2; stroke = 1; end
 			end
 
-			drawCross(sM, 0.75, [1 1 1 1], ana.fixX, ana.fixY, 0.1, true, 0.2);
+			drawCross(sM, 0.75, [0.5 0.5 0.5], ana.fixX, ana.fixY, 0.1, true, 0.1);
 			finishDrawing(sM);
 			
 			[vbl, tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);
