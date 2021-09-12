@@ -150,7 +150,8 @@ classdef pupilPower < analysisCore
 		%> @return
 		% ===================================================================
 		function [handles,data] = run(me, force)
-			loadCalibration(me); fitLuminances(me);
+			if ~me.simpleMode;loadCalibration(me); fitLuminances(me);end
+			if isempty(me.l); me.simpleMode = true; end
 			if ~exist('force','var') || isempty(force); force = false; end
 			me.load(force);
 			
@@ -892,6 +893,7 @@ classdef pupilPower < analysisCore
 					end
 					rawFramefMin(currentVar)=min(rawFramef);
 					rawFramePupilMin(currentVar)=min(rawFramePupil);
+					clear P;
 					for currentBlock=1:numBlocks
 						if ~isempty(me.SortedPupil.pupilTrials(currentVar,currentBlock).variable)
 							F(currentBlock,:)=me.rawF{currentVar,currentBlock}(1,1:rawFramefMin(currentVar));
