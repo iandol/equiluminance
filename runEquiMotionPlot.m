@@ -51,9 +51,9 @@ if ~ana.isMOC
 			'PaperType','A4','PaperUnits','centimeters');
 	[m,e]=analysisCore.stderr(varCol);
 	[mr,er]=analysisCore.stderr(varcolour);
-	boxplot(varCol);
+	boxplot(varCol,'Colors','k','Notch','on');
 	ratio = fixCol / m;
-	tit = sprintf('Matching %s=%.3f - %s=%.3f+-%.3f (%.3f+-%.3f) RATIO = %.3f',...
+	tit = sprintf('Match %s=%.3f -> %s=%.3f+-%.3f (%.3f+-%.3f) RATIO = %.3f',...
 		fixLabel,fixCol,varLabel,m,e,mr,er,ratio);
 	title(tit);
 	return
