@@ -37,6 +37,28 @@ else
 	map				= analysisCore.optimalColours(seq.minTrials);
 end
 
+if ~ana.isMOC
+	fixCol = ana.colorFixed(fixC) * maxLuminances(fixC);
+	colours = cell2mat(ana.colours);
+	varcolour = colours(:,varC);
+	varCol = varcolour * maxLuminances(varC);
+	
+	tit = ['Data: ' f];
+	tit=regexprep(tit,'_','-');
+	h = figure('Name',tit,'Units','normalized',...
+	'Position',[0.25 0.25 0.5 0.6],...		
+			'Color',[1 1 1],...
+			'PaperType','A4','PaperUnits','centimeters');
+	[m,e]=analysisCore.stderr(varCol);
+	[mr,er]=analysisCore.stderr(varcolour);
+	boxplot(varCol);
+	ratio = fixCol / m;
+	tit = sprintf('Matching %s=%.3f - %s=%.3f+-%.3f (%.3f+-%.3f) RATIO = %.3f',...
+		fixLabel,fixCol,varLabel,m,e,mr,er,ratio);
+	title(tit);
+	return
+end
+
 % to plot the psychometric function
 PF					= @PAL_Quick;
 maxbeta				= 200;

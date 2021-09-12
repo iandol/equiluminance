@@ -364,8 +364,8 @@ try
 			if ana.isMOC
 				getSample(eL);
 				if ~isFixated(eL)
-					fixated = 'breakfix';
-					break %break the while loop
+					%fixated = 'breakfix';
+					%break %break the while loop
 				end
 				keepRunning = vbl < tStart + ana.trialDuration;
 			else
@@ -599,6 +599,7 @@ end
 				elseif ~ana.isMOC && response == YES
 					nresponse = nresponse + 1;
 					colours{end+1,1} = grating1.colourOut;
+					ana.trial(nresponse).match = grating1.colourOut;
 					disp(cell2mat(colours));
 					disp(['Isoluminant flicker point = ' num2str(mean(cell2mat(colours)))]);
 				end
