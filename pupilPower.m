@@ -36,6 +36,8 @@ classdef pupilPower < analysisCore
 		downSample double = 20;
 		%> the calibration data from the display++
 		calibrationFile = ''
+		%> use simple luminance maxima or the linear regression
+		simpleMode = false
 	end
 	
 	properties (Hidden = true)
@@ -43,9 +45,7 @@ classdef pupilPower < analysisCore
 		%> floating point range, compatibility with older code, use
 		%> maxLumiances
 		defLuminances double = [1 1 1]
-		%> use simple luminance or the linear regression
-		simpleMode = false
-		%> choose which variables to plot
+		%> choose which sub-variables to plot, empty plots all
 		xpoints = []
 	end
 	
@@ -83,9 +83,9 @@ classdef pupilPower < analysisCore
 	
 	%------------------PRIVATE PROPERTIES----------%
 	properties (SetAccess = private, GetAccess = private)
-		%> the luminance data
+		%> the monitor calibration object
 		c
-		%> processed luminance data
+		%> processed luminance data fits
 		l
 		%> raw data removed, cannot reparse from EDF events.
 		isRawDataRemoved logical = false
@@ -106,7 +106,7 @@ classdef pupilPower < analysisCore
 		%> @return
 		% ===================================================================
 		function me = pupilPower(varargin)
-			defaults.measureRange = [1.23 3.5];
+			defaults.measureRange = [0.5667 0.5667 + (0.5667*5)];
 			defaults.baselineWindow = [-0.2 0.2];
 			defaults.plotRange = [];
 			if ~exist('turbo.m','file')
@@ -207,8 +207,8 @@ classdef pupilPower < analysisCore
 			else
 				mode = 'full';
 			end
-			t2 = sprintf('LumCorrect:%s | %i / %i = %.2f%% | background: %s',...
-				mode, length(me.pupilData.correct.idx),length(me.pupilData.trials), ...
+			t2 = sprintf('%i / %i = %.2f%% | background: %s',...
+				length(me.pupilData.correct.idx),length(me.pupilData.trials), ...
 				pCorrect,num2str(me.metadata.ana.backgroundColor,'%.3f '));
 			
 			if isempty(me.xpoints)
@@ -324,11 +324,11 @@ classdef pupilPower < analysisCore
 			xlabel('Time (secs)')
 			ylabel('Pupil Diameter')
 			if me.normaliseBaseline
-				title(['Normalised Pupil: # Trials = ' num2str(me.metadata.ana.trialNumber) ' | Subject = ' me.metadata.ana.subject  ' | baseline = ' num2str(me.baselineWindow,'%.2f ') 'secs'  ' | Range = ' num2str(data.diameterRange,'%.2f')]);
+				title(['Normalised Pupil (mode: ' mode '|bg: ' num2str(me.metadata.ana.backgroundColor,'%.3f ') '): # Trials = ' num2str(me.metadata.ana.trialNumber) ' | Subject = ' me.metadata.ana.subject  ' | baseline = ' num2str(me.baselineWindow,'%.2f ') 'secs'  ' | Range = ' num2str(data.diameterRange,'%.2f')]);
 			else
-				title(['Raw Pupil: # Trials = ' num2str(me.metadata.ana.trialNumber) ' | Subject = ' me.metadata.ana.subject  ' | Range = ' num2str(data.diameterRange,'%.2f')])
+				title(['Raw Pupil (mode: ' mode '|bg: ' num2str(me.metadata.ana.backgroundColor,'%.3f ') '): # Trials = ' num2str(me.metadata.ana.trialNumber) ' | Subject = ' me.metadata.ana.subject  ' | Range = ' num2str(data.diameterRange,'%.2f')])
 			end
-			xlim([-0.2 me.measureRange(2)+0.05]);
+			xlim([-0.2 me.measureRange(2)+0.15]);
 			if minp == 0; minp = -1;end
 			if maxp==0; maxp = 1; end
 			if minp <= 0
