@@ -188,6 +188,7 @@ try
 		trackerMessage(eL,'V_RT MESSAGE END_FIX END_RT');  %this 3 lines set the trial info for the eyelink
 		trackerMessage(eL,['TRIALID ' num2str(seq.outIndex(seq.totalRuns))]);  %obj.getTaskIndex gives us which trial we're at
 		startRecording(eL);
+		WaitSecs('YieldSecs',0.1);
 		statusMessage(eL,'INITIATE FIXATION...');
 		fixated = '';
 		fprintf('===>>> runIsoluminant initiating fixation to start run...\n');
@@ -265,6 +266,7 @@ try
 		ana.trial(seq.totalRuns).frameN = [];
 		
 		statusMessage(eL,'Show Stimulus...');
+		syncTime(eL);
 		trackerMessage(eL,'END_FIX');
 		tStart = GetSecs; vbl = tStart;if isempty(tL.vbl);tL.vbl(1) = tStart;tL.startTime = tStart; end
 		
