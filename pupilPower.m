@@ -47,14 +47,16 @@ classdef pupilPower < analysisCore
 		defLuminances double = [1 1 1]
 		%> choose which sub-variables to plot, empty plots all
 		xpoints = []
+		%> trial numbers to exclude
+		excludeTrials = []
+		%> show 2nd harmonic plots
+		plotHarmonics = false
 	end
 	
 	%------------------VISIBLE PROPERTIES----------%
 	properties (SetAccess = {?analysisCore}, GetAccess = public)
 		meanPowerValues
 		varPowerValues
-		meanPowerValues0
-		varPowerValues0
 		meanPhaseValues
 		varPhaseValues
 		meanPupil
@@ -65,13 +67,25 @@ classdef pupilPower < analysisCore
 		varP
 		SortedPupil struct
 		taggingFrequency = []
+		transitionTime;
 	end
 	
 	%------------------PROTECTED PROPERTIES----------%
 	properties (SetAccess = {?analysisCore}, GetAccess = public, Hidden = true)
-		powerValues
-		phaseValues
-		powerValues0
+		meanPowerValues0
+		varPowerValues0
+		meanPowerValues2
+		varPowerValues2
+		meanPhaseValues0
+		varPhaseValues0
+		meanPhaseValues2
+		varPhaseValues2
+		powerValues cell
+		phaseValues cell
+		powerValues0 cell
+		phaseValues0 cell
+		powerValues2 cell
+		phaseValues2 cell
 		metadata struct
 		rawPupil cell
 		rawTimes cell
@@ -79,6 +93,7 @@ classdef pupilPower < analysisCore
 		rawP cell
 		isLoaded logical = false
 		isCalculated logical = false
+		maxTime
 	end
 	
 	%------------------PRIVATE PROPERTIES----------%
@@ -107,7 +122,7 @@ classdef pupilPower < analysisCore
 		% ===================================================================
 		function me = pupilPower(varargin)
 			defaults.measureRange = [0.5667 0.5667 + (0.5667*5)];
-			defaults.baselineWindow = [-0.2 0.2];
+			defaults.baselineWindow = [-0.1 0.1];
 			defaults.plotRange = [];
 			if ~exist('turbo.m','file')
 				defaults.colorMap = 'jet';
@@ -157,8 +172,10 @@ classdef pupilPower < analysisCore
 			
 			if isfield(me.metadata.ana,'onFrames')
 				me.taggingFrequency = (me.metadata.sM.screenVals.fps/me.metadata.ana.onFrames) / 2;
+				me.transitionTime = me.metadata.ana.onFrames * (1/me.metadata.sM.screenVals.fps);
 			else
 				me.taggingFrequency = me.metadata.ana.frequency;
+				me.transitionTime = (1/me.metadata.ana.frequency)/2;
 			end
 			me.calculate();
 			if me.doPlots; [handles,data] = me.plot(); end
@@ -201,8 +218,8 @@ classdef pupilPower < analysisCore
 			end
 			pCorrect = (length(me.pupilData.correct.idx)/length(me.pupilData.trials))*100;
 			if me.simpleMode && max(me.maxLuminances) > 1
-				 mode = 'simple';
-			elseif ~me.simpleMode && max(me.maxLuminances) == 1
+				mode = 'simple';
+			elseif me.simpleMode && max(me.maxLuminances) == 1
 				mode = 'none';
 			else
 				mode = 'full';
@@ -263,19 +280,13 @@ classdef pupilPower < analysisCore
 			minp = inf;
 			
 			a = 0;
-			for i = start : finish %length(me.meanPupil)
+			for i = start : finish 
 				hold on
 				t = me.meanTimes{i};
 				p = me.meanPupil{i};
 				e = me.varPupil{i};
 				
 				if isempty(t); continue; end
-				
-				if me.normaliseBaseline
-					idx = t >= me.baselineWindow(1) & t <= me.baselineWindow(2);
-					mn = mean(p(idx));
-					p = p - mn;
-				end
 				
 				if me.pupilData.sampleRate > 500
 					idx = circshift(logical(mod(1:length(t),me.downSample)), -(me.downSample-1)); %downsample every N as less points to draw
@@ -284,12 +295,17 @@ classdef pupilPower < analysisCore
 					e(idx) = [];
 				end
 				
-				idx = t >= me.measureRange(1) & t <= me.measureRange(2);
-				if me.detrend
-					p = p - mean(p(idx));
+				if me.normaliseBaseline
+					idx = t >= me.baselineWindow(1) & t <= me.baselineWindow(2);
+					mn = mean(p(idx));
+					p = p - mn;
 				end
 				
-				[~, ~, A(i), p1(i), p0(i)] = doFFT(me,p);
+				idx = t >= me.measureRange(1) & t <= me.measureRange(2);
+				if me.detrend
+					m = mean(p(idx));
+					if ~isnan(m); p = p - mean(p(idx)); end
+				end
 				
 				idx = t >= me.measureRange(1) & t <= me.measureRange(2);
 				maxp = max([maxp max(p(idx))]);
@@ -299,13 +315,17 @@ classdef pupilPower < analysisCore
 					if me.drawError
 						PL1 = analysisCore.areabar(t,p,e,traceColor((a*traceColor_step)+1,:),0.2,...
 							'Color', traceColor((a*traceColor_step)+1,:), 'LineWidth', 2,'DisplayName',colorLabels{i});
-						PL1.plot.DataTipTemplate.DataTipRows(1).Label = 'Time';
-						PL1.plot.DataTipTemplate.DataTipRows(2).Label = 'Power';
+						try
+							PL1.plot.DataTipTemplate.DataTipRows(1).Label = 'Time';
+							PL1.plot.DataTipTemplate.DataTipRows(2).Label = 'Power';
+						end
 					else
 						PL1 = plot(t,p,'color', traceColor((a*traceColor_step)+1,:),...
 							'LineWidth', 1,'DisplayName',colorLabels{i});
-						PL1.DataTipTemplate.DataTipRows(1).Label = 'Time';
-						PL1.DataTipTemplate.DataTipRows(2).Label = 'Power';
+						try
+							PL1.DataTipTemplate.DataTipRows(1).Label = 'Time';
+							PL1.DataTipTemplate.DataTipRows(2).Label = 'Power';
+						end
 					end 
 					a = a + 1;
 				end
@@ -356,8 +376,10 @@ classdef pupilPower < analysisCore
 					'Marker','o','DisplayName',colorLabels{i},...
 					'MarkerSize', 5,'MarkerFaceColor',traceColor((a*traceColor_step)+1,:),...
 					'MarkerEdgeColor', 'none');
-				PL2.DataTipTemplate.DataTipRows(1).Label = 'Frequency';
-				PL2.DataTipTemplate.DataTipRows(2).Label = 'Power';
+				try
+					PL2.DataTipTemplate.DataTipRows(1).Label = 'Frequency';
+					PL2.DataTipTemplate.DataTipRows(2).Label = 'Power';
+				end
 				a = a + 1;
 			end
 			xlim([-0.1 floor(me.metadata.ana.frequency*3)]);
@@ -378,18 +400,26 @@ classdef pupilPower < analysisCore
 			
 			csteps = trlColors(start:finish);
 			ax3 = nexttile(tl,[1 2]);
+			is0=false;
+			is2=false;
 			hold on
 			if exist('colororder','file')>0; colororder({'k','k'});end
 			yyaxis right
-			phasePH = analysisCore.areabar(csteps,me.meanPhaseValues(start:finish),...
-				me.varPhaseValues(start:finish),[0.6 0.6 0.3],0.25,'LineWidth',1.5);
+			phase1H = analysisCore.areabar(csteps,me.meanPhaseValues(start:finish),...
+				me.varPhaseValues(start:finish),[0.6 0.6 0.3],0.25,'LineWidth',1.5,'DisplayName','Phase-H1');
 			try
-				phasePH.DataTipTemplate.DataTipRows(1).Label = 'Luminance';
-				phasePH.DataTipTemplate.DataTipRows(2).Label = 'Angle';
+				phase1H.DataTipTemplate.DataTipRows(1).Label = 'Luminance';
+				phase1H.DataTipTemplate.DataTipRows(2).Label = 'Angle';
+			end
+			if me.plotHarmonics
+				is2=true;
+				hold on
+				phase2H = analysisCore.areabar(csteps,me.meanPhaseValues2(start:finish),...
+				me.varPhaseValues2(start:finish),[0.6 0.6 0.6],0.25,'LineWidth',1,'DisplayName','Phase-H2');
 			end
 			mn = min(me.meanPhaseValues-me.varPhaseValues);
 			mx = max(me.meanPhaseValues+me.varPhaseValues);
-			ylim([mn mx]);
+			if ~me.plotHarmonics; ylim([mn mx]); end
 			%PL3b = plot(trlColors,rad2deg(A),'k-.','Color',[0.6 0.6 0.3],'linewidth',1);
 			ylabel('Phase (deg)');
 			data.X=csteps;
@@ -409,14 +439,31 @@ classdef pupilPower < analysisCore
 			end
 			data.m0=m0;
 			data.e0=e0;
-			is0=false;
-			if max(me.meanPowerValues0) > 0.1 % only if there is a significant response
+			if me.plotHarmonics && max(me.meanPowerValues0) > 0.1 % only if there is a significant response
 				is0 = true;
 				h0PH = analysisCore.areabar(csteps,m0,e0,[0.5 0.5 0.7],0.1,...
-					'LineWidth',1);
+					'Marker','o','LineWidth',1,'DisplayName','H0');
 				try %#ok<*TRYNC>
 					h0PH.plot.DataTipTemplate.DataTipRows(1).Label = 'Luminance';
 					h0PH.plot.DataTipTemplate.DataTipRows(2).Label = 'Power';
+				end
+			end
+			if me.normalisePowerPlots
+				m2 = me.meanPowerValues2(start:finish) / max(me.meanPowerValues2(start:finish));
+				e2 = me.varPowerValues2(start:finish) / max(me.meanPowerValues2(start:finish));
+			else
+				m2 = me.meanPowerValues2(start:finish);
+				e2 = me.varPowerValues2(start:finish);
+			end
+			data.m2=m2';
+			data.e2=e2';
+			if me.plotHarmonics && max(me.meanPowerValues2) > 0.1 % only if there is a significant response
+				is2 = true;
+				h2PH = analysisCore.areabar(csteps,m2,e2,[0.7 0.4 0],0.1,...
+					'Marker','o','LineWidth',1,'DisplayName','H2');
+				try %#ok<*TRYNC>
+					h2PH.plot.DataTipTemplate.DataTipRows(1).Label = 'Luminance';
+					h2PH.plot.DataTipTemplate.DataTipRows(2).Label = 'Power';
 				end
 			end
 			
@@ -427,11 +474,15 @@ classdef pupilPower < analysisCore
 				m = me.meanPowerValues(start:finish);
 				e = me.varPowerValues(start:finish);
 			end
+			m = m';
+			e = e';
 			data.m=m;
 			data.e=e;
 			
 			xx = linspace(min(csteps),max(csteps),500);
+			warning off
 			f = fit(csteps',m','smoothingspline');
+			warning on
 			yy = feval(f,xx);
 			ymin = find(yy==min(yy));
 			ymin = xx(ymin);
@@ -442,12 +493,12 @@ classdef pupilPower < analysisCore
 			ratio2 = fixColor / ymin;
 			
 			h1PH = analysisCore.areabar(csteps,m,e,[0.7 0.2 0.2],0.2,...
-				'LineWidth',2);
+				'Marker','o','LineWidth',2,'DisplayName','H1');
 			try
 				h1PH.plot.DataTipTemplate.DataTipRows(1).Label = 'Luminance';
 				h1PH.plot.DataTipTemplate.DataTipRows(2).Label = 'Power';
 			end
-			plot(xx,yy,'c-','LineWidth',1.5);
+			fitH = plot(xx,yy,'r--','LineWidth',1,'DisplayName','H1-Fit');
 			
 			if is0
 				mx = max([max(m+e) max(m0+e0)]);
@@ -459,13 +510,10 @@ classdef pupilPower < analysisCore
 			ylim([mn mx]);
 			pr = (m .* m0);
 			pr = (pr / max(pr)) * mx;
-			%h0h1PH = plot(trlColors,pr,'--','Color',[0.5 0.5 0.5],...
-			%	'LineWidth',1);
-
+			
 			data.minColor = minC;
 			data.ratio = ratio;
 			data.ratio2 = ratio2;
-			%plot(trlColors,p0 / max(p0),'b--',trlColors,p1 / max(p1),'r:','linewidth',1);
 			
 			ax3.FontSize = 12;
 			ax3.XTick = csteps;
@@ -492,13 +540,16 @@ classdef pupilPower < analysisCore
 				tit, varName, data.minColor, data.ratio, data.ratio2);
 			title(tit);
 			
-			if is0
-				legend([h0PH.plot,h1PH.plot,phasePH.plot],{'H0','H1','Phase'},...
-				'FontSize',10,'Location','southwest'); %'Position',[0.9125 0.2499 0.0816 0.0735],
+			if is2 && is0
+				leg = [h1PH.plot,phase1H.plot,fitH,h2PH.plot,phase2H.plot,h0PH.plot];
+			elseif is2 && ~is0
+				leg = [h1PH.plot,phase1H.plot,fitH,h2PH.plot,phase2H.plot];
+			elseif ~is2 && is0
+				leg = [h1PH.plot,phase1H.plot,fitH,h0PH.plot];
 			else
-				legend([h1PH.plot,phasePH.plot],{'H1','Phase'},...
-				'FontSize',10,'Location','southwest')	
+				leg = [h1PH.plot,phase1H.plot,fitH];
 			end
+			legend(leg,'FontSize',10,'Location','southwest'); %'Position',[0.9125 0.2499 0.0816 0.0735],
 			
 			box on; grid on;
 			
@@ -507,10 +558,13 @@ classdef pupilPower < analysisCore
 			handles.ax3 = ax3;
 			handles.PL1 = PL1;
 			handles.PL2 = PL2;
-			handles.PL3a = phasePH;
+			handles.PL3a = phase1H;
 			if exist('h0PH','var');handles.PL3 = h0PH;end
 			if exist('h1PH','var'); handles.PL4 = h1PH;end
 			if exist('h0h1PH','var');handles.PL5 = h0h1PH;end
+			if exist('h2PH','var');handles.PL6 = h2PH;end
+			if exist('phase2H','var'); handles.PL7 = phase1H;end
+			if exist('h0h1PH','var');handles.PL8 = h0h1PH;end
 			drawnow;
 			figure(handles.h2);
 			
@@ -729,7 +783,7 @@ classdef pupilPower < analysisCore
 		%> @param p the raw signal
 		%> @return 
 		% ===================================================================
-		function [P, f, A, p1, p0] = doFFT(me,p)	
+		function [P, f, A, p1, p0, p2, A0, A2] = doFFT(me,p)	
 			useX = true;
 			L = length(p);
 			if me.useHanning
@@ -757,6 +811,10 @@ classdef pupilPower < analysisCore
 			A = angle(Pi(idx));
 			idx = analysisCore.findNearest(f, 0);
 			p0 = P(idx);
+			A0 = angle(Pi(idx));
+			idx = analysisCore.findNearest(f, me.taggingFrequency*2);
+			p2 = P(idx);
+			A2 = angle(Pi(idx));
 				
 		end
 		
@@ -799,6 +857,9 @@ classdef pupilPower < analysisCore
 					me.maxLuminances = me.defLuminances;
 				end
 				
+				me.pupilData.correctValue	= 1;
+				me.pupilData.incorrectValue = -100;
+				me.pupilData.breakFixValue	= -1;
 				me.pupilData.plotRange = [-0.5 3.5];
 				me.pupilData.measureRange = me.measureRange;
 				me.pupilData.pixelsPerCm = me.metadata.sM.pixelsPerCm;
@@ -806,6 +867,7 @@ classdef pupilPower < analysisCore
 				
 				fprintf('\n<strong>--->>></strong> LOADING raw EDF data: \n')
 				parseSimple(me.pupilData);
+				me.maxTime = max(me.pupilData.correct.timeRange(:,2));
 				me.pupilData.removeRawData();me.isRawDataRemoved=true;
 				me.isLoaded = true;
 			catch ME
@@ -826,116 +888,167 @@ classdef pupilPower < analysisCore
 			Fs1 = me.pupilData.sampleRate; % Sampling frequency
 			T1 = 1/Fs1; % Sampling period
 			smoothSamples = me.smoothWindow / (T1 * 1e3);
-			me.SortedPupil = [];me.powerValues=[];me.powerValues0=[];me.rawP = []; me.rawF = []; me.rawPupil = []; me.rawTimes=[];
-			thisTrials = me.pupilData.trials(me.pupilData.correct.idx);
+			me.SortedPupil = struct();
+			me.powerValues={}; me.phaseValues={};
+			me.powerValues0={};	me.phaseValues0={};
+			me.powerValues2={};	me.phaseValues2={};
+			me.rawP = {}; me.rawF = {}; me.rawPupil = {}; me.rawTimes={};
+			vars = unique(me.metadata.seq.outIndex);
+			idx = me.pupilData.correct.idx;
+			idx = setdiff(idx, me.excludeTrials);
+			thisTrials = me.pupilData.trials(idx);
 			if isa(me.metadata.seq,'stimulusSequence')
 				minTrials = me.metadata.seq.minBlocks;
 			else
 				minTrials = me.metadata.seq.minTrials;
 			end
+			b = zeros(1,length(vars));
 			for i=1:length(thisTrials)
-				
-				me.SortedPupil(1).anaTrials(me.metadata.seq.outIndex(i),ceil(i/minTrials))=me.metadata.ana.trial(i);
-				me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/minTrials))=thisTrials(i);
-				idx=me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/minTrials)).times>=-1000;
-				me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/minTrials)).times=me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/minTrials)).times(idx);
-				me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/minTrials)).gx=me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/minTrials)).gx(idx);
-				me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/minTrials)).gy=me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/minTrials)).gy(idx);
-				me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/minTrials)).hx=me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/minTrials)).hx(idx);
-				me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/minTrials)).hy=me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/minTrials)).hy(idx);
-				me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/minTrials)).pa=me.SortedPupil(1).pupilTrials(me.metadata.seq.outIndex(i),ceil(i/minTrials)).pa(idx);
-				
+				a=thisTrials(i).variable;
+				b(a) = b(a) + 1;
+				me.SortedPupil.pupilTrials{a}{b(a)}=thisTrials(i);
+				me.SortedPupil.anaTrials{a}{b(a)}=me.metadata.ana.trial(thisTrials(i).correctedIndex);
+			end
+			
+			if me.measureRange(2) > me.maxTime || diff(me.measureRange) == 0
+				mult = floor(me.maxTime / me.transitionTime);
+				if mod(mult,2); mult = mult - 1; end
+				if mult > 3
+					me.measureRange = [me.transitionTime*2 me.transitionTime*mult];
+				else
+					me.measureRange = [0 me.transitionTime*mult];
+				end
 			end
 			
 			thisTrials = me.SortedPupil.pupilTrials;
-			numvars=size(thisTrials,1); %Number of trials
-			numBlocks=size(thisTrials,2); %Number of Blocks
+			numvars=minTrials; %Number of trials
 			t1=tic;
-			for currentVar=1:numvars
-				if isempty(me.SortedPupil.pupilTrials(currentVar).variable)==0
-					k=1;	F=[];	P=[];	Pu=[];	Ti=[];
-					for currentBlock=1:numBlocks
-						if isempty(me.SortedPupil.pupilTrials(currentVar,currentBlock).variable)==0
-							pa = thisTrials(currentVar,currentBlock).pa;
-							ta = thisTrials(currentVar,currentBlock).times / 1e3;
-							if me.smoothPupil
-								pa = smoothdata(pa,me.smoothMethod,smoothSamples);
-							end				
-							me.rawPupil{currentVar,currentBlock} = pa;
-							me.rawTimes{currentVar,currentBlock} = ta;
-							
-							p = me.rawPupil{currentVar,currentBlock};
-							t = me.rawTimes{currentVar,currentBlock};
-							
-							if me.normaliseBaseline
-								idx = t >= me.baselineWindow(1) & t <= me.baselineWindow(2);
-								mn = mean(p(idx));
-								p = p - mn;
-							end
-							
-							idx = t >= me.measureRange(1) & t <= me.measureRange(2);
-							p = p(idx);
-							if me.detrend
-								p = p - mean(p);
-							end
-							
-							[P,f,A,p1,p0] = me.doFFT(p);
-							
-							me.powerValues(currentVar,currentBlock) = p1; %get the pupil power of tagging frequency
-							me.phaseValues(currentVar,currentBlock) = rad2deg(A);
-							me.powerValues0(currentVar,currentBlock) = p0; %get the pupil power of 0 harmonic
-							me.rawF{currentVar,currentBlock} = f;
-							me.rawP{currentVar,currentBlock} = P;
-							rawFramef(k)=size(me.rawF{currentVar,currentBlock},2);
-							rawFramePupil(k)=size(me.rawPupil{currentVar,currentBlock},2);
-							k=k+1;
+			for currentVar=1:length(thisTrials)
+				numBlocks = length(thisTrials{currentVar});
+				k = 1;	F = [];	P = [];	Pu = []; Ti = []; minTs = []; maxTs = [];
+				for currentBlock=1:numBlocks
+					if ~isempty(thisTrials{currentVar}{currentBlock}.variable)
+						p = thisTrials{currentVar}{currentBlock}.pa;
+						t = thisTrials{currentVar}{currentBlock}.times / 1e3;
+						if me.smoothPupil
+							p = smoothdata(p,me.smoothMethod,smoothSamples);
+						end		
+						me.rawPupil{currentVar}{currentBlock} = p;
+						me.rawTimes{currentVar}{currentBlock} = t;
+
+						minTs(k)=min(t);
+						maxTs(k)=max(t);
+
+						if me.normaliseBaseline
+							idx = t >= me.baselineWindow(1) & t <= me.baselineWindow(2);
+							mn = mean(p(idx));
+							p = p - mn;
 						end
-					end
-					rawFramefMin(currentVar)=min(rawFramef);
-					rawFramePupilMin(currentVar)=min(rawFramePupil);
-					clear P;
-					for currentBlock=1:numBlocks
-						if ~isempty(me.SortedPupil.pupilTrials(currentVar,currentBlock).variable)
-							F(currentBlock,:)=me.rawF{currentVar,currentBlock}(1,1:rawFramefMin(currentVar));
-							P(currentBlock,:)=me.rawP{currentVar,currentBlock}(1,1:rawFramefMin(currentVar));
-							Pu(currentBlock,:)=me.rawPupil{currentVar,currentBlock}(1,1:rawFramePupilMin(currentVar));
-							Ti(currentBlock,:)=me.rawTimes{currentVar,currentBlock}(1,1:rawFramePupilMin(currentVar));
+
+						idx = t >= me.measureRange(1) & t <= me.measureRange(2);
+						p = p(idx);
+						if me.detrend
+							p = p - mean(p);
 						end
+
+						[P,f,A,p1,p0,p2,A0,A2] = me.doFFT(p);
+
+						me.powerValues{currentVar}(currentBlock) = p1; %get the pupil power of tagging frequency
+						me.phaseValues{currentVar}(currentBlock) = rad2deg(A);
+						me.powerValues0{currentVar}(currentBlock) = p0; %get the pupil power of 0 harmonic
+						me.powerValues2{currentVar}(currentBlock) = p2; %get the pupil power of 0 harmonic
+						me.phaseValues0{currentVar}(currentBlock) = rad2deg(A0);
+						me.phaseValues2{currentVar}(currentBlock) = rad2deg(A2);
+						me.rawF{currentVar}{currentBlock} = f;
+						me.rawP{currentVar}{currentBlock} = P;
+
+						rawFramef(k)=size(me.rawF{currentVar}{currentBlock},2);
+						k=k+1;
 					end
-					
-					me.meanF{currentVar,1} = F(1,:);
-					[p,e] = analysisCore.stderr(P,me.error,false,0.05,1);
-					me.meanP{currentVar,1}=p;
-					me.varP{currentVar,1}=e;
-					
-					me.meanTimes{currentVar,1} = Ti(1,:);
-					[p,e] = analysisCore.stderr(Pu,me.error,false,0.05,1);
-					me.meanPupil{currentVar,1}=p;
-					me.varPupil{currentVar,1}=e;
-					
 				end
+				rawFramefMin(currentVar)=min(rawFramef);
+				clear P;
+				for currentBlock=1:numBlocks
+					F(currentBlock,:)=me.rawF{currentVar}{currentBlock}(1,1:rawFramefMin(currentVar));
+					P(currentBlock,:)=me.rawP{currentVar}{currentBlock}(1,1:rawFramefMin(currentVar));
+					t = me.rawTimes{currentVar}{currentBlock};
+					p = me.rawPupil{currentVar}{currentBlock};
+					idx = t >= max(minTs) & t <= min(maxTs);
+					Ti(currentBlock,:) = t(idx);
+					Pu(currentBlock,:) = p(idx);
+				end
+
+				me.meanF{currentVar,1} = F(1,:);
+				[p,e] = analysisCore.stderr(P,me.error,false,0.05,1);
+				me.meanP{currentVar,1}=p;
+				me.varP{currentVar,1}=e;
+
+				me.meanTimes{currentVar,1} = Ti(1,:);
+				[p,e] = analysisCore.stderr(Pu,me.error,false,0.05,1);
+				me.meanPupil{currentVar,1}=p;
+				me.varPupil{currentVar,1}=e;
 			end
-			toc(t1);
+			fprintf('---> pupilPower FFT calculation took %.3f secs\n',toc(t1));
+			
+			clear p e
 			pV=me.powerValues;
-			pV(pV==0)=NaN;
-			[p,e] = analysisCore.stderr(pV,me.error,false,0.05,2);
+			for i = 1:length(pV)
+				pV{i}(pV{i}==0) = NaN;
+				[p(i),e(i)] = analysisCore.stderr(pV{i},me.error,false,0.05);
+			end
 			me.meanPowerValues = p';
 			me.varPowerValues = e';
 			me.varPowerValues(me.varPowerValues==inf)=0;
 			
+			clear p e
 			pH=me.phaseValues;
-			pH(pH==0)=NaN;
-			[p,e] = analysisCore.stderr(pH,me.error,false,0.05,2);
+			for i = 1:length(pH)
+				pH{i}(pH{i}==0) = NaN;
+				[p(i),e(i)] = analysisCore.stderr(pH{i},me.error,false,0.05);
+			end
 			me.meanPhaseValues = p';
 			me.varPhaseValues = e';
 			me.varPhaseValues(me.varPhaseValues==inf)=0;
 			
+			clear p e
 			pV0=me.powerValues0;
-			pV0(pV0==0)=NaN;
-			[p,e] = analysisCore.stderr(pV0,me.error,false,0.05,2);
+			for i = 1:length(pV0)
+				pV0{i}(pV0{i}==0) = NaN;
+				[p(i),e(i)] = analysisCore.stderr(pV0{i},me.error,false,0.05);
+			end
 			me.meanPowerValues0 = p';
 			me.varPowerValues0 = e';
 			me.varPowerValues0(me.varPowerValues0==inf)=0;
+			
+			clear p e
+			pH=me.phaseValues0;
+			for i = 1:length(pH)
+				pH{i}(pH{i}==0) = NaN;
+				[p(i),e(i)] = analysisCore.stderr(pH{i},me.error,false,0.05);
+			end
+			me.meanPhaseValues0 = p';
+			me.varPhaseValues0 = e';
+			me.varPhaseValues0(me.varPhaseValues0==inf)=0;
+			
+			clear p e
+			pV2=me.powerValues2;
+			for i = 1:length(pV2)
+				pV2{i}(pV2{i}==0) = NaN;
+				[p(i),e(i)] = analysisCore.stderr(pV2{i},me.error,false,0.05);
+			end
+			me.meanPowerValues2 = p';
+			me.varPowerValues2 = e';
+			me.varPowerValues2(me.varPowerValues0==inf)=0;
+			
+			clear p e
+			pH=me.phaseValues2;
+			for i = 1:length(pH)
+				pH{i}(pH{i}==0) = NaN;
+				[p(i),e(i)] = analysisCore.stderr(pH{i},me.error,false,0.05);
+			end
+			me.meanPhaseValues2 = p';
+			me.varPhaseValues2 = e';
+			me.varPhaseValues2(me.varPhaseValues2==inf)=0;
 			
 			me.isCalculated = true;
 		end

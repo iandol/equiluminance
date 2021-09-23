@@ -183,11 +183,11 @@ try
 		%=========================MAINTAIN INITIAL FIXATION==========================
 		fprintf('===>>> runIsoluminant START Run = %i / %i (%i:%i) | %s, %s\n', seq.totalRuns, seq.nRuns, seq.thisBlock, seq.thisRun, sM.fullName, eL.fullName);
 		resetFixation(eL);
+		startRecording(eL);
 		trackerClearScreen(eL);
 		trackerDrawFixation(eL); %draw fixation window on eyelink computer
 		trackerMessage(eL,'V_RT MESSAGE END_FIX END_RT');  %this 3 lines set the trial info for the eyelink
 		trackerMessage(eL,['TRIALID ' num2str(seq.outIndex(seq.totalRuns))]);  %obj.getTaskIndex gives us which trial we're at
-		startRecording(eL);
 		WaitSecs('YieldSecs',0.1);
 		statusMessage(eL,'INITIATE FIXATION...');
 		fixated = '';
@@ -228,6 +228,7 @@ try
 			end
 		end
 		if strcmpi(fixated,'breakfix')
+			trackerMessage(eL,'END_RT');
 			fprintf('===>>> BROKE INITIATE FIX: Trial = %i; break inits: %i\n', seq.totalRuns,ana.nBreakInit);
 			ana.nBreakInit = ana.nBreakInit + 1;
 			statusMessage(eL,'Subject Broke Initial Fixation!');
@@ -237,7 +238,7 @@ try
 			stopRecording(eL);
 			setOffline(eL);
             Screen('Flip',sM.win); %flip the buffer
-			WaitSecs('YieldSecs',0.2);
+			WaitSecs('YieldSecs',0.3);
 			continue
 		end
 		
@@ -266,7 +267,6 @@ try
 		ana.trial(seq.totalRuns).frameN = [];
 		
 		statusMessage(eL,'Show Stimulus...');
-		syncTime(eL);
 		trackerMessage(eL,'END_FIX');
 		tStart = GetSecs; vbl = tStart;if isempty(tL.vbl);tL.vbl(1) = tStart;tL.startTime = tStart; end
 		
@@ -298,6 +298,7 @@ try
 			finishDrawing(sM);
 			
 			[tL.vbl(tick),tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);
+			if ii == 1; syncTime(eL); end
 			tL.stimTime(tick) = toggle;
 			tL.tick = tick;
 			tick = tick + 1;
@@ -315,46 +316,48 @@ try
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		
 		tEnd=Screen('Flip',sM.win);
-		sM.drawTextNow(['Trial: ' num2str(seq.totalRuns) '/' num2str(seq.nRuns)]);
 		trackerMessage(eL,'END_RT');
+		sM.drawTextNow(['Trial: ' num2str(seq.totalRuns) '/' num2str(seq.nRuns)]);
 		ana.trial(seq.totalRuns).pupil = thisPupil;
 		ana.trial(seq.totalRuns).totalFrames = ii-1;
 		
 		% check if we lost fixation
 		if ~strcmpi(fixated,'fix')
+			trackerMessage(eL,'MSG:BreakFix');
 			ana.nBreakFix = ana.nBreakFix + 1;
 			cr = ana.nCorrect / (ana.nCorrect+ana.nBreakFix);
 			cr2 = ana.nCorrect / (ana.nCorrect+ana.nBreakFix+ana.nBreakInit);
 			statusMessage(eL,'Subject Broke Fixation!');
-			stopRecording(eL);
 			trackerMessage(eL,'TRIAL_RESULT -1');
-			trackerMessage(eL,'MSG:BreakFix');
-			setOffline(eL);
+			WaitSecs('YieldSecs',0.3);
+			stopRecording(eL); setOffline(eL);
 			resetFixation(eL);
+			updatePlot(seq.totalRuns);
 			fprintf('===>>> BROKE FIX: Trial = %i (%i secs) correct rate: %.2f (break+init: %.2f)\n\n',...
 				seq.totalRuns, tEnd-tStart,  cr, cr2);
-            WaitSecs('YieldSecs',ana.trialInterval+1)
+            twait = ana.trialInterval+1;
 		else
             if ana.sendReward; rM.timedTTL(2,ana.rewardTime); end
+			trackerMessage(eL,'MSG:Correct');
 			ana.trial(seq.totalRuns).success = true;
 			ana.nCorrect = ana.nCorrect + 1;
 			cr = ana.nCorrect / (ana.nCorrect+ana.nBreakFix);
 			cr2 = ana.nCorrect / (ana.nCorrect+ana.nBreakFix+ana.nBreakInit);
-			statusMessage(eL,'CORRECT!');trackerMessage(eL,'MSG:Correct');
+			statusMessage(eL,'CORRECT!');
 			trackerClearScreen(eL);
-			stopRecording(eL);
 			trackerMessage(eL,'TRIAL_RESULT 1');
-			setOffline(eL);
+			WaitSecs('YieldSecs',0.3);
+			stopRecording(eL); setOffline(eL);
 			resetFixation(eL);
             updatePlot(seq.totalRuns);
 			updateTask(seq,true,tEnd-tStart); %updates our current run number
 			fprintf('===>>> SUCCESS: Trial = %i (%i secs) correct rate: %.2f (break+init: %.2f)\n\n',...
 				seq.totalRuns, tEnd-tStart, cr, cr2);
-            WaitSecs('YieldSecs',ana.trialInterval);
+            twait = ana.trialInterval;
 		end
         
 		tEnd=Screen('Flip',sM.win);
-		while GetSecs < tEnd + 0.01
+		while GetSecs < tEnd + twait
 			[keyIsDown, ~, keyCode] = KbCheck(-1);
 			if keyIsDown == 1
 				rchar = KbName(keyCode); if iscell(rchar);rchar=rchar{1};end
