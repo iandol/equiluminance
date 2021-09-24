@@ -12,7 +12,7 @@ if ~exist('ana','var') || isempty(ana)
 	end
 end
 
-global rM
+global rM %#ok<*GVMIS> 
 if ~exist('rM','var') || isempty(rM)
 	rM = arduinoManager();
 end
@@ -86,6 +86,7 @@ try
 	sM.backgroundColour		= ana.backgroundColour;
 	sM.pixelsPerCm			= ana.pixelsPerCm;
 	sM.distance				= ana.distance;
+	sM.photoDiode			= true;
 	sM.blend				= true;
 	if isfield(ana,'screenCal') && exist(ana.screenCal, 'file')
 		load(ana.screenCal);
@@ -283,7 +284,6 @@ try
 		edfMessage(eL,['TRIALID ' num2str(seq.outIndex(seq.totalRuns))]);  %obj.getTaskIndex gives us which trial we're at
 		startRecording(eL);
 		
-		
 		n1 = NaN;	n2 = NaN;	n3 = NaN;
 		while any(isnan([n1 n2 n3]))
 			x = randi([1 maxC],1,1);
@@ -326,10 +326,11 @@ try
 		%=========================MAINTAIN INITIAL FIXATION==========================
 		statusMessage(eL,'INITIATE FIXATION...');
 		fixated = '';
+		drawPhotoDiode(sM,[0 0 0]);
 		if ana.sendTrigger == true;sendStrobe(dPP,248);flip(sM);end
-		syncTime(eL);
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix') && ~strcmpi(fixated,'EXCLUDED!')
 			drawCross(sM,0.4,fixColour,ana.fixX,ana.fixY);
+			drawPhotoDiode(sM,[0 0 0]);
 			getSample(eL);
 			fixated=testSearchHoldFixation(eL,'fix','breakfix');
 			[keyIsDown, ~, keyCode] = KbCheck(-1);
@@ -361,25 +362,21 @@ try
 		
 		if ~strcmpi(fixated,'fix')
 			sM.drawBackground;
+			drawPhotoDiodeSquare(sM,[0 0 0]);
 			flip(sM);
 			if ana.sendTrigger == true;sendStrobe(dPP,249);flip(sM);end
 			if ana.sendTrigger == true;sendStrobe(dPP,255);flip(sM);flip(sM);end %STIM OFF
-			
 			statusMessage(eL,'Subject Broke Initial Fixation!');
 			edfMessage(eL,'MSG:BreakInitialFix');
-			
 			ana.runningPerformance(ana.nTotal) = -1;
 			ana.nInitiateBreak = ana.nInitiateBreak + 1;
 			ana.trial(ana.nTotal).success = false;
 			ana.trial(ana.nTotal).xAll = eL.xAll;
 			ana.trial(ana.nTotal).yAll = eL.yAll;
-			
 			resetFixation(eL);
 			stopRecording(eL);
 			setOffline(eL);
-			
 			fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', seq.totalRuns);	
-			flip(sM);
 			updatePlot(seq.totalRuns);
 			aM.beep(150,0.5,1);
 			WaitSecs('YieldSecs',ana.punishDelay);
@@ -394,11 +391,11 @@ try
 		%sM.verbose = false; eL.verbose = false; sM.verbosityLevel = 4; eL.verbosityLevel = 4; %force lots of log output
 		fprintf('===>>> Show Cue for: %.2f s\n',ana.cueTime);
 		statusMessage(eL,'Show Cue...');
-		drawCross(sM,0.4,[1 1 1 1],ana.fixX,ana.fixY);
+		drawCross(sM,0.4,[1 1 1 1],ana.fixX,ana.fixY); drawPhotoDiode(sM,[0 0 0]);
 		vbl = flip(sM); tStart = vbl;
 		while vbl <= tStart + ana.cueTime
 			draw(circle1);
-			drawCross(sM,0.4,[1 1 1 1],ana.fixX,ana.fixY,[],true,0.5);
+			drawCross(sM,0.4,[1 1 1 1],ana.fixX,ana.fixY,[],true,0.5);drawPhotoDiode(sM,[1 1 1]);
 			vbl = Screen('Flip',sM.win, vbl + halfisi);
 			getSample(eL);
 			if ~isFixated(eL)
@@ -425,6 +422,7 @@ try
 			setOffline(eL);
 			
 			fprintf('===>>> BROKE CUE FIXATION Trial = %i\n', seq.totalRuns);
+			drawPhotoDiode(sM,[0 0 0]);
 			flip(sM);
 			aM.beep(250,1,1);
 			updatePlot(seq.totalRuns);
@@ -440,10 +438,10 @@ try
 		end
 		fprintf('===>>> Delay to Choice is: %.2g\n',delayToChoice);
 		statusMessage(eL,['Delay is ' num2str(delayToChoice)]);
-		drawCross(sM,0.4,[1 1 1 1],ana.fixX,ana.fixY);
+		drawCross(sM,0.4,[1 1 1 1],ana.fixX,ana.fixY); drawPhotoDiode(sM,[0 0 0]);
 		vbl = flip(sM); tStart = vbl;
 		while vbl <= tStart + delayToChoice
-			drawCross(sM,0.4,[1 1 1 1],ana.fixX,ana.fixY,[],true,0.5);
+			drawCross(sM,0.4,[1 1 1 1],ana.fixX,ana.fixY,[],true,0.5); drawPhotoDiode(sM,[0 0 0]);
 			vbl = Screen('Flip',sM.win, vbl + halfisi);
 			getSample(eL);
 			if ~isFixated(eL)
@@ -452,7 +450,7 @@ try
 			end
 		end
 		if strcmpi(fixated,'breakfix')
-			sM.drawBackground;
+			drawPhotoDiode(sM,[0 0 0]);
 			if ana.sendTrigger == true;sendStrobe(dPP,249);flip(sM);end
 			if ana.sendTrigger == true;sendStrobe(dPP,255);flip(sM);flip(sM);end %STIM OFF
 			statusMessage(eL,'Subject Broke Delay Fixation!');
@@ -470,7 +468,7 @@ try
 			setOffline(eL);
 			
 			fprintf('===>>> BROKE DELAY FIXATION Trial = %i\n', seq.totalRuns);
-			flip(sM);
+			
 			aM.beep(250,1,1);
 			updatePlot(seq.totalRuns);
 			WaitSecs('YieldSecs',ana.punishDelay);
@@ -556,7 +554,9 @@ try
 		statusMessage(eL,'Saccade to Target...');
 
 		if ana.sendTrigger == true;sendStrobe(dPP,seq.outIndex(seq.totalRuns));end
+		drawPhotoDiode(sM,[0 0 0]);
 		vbl = flip(sM);
+		startTick = tick;
 		tStart = vbl; if isempty(tL.vbl);tL.vbl(1) = tStart;tL.startTime = tStart; end
 		while vbl < tStart + 2
 
@@ -566,11 +566,12 @@ try
 				circle3.draw();
 				circle4.draw();
 			end
-
+			drawPhotoDiode(sM,[1 1 1]);
 			finishDrawing(sM);
 			getSample(eL);
 
 			[tL.vbl(tick),tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);
+			if tick == startTick; syncTime(eL); end
 			tL.stimTime(tick) = 1;
 			tL.tick = tick;
 			vbl = tL.vbl(tick);
@@ -591,13 +592,17 @@ try
 				break %break the while loop
 			end
 		end
+		if ana.sendTrigger == true
+			sendStrobe(dPP,255);
+			drawPhotoDiode(sM,[0 0 0]);flip(sM);
+			drawPhotoDiode(sM,[0 0 0]);flip(sM);
+		end %STIM OFF
 
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		end
 		
-		if ana.sendTrigger == true;sendStrobe(dPP,255);flip(sM);end %STIM OFF
-		sM.drawBackground();
+		drawPhotoDiode(sM,[0 0 0]);
 		[tL.vbl(tick),tL.show(tick),tL.flip(tick),tL.miss(tick)]=Screen('Flip',sM.win);
 		tL.stimTime(tick) = -1;
 		tL.tick = tick;
@@ -609,11 +614,11 @@ try
 		ana.trial(ana.nTotal).xAll = eL.xAll;
 		ana.trial(ana.nTotal).yAll = eL.yAll;
 		
-		
 		%=========================================check if we got fixation
 		if strcmpi(fixated,'fix')
-			if ana.sendTrigger == true;sendStrobe(dPP,251);flip(sM);end %CORRECT
-			rM.timedTTL(2, ana.Rewardms)
+			drawPhotoDiode(sM,[0 0 0]);
+			if ana.sendTrigger == true;sendStrobe(dPP,251);end %CORRECT
+			rM.timedTTL(2, ana.Rewardms);
 			aM.beep(1000,0.1,0.2);
 			trackerDrawText(eL,'CORRECT!');
 			fprintf('===>>> SUCCESS: Trial = %i (total:%.3g | reaction:%.3g)\n', seq.totalRuns, tEnd-tStart, tReaction);
@@ -630,12 +635,12 @@ try
 			updateTask(seq,true); %updates our current run number
 			iii = seq.totalRuns;
 			if ana.debug
-				Screen('DrawText', sM.win, '===>>> CORRECT!!!', 0, 0);
-				Screen('Flip',sM.win);
+				Screen('DrawText', sM.win, '===>>> CORRECT!!!', 0, 0);drawPhotoDiode(sM,[0 0 0]);
+				flip(sM);
 			end
 			waitTime = 0.75;
 		else
-			if ana.sendTrigger == true;sendStrobe(dPP,252);flip(sM);end %INCORRECT
+			if ana.sendTrigger == true;sendStrobe(dPP,252);end %INCORRECT
 			if strcmpi(fixated,'breakfix')
 				fprintf('===>>> BROKE FIXATION Trial = %i (total:%.3g | reaction:%.3g)\n', seq.totalRuns, tEnd-tStart, tReaction);
 				trackerDrawText(eL,'BREAK FIX!');
@@ -668,8 +673,8 @@ try
 			seq.verbose = false;
 			updatePlot(seq.totalRuns);
 			if ana.debug
-				Screen('DrawText', sM.win, '===>>> BREAK FIX!!!', 0, 0);
-				Screen('Flip',sM.win);
+				Screen('DrawText', sM.win, '===>>> BREAK FIX!!!', 0, 0);drawPhotoDiode(sM,[0 0 0]);
+				flip(sM);
 			end
 			waitTime = ana.punishDelay;
 			if strcmp(fixated,'EXCLUDED!')
@@ -702,7 +707,11 @@ try
 						breakLoop = true;
 				end
 			end
-			WaitSecs('YieldSecs',sM.screenVals.ifi);
+			drawPhotoDiode(sM,[0 0 0]);
+			[tL.vbl(tick),tL.show(tick),tL.flip(tick),tL.miss(tick)]=Screen('Flip',sM.win);
+			tL.stimTime(tick) = -1;
+			tL.tick = tick;
+			tick = tick + 1;
 		end
 		
 	end % while ~breakLoop
@@ -711,11 +720,11 @@ try
 	fprintf('===>>> Train Finished Trials: %i\n',seq.totalRuns);
 	Screen('DrawText', sM.win, '===>>> FINISHED!!!', 0, 0);
 	Screen('Flip',sM.win);
-	WaitSecs('YieldSecs', 2);
+	WaitSecs('YieldSecs', 1);
 	close(sM); breakLoop = true;
 	ListenChar(0);ShowCursor;Priority(0);
 	close(aM);
-	
+	if exist('dPP','var'); close(dPP); end
 	if exist(ana.ResultDir,'dir') > 0
 		cd(ana.ResultDir);
 	end
@@ -723,15 +732,12 @@ try
 	stopRecording(eL);
 	setOffline(eL);
 	close(eL);
-	if ~isempty(ana.nameExp) && isempty(regexpi(ana.nameExp, 'debug', 'once'))
+	if ~isempty(ana.nameExp)
 		ana.plotAxis1 = [];
 		ana.plotAxis2 = [];
 		ana.plotAxis3 = [];
 		fprintf('==>> SAVE DATA %s, to: %s\n', ana.nameExp, pwd);
 		save([ana.nameExp '.mat'],'ana', 'seq', 'eL', 'sM', 'tL');
-	end
-	if IsWin
-		tL.printRunLog;
 	end
 	clear ana seq eL sM tL
 	
