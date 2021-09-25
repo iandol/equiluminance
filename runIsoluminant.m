@@ -48,7 +48,7 @@ try
 	%===================open our screen====================
 	sM				= screenManager();
 	sM.screen		= ana.screenID;
-    if ana.debug || ismac || ispc || ~isempty(regexpi(ana.gpu.Vendor,'NVIDIA','ONCE'))
+	if ana.debug || ismac || ispc || ~isempty(regexpi(ana.gpu.Vendor,'NVIDIA','ONCE'))
 		sM.disableSyncTests = true; 
 	end
 	sM.windowed		= ana.windowed;

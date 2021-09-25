@@ -238,8 +238,8 @@ classdef pupilPower < analysisCore
 				numVars = (finish-start) + 1;
 			end
 			
-			csteps = trlColors(start:finish);
-			csteps(numVars+1) = csteps(numVars);
+			cstep = trlColors(start:finish); csteps = cstep;
+			csteps(numVars+1) = cstep(numVars);
 			PL = stairs(1:numVars+1, csteps, 'Color',plotColor,'LineWidth',2);
 			PL.Parent.FontSize = 11;
 			PL.Parent.XTick = 1.5:1:numVars+0.5;
@@ -316,6 +316,8 @@ classdef pupilPower < analysisCore
 						PL1 = analysisCore.areabar(t,p,e,traceColor((a*traceColor_step)+1,:),0.2,...
 							'Color', traceColor((a*traceColor_step)+1,:), 'LineWidth', 2,'DisplayName',colorLabels{i});
 						try
+							row = dataTipTextRow('Color',repmat({num2str(trlColors(i))},length(t),1));
+							PL1.plot.DataTipTemplate.DataTipRows(end+1) = row;
 							PL1.plot.DataTipTemplate.DataTipRows(1).Label = 'Time';
 							PL1.plot.DataTipTemplate.DataTipRows(2).Label = 'Power';
 						end
@@ -377,6 +379,8 @@ classdef pupilPower < analysisCore
 					'MarkerSize', 5,'MarkerFaceColor',traceColor((a*traceColor_step)+1,:),...
 					'MarkerEdgeColor', 'none');
 				try
+					row = dataTipTextRow('Color',repmat({num2str(trlColors(i))},length(t),1));
+					PL2.DataTipTemplate.DataTipRows(end+1) = row;
 					PL2.DataTipTemplate.DataTipRows(1).Label = 'Frequency';
 					PL2.DataTipTemplate.DataTipRows(2).Label = 'Power';
 				end
@@ -398,31 +402,34 @@ classdef pupilPower < analysisCore
 			box on; grid on; grid minor;
 			ax2.FontSize = 12;
 			
-			csteps = trlColors(start:finish);
 			ax3 = nexttile(tl,[1 2]);
 			is0=false;
 			is2=false;
 			hold on
 			if exist('colororder','file')>0; colororder({'k','k'});end
 			yyaxis right
-			phase1H = analysisCore.areabar(csteps,me.meanPhaseValues(start:finish),...
+			phase1H = analysisCore.areabar(cstep,me.meanPhaseValues(start:finish),...
 				me.varPhaseValues(start:finish),[0.6 0.6 0.3],0.25,'LineWidth',1.5,'DisplayName','Phase-H1');
 			try
-				phase1H.DataTipTemplate.DataTipRows(1).Label = 'Luminance';
-				phase1H.DataTipTemplate.DataTipRows(2).Label = 'Angle';
+				phase1H.plot.DataTipTemplate.DataTipRows(1).Label = 'Luminance';
+				phase1H.plot.DataTipTemplate.DataTipRows(2).Label = 'Phase';
 			end
 			if me.plotHarmonics
 				is2=true;
 				hold on
-				phase2H = analysisCore.areabar(csteps,me.meanPhaseValues2(start:finish),...
+				phase2H = analysisCore.areabar(cstep,me.meanPhaseValues2(start:finish),...
 				me.varPhaseValues2(start:finish),[0.6 0.6 0.6],0.25,'LineWidth',1,'DisplayName','Phase-H2');
+				try
+				phase2H.plot.DataTipTemplate.DataTipRows(1).Label = 'Luminance';
+				phase2H.plot.DataTipTemplate.DataTipRows(2).Label = 'Phase';
+			end
 			end
 			mn = min(me.meanPhaseValues-me.varPhaseValues);
 			mx = max(me.meanPhaseValues+me.varPhaseValues);
 			if ~me.plotHarmonics; ylim([mn mx]); end
 			%PL3b = plot(trlColors,rad2deg(A),'k-.','Color',[0.6 0.6 0.3],'linewidth',1);
 			ylabel('Phase (deg)');
-			data.X=csteps;
+			data.X=cstep;
 			data.phaseY=me.meanPhaseValues(start:finish);
 			data.phaseE=me.varPhaseValues(start:finish);
 			
@@ -441,7 +448,7 @@ classdef pupilPower < analysisCore
 			data.e0=e0;
 			if me.plotHarmonics && max(me.meanPowerValues0) > 0.1 % only if there is a significant response
 				is0 = true;
-				h0PH = analysisCore.areabar(csteps,m0,e0,[0.5 0.5 0.7],0.1,...
+				h0PH = analysisCore.areabar(cstep,m0,e0,[0.5 0.5 0.7],0.1,...
 					'Marker','o','LineWidth',1,'DisplayName','H0');
 				try %#ok<*TRYNC>
 					h0PH.plot.DataTipTemplate.DataTipRows(1).Label = 'Luminance';
@@ -459,7 +466,7 @@ classdef pupilPower < analysisCore
 			data.e2=e2';
 			if me.plotHarmonics && max(me.meanPowerValues2) > 0.1 % only if there is a significant response
 				is2 = true;
-				h2PH = analysisCore.areabar(csteps,m2,e2,[0.7 0.4 0],0.1,...
+				h2PH = analysisCore.areabar(cstep,m2,e2,[0.7 0.4 0],0.1,...
 					'Marker','o','LineWidth',1,'DisplayName','H2');
 				try %#ok<*TRYNC>
 					h2PH.plot.DataTipTemplate.DataTipRows(1).Label = 'Luminance';
@@ -479,20 +486,20 @@ classdef pupilPower < analysisCore
 			data.m=m;
 			data.e=e;
 			
-			xx = linspace(min(csteps),max(csteps),500);
+			xx = linspace(min(cstep),max(cstep),500);
 			warning off
-			f = fit(csteps',m','smoothingspline');
+			f = fit(cstep',m','smoothingspline');
 			warning on
 			yy = feval(f,xx);
 			ymin = find(yy==min(yy));
 			ymin = xx(ymin);
 			
 			idx = find(m==min(m));
-			minC = csteps(idx);
+			minC = cstep(idx);
 			ratio = fixColor / minC;
 			ratio2 = fixColor / ymin;
 			
-			h1PH = analysisCore.areabar(csteps,m,e,[0.7 0.2 0.2],0.2,...
+			h1PH = analysisCore.areabar(cstep,m,e,[0.7 0.2 0.2],0.2,...
 				'Marker','o','LineWidth',2,'DisplayName','H1');
 			try
 				h1PH.plot.DataTipTemplate.DataTipRows(1).Label = 'Luminance';
@@ -516,13 +523,13 @@ classdef pupilPower < analysisCore
 			data.ratio2 = ratio2;
 			
 			ax3.FontSize = 12;
-			ax3.XTick = csteps;
+			ax3.XTick = cstep;
 			ax3.XTickLabel = colorLabels(start:finish); 
 			ax3.XTickLabelRotation = 45;
-			pad = max(diff(csteps))/10;
-			ax3.XLim = [ min(csteps) - pad max(csteps) + pad];
+			pad = max(diff(cstep))/10;
+			ax3.XLim = [ min(cstep) - pad max(cstep) + pad];
 			
-			if fixColor <= max(csteps) && fixColor >= min(csteps)
+			if fixColor <= max(cstep) && fixColor >= min(cstep)
 				line([fixColor fixColor],[ax3.YLim(1) ax3.YLim(2)],...
 				'lineStyle',':','Color',[0.3 0.3 0.3 0.5],'linewidth',2);
 			end
@@ -844,7 +851,7 @@ classdef pupilPower < analysisCore
 				end
 				[~,fn] = fileparts(me.pupilData.file);
 				me.metadata = load([me.pupilData.dir,filesep,fn,'.mat']); %load .mat of same filename with .edf
-				if isa(me.metadata.sM.gammaTable,'calibrateLuminance') && ~isempty(me.metadata.sM.gammaTable)
+				if isa(me.metadata.sM,'screenManager') && ~isempty(me.metadata.sM.gammaTable)
 					if ~isempty(me.metadata.sM.gammaTable.inputValuesTest)
 						l = me.metadata.sM.gammaTable.inputValuesTest;
 					else
