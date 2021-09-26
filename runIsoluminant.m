@@ -183,11 +183,11 @@ try
 		%=========================MAINTAIN INITIAL FIXATION==========================
 		fprintf('===>>> runIsoluminant START Run = %i / %i (%i:%i) | %s, %s\n', seq.totalRuns, seq.nRuns, seq.thisBlock, seq.thisRun, sM.fullName, eL.fullName);
 		resetFixation(eL);
-		startRecording(eL);
 		trackerClearScreen(eL);
 		trackerDrawFixation(eL); %draw fixation window on eyelink computer
 		trackerMessage(eL,'V_RT MESSAGE END_FIX END_RT');  %this 3 lines set the trial info for the eyelink
 		trackerMessage(eL,['TRIALID ' num2str(seq.outIndex(seq.totalRuns))]);  %obj.getTaskIndex gives us which trial we're at
+		startRecording(eL); % this should come after the TRIALID message 
 		WaitSecs('YieldSecs',0.1);
 		statusMessage(eL,'INITIATE FIXATION...');
 		fixated = '';
@@ -228,12 +228,12 @@ try
 			end
 		end
 		if strcmpi(fixated,'breakfix')
-			trackerMessage(eL,'END_RT');
+			trackerMessage(eL,'END_FIX');trackerMessage(eL,'END_RT');
 			fprintf('===>>> BROKE INITIATE FIX: Trial = %i; break inits: %i\n', seq.totalRuns,ana.nBreakInit);
 			ana.nBreakInit = ana.nBreakInit + 1;
 			statusMessage(eL,'Subject Broke Initial Fixation!');
-			trackerMessage(eL,'TRIAL_RESULT -100');
 			trackerMessage(eL,'MSG:BreakInitialFix');
+			trackerMessage(eL,'TRIAL_RESULT -100');
 			resetFixation(eL);
 			stopRecording(eL);
 			setOffline(eL);
@@ -328,9 +328,9 @@ try
 			cr = ana.nCorrect / (ana.nCorrect+ana.nBreakFix);
 			cr2 = ana.nCorrect / (ana.nCorrect+ana.nBreakFix+ana.nBreakInit);
 			statusMessage(eL,'Subject Broke Fixation!');
-			trackerMessage(eL,'TRIAL_RESULT -1');
 			WaitSecs('YieldSecs',0.3);
 			stopRecording(eL); setOffline(eL);
+			trackerMessage(eL,'TRIAL_RESULT -1');
 			resetFixation(eL);
 			updatePlot(seq.totalRuns);
 			fprintf('===>>> BROKE FIX: Trial = %i (%i secs) correct rate: %.2f (break+init: %.2f)\n\n',...

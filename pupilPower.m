@@ -335,9 +335,9 @@ classdef pupilPower < analysisCore
 			end
 			
 			line([me.measureRange(1) me.measureRange(1)],[minp maxp],...
-				'Color',[0.3 0.3 0.3 0.5],'linestyle',':','LineWidth',2);
+				'Color',[0.2 0.2 0.2 0.8],'linestyle',':','LineWidth',3);
 			line([me.measureRange(2) me.measureRange(2)],[minp maxp],...
-				'Color',[0.3 0.3 0.3 0.5],'linestyle',':','LineWidth',2);
+				'Color',[0.2 0.2 0.2 0.8],'linestyle',':','LineWidth',3);
 			
 			data.minDiameter = minp;
 			data.maxDiameter = maxp;
@@ -350,7 +350,7 @@ classdef pupilPower < analysisCore
 			else
 				title(['Raw Pupil (mode: ' mode '|bg: ' num2str(me.metadata.ana.backgroundColor,'%.3f ') '): # Trials = ' num2str(me.metadata.ana.trialNumber) ' | Subject = ' me.metadata.ana.subject  ' | Range = ' num2str(data.diameterRange,'%.2f')])
 			end
-			xlim([-0.2 me.measureRange(2)+0.15]);
+			xlim([-0.25 me.measureRange(2)+0.25]);
 			if minp == 0; minp = -1;end
 			if maxp==0; maxp = 1; end
 			if minp <= 0
@@ -953,12 +953,15 @@ classdef pupilPower < analysisCore
 						end
 
 						idx = t >= me.measureRange(1) & t <= me.measureRange(2);
-						p = p(idx);
-						if me.detrend
-							p = p - mean(p);
+						if ~any(idx)
+							p=NaN;P=NaN;f=NaN;A=NaN;p0=NaN;p1=NaN;p2=NaN;A0=NaN;A2=NaN;
+						else
+							p = p(idx);
+							if me.detrend
+								p = p - mean(p);
+							end
+							[P,f,A,p1,p0,p2,A0,A2] = me.doFFT(p);
 						end
-
-						[P,f,A,p1,p0,p2,A0,A2] = me.doFFT(p);
 
 						me.powerValues{currentVar}(currentBlock) = p1; %get the pupil power of tagging frequency
 						me.phaseValues{currentVar}(currentBlock) = rad2deg(A);
