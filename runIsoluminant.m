@@ -9,6 +9,11 @@ if ana.sendReward
 	open(rM) %open our reward manager
 end
 
+alpha = 1;
+if length(ana.colorFixed) == 4
+	alpha = ana.colorFixed(4);
+end
+
 fprintf('\n--->>> runIsoluminant Started: ana UUID = %s!\n',ana.uuid);
 
 %===================Initiate out metadata===================
@@ -254,6 +259,8 @@ try
 		fixedColor = fColour;
 		backColor = fixedColor;
 		centerColor = modColor;
+		centerColor(4) = alpha;
+		backColor(4) = alpha;
 		fprintf('===>>> modColor=%s | fixColor=%s @ %i frames\n',num2str(modColor),num2str(fixedColor),ana.onFrames);
 		trackerMessage(eL,['MSG:modColor=' num2str(modColor)]);
 		trackerMessage(eL,['MSG:variable=' num2str(seq.outIndex(seq.totalRuns))]);
@@ -282,11 +289,13 @@ try
 				else
 					backColor = fixedColor; centerColor = modColor;
 				end
+				centerColor(4) = alpha;
+				backColor(4) = alpha;
 			end
 			
 			circle1.colourOut = centerColor;
 			circle2.colourOut = backColor;
-			circle2.draw(); %background circle draw first!
+			%circle2.draw(); %background circle draw first!
 			circle1.draw();
 			
 			if ana.fixCross
@@ -432,15 +441,17 @@ end
 		ifi = sM.screenVals.ifi;
 		t = 0:ifi:ifi*(ana.trial(thisTrial).totalFrames-1);
 		hold(ana.plotAxis1,'on');
-		plot(ana.plotAxis1,t,ana.trial(thisTrial).pupil-mean(ana.trial(thisTrial).pupil(1:5)),'Color',map(v,:));
-		xlim(ana.plotAxis1,[ 0 ana.trialDuration]);
-		calculatePower(thisTrial)
-		hold(ana.plotAxis2,'on');
-		plot(ana.plotAxis2,thisTrial,powerValues(thisTrial),'k-o','MarkerSize',8,...
-			'MarkerEdgeColor',map(v,:),'MarkerFaceColor',map(v,:),...
-			'DisplayName',num2str(ana.trial(thisTrial).variable));
-		errorbar(ana.plotAxis3,1:length(powerValuesV),cellfun(@mean,powerValuesV),cellfun(@std,powerValuesV))
-        drawnow
+		try 
+			plot(ana.plotAxis1,t,ana.trial(thisTrial).pupil-mean(ana.trial(thisTrial).pupil(1:5)),'Color',map(v,:));
+			xlim(ana.plotAxis1,[ 0 ana.trialDuration]);
+			calculatePower(thisTrial)
+			hold(ana.plotAxis2,'on');
+			plot(ana.plotAxis2,thisTrial,powerValues(thisTrial),'k-o','MarkerSize',8,...
+				'MarkerEdgeColor',map(v,:),'MarkerFaceColor',map(v,:),...
+				'DisplayName',num2str(ana.trial(thisTrial).variable));
+			errorbar(ana.plotAxis3,1:length(powerValuesV),cellfun(@mean,powerValuesV),cellfun(@std,powerValuesV))
+		end
+		drawnow
 	end
 
 	function calculatePower(thisTrial)

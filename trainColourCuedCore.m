@@ -219,6 +219,8 @@ try
 	if ana.sendTrigger == true
 		dPP = plusplusManager;
 		dPP.sM = sM;
+		dPP.open();
+		WaitSecs(0.2);
 		dPP.sendStrobe(0);
 		flip(sM); flip(sM);
 	end
