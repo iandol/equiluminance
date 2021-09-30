@@ -337,7 +337,7 @@ try
 			cr = ana.nCorrect / (ana.nCorrect+ana.nBreakFix);
 			cr2 = ana.nCorrect / (ana.nCorrect+ana.nBreakFix+ana.nBreakInit);
 			statusMessage(eL,'Subject Broke Fixation!');
-			WaitSecs('YieldSecs',0.3);
+			WaitSecs('YieldSecs',0.5);
 			stopRecording(eL); setOffline(eL);
 			trackerMessage(eL,'TRIAL_RESULT -1');
 			resetFixation(eL);
@@ -355,7 +355,7 @@ try
 			statusMessage(eL,'CORRECT!');
 			trackerClearScreen(eL);
 			trackerMessage(eL,'TRIAL_RESULT 1');
-			WaitSecs('YieldSecs',0.3);
+			WaitSecs('YieldSecs',0.5);
 			stopRecording(eL); setOffline(eL);
 			resetFixation(eL);
             updatePlot(seq.totalRuns);

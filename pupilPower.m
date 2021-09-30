@@ -11,8 +11,10 @@ classdef pupilPower < analysisCore
 		verbose = true
 		%> normalise the pupil diameter to the baseline?
 		normaliseBaseline logical = true
-		%> detrend each trial  before computing FFT
+		%> remove mean of each trial  before computing FFT
 		detrend logical = true
+		%> linear detrend each trial before computing FFT
+		detrendLinear logical = false
 		%> normalise the plots of power vs luminance?
 		normalisePowerPlots logical = true
 		%> color map to use
@@ -38,6 +40,8 @@ classdef pupilPower < analysisCore
 		calibrationFile = ''
 		%> use simple luminance maxima or the linear regression
 		simpleMode = false
+		%> show 2nd harmonic plots
+		plotHarmonics = false
 	end
 	
 	properties (Hidden = true)
@@ -49,8 +53,8 @@ classdef pupilPower < analysisCore
 		xpoints = []
 		%> trial numbers to exclude
 		excludeTrials = []
-		%> show 2nd harmonic plots
-		plotHarmonics = false
+		%> show the frequencies
+		showFrequencies = true
 	end
 	
 	%------------------VISIBLE PROPERTIES----------%
@@ -62,6 +66,8 @@ classdef pupilPower < analysisCore
 		meanPupil
 		varPupil
 		meanTimes
+		modifiedPupil 
+		modifiedTimes
 		meanF
 		meanP
 		varP
@@ -262,8 +268,13 @@ classdef pupilPower < analysisCore
 			handles.h2=figure;figpos(1,[0.9 0.9],[],'%');set(handles.h2,'Color',[1 1 1],'NumberTitle','off',...
 				'Name',['pupilPower: ' me.pupilData.file],'Papertype','a4','PaperUnits','centimeters',...
 				'PaperOrientation','landscape','Renderer','painters');
-			tl = tiledlayout(handles.h2,2,3,'TileSpacing','compact');
-			ax1 = nexttile(tl,[1 3]);
+			if me.showFrequencies
+				tl = tiledlayout(handles.h2,2,3,'TileSpacing','compact');
+				ax1 = nexttile(tl,[1 3]);
+			else
+				tl = tiledlayout(handles.h2,2,1,'TileSpacing','compact');
+				ax1 = nexttile(tl);
+			end
 			traceColor				= colormap(me.colorMap);
 			traceColor_step			= floor(length(traceColor)/numVars);
 			
@@ -287,6 +298,8 @@ classdef pupilPower < analysisCore
 				e = me.varPupil{i};
 				
 				if isempty(t); continue; end
+
+				c = traceColor((a*traceColor_step)+1,:);
 				
 				if me.pupilData.sampleRate > 500
 					idx = circshift(logical(mod(1:length(t),me.downSample)), -(me.downSample-1)); %downsample every N as less points to draw
@@ -303,7 +316,7 @@ classdef pupilPower < analysisCore
 				
 				idx = t >= me.measureRange(1) & t <= me.measureRange(2);
 				if me.detrend
-					m = mean(p(idx));
+					m = mean(p(idx),'omitnan');
 					if ~isnan(m); p = p - mean(p(idx)); end
 				end
 				
@@ -313,8 +326,8 @@ classdef pupilPower < analysisCore
 
 				if ~isempty(p)
 					if me.drawError
-						PL1 = analysisCore.areabar(t,p,e,traceColor((a*traceColor_step)+1,:),0.2,...
-							'Color', traceColor((a*traceColor_step)+1,:), 'LineWidth', 2,'DisplayName',colorLabels{i});
+						PL1 = analysisCore.areabar(t,p,e,c,0.2,...
+							'Color', c, 'LineWidth', 2,'DisplayName',colorLabels{i});
 						try
 							row = dataTipTextRow('Color',repmat({num2str(trlColors(i))},length(t),1));
 							PL1.plot.DataTipTemplate.DataTipRows(end+1) = row;
@@ -322,7 +335,7 @@ classdef pupilPower < analysisCore
 							PL1.plot.DataTipTemplate.DataTipRows(2).Label = 'Power';
 						end
 					else
-						PL1 = plot(t,p,'color', traceColor((a*traceColor_step)+1,:),...
+						PL1 = plot(t,p,'color', c,...
 							'LineWidth', 1,'DisplayName',colorLabels{i});
 						try
 							PL1.DataTipTemplate.DataTipRows(1).Label = 'Time';
@@ -363,52 +376,68 @@ classdef pupilPower < analysisCore
 			ax1.XMinorGrid = 'on';
 			ax1.FontSize = 12;
 			
-			ax2 = nexttile(tl);
-			maxP = 0;
-			a=0;
-			for i = start : finish %1: length(me.meanF)
-				hold on
-				F = me.meanF{i};
-				P = me.meanP{i};
-				idx = F < 20;
-				F = F(idx);
-				P = P(idx);
-				maxP = max([maxP max(P)]);
-				PL2 = plot(F,P,'color', [traceColor((a*traceColor_step)+1,:) 0.6],...
-					'Marker','o','DisplayName',colorLabels{i},...
-					'MarkerSize', 5,'MarkerFaceColor',traceColor((a*traceColor_step)+1,:),...
-					'MarkerEdgeColor', 'none');
-				try
-					row = dataTipTextRow('Color',repmat({num2str(trlColors(i))},length(t),1));
-					PL2.DataTipTemplate.DataTipRows(end+1) = row;
-					PL2.DataTipTemplate.DataTipRows(1).Label = 'Frequency';
-					PL2.DataTipTemplate.DataTipRows(2).Label = 'Power';
+			if me.showFrequencies
+				ax2 = nexttile(tl);
+				maxP = 0;
+				a=0;
+				for i = start : finish %1: length(me.meanF)
+					hold on
+					c = traceColor((a*traceColor_step)+1,:);
+					F = me.meanF{i};
+					P = me.meanP{i};
+					idx = F < 20;
+					F = F(idx);
+					P = P(idx);
+					maxP = max([maxP max(P)]);
+					PL2 = plot(F,P,'color', [c 0.6],...
+						'Marker','o','DisplayName',colorLabels{i},...
+						'MarkerSize', 5,'MarkerFaceColor',traceColor((a*traceColor_step)+1,:),...
+						'MarkerEdgeColor', 'none');
+					try
+						row = dataTipTextRow('Color',repmat({num2str(trlColors(i))},length(t),1));
+						PL2.DataTipTemplate.DataTipRows(end+1) = row;
+						PL2.DataTipTemplate.DataTipRows(1).Label = 'Frequency';
+						PL2.DataTipTemplate.DataTipRows(2).Label = 'Power';
+					end
+					a = a + 1;
 				end
-				a = a + 1;
+				xlim([-0.1 floor(me.metadata.ana.frequency*3)]);
+				if maxP==0; maxP=1; end
+				ylim([0 maxP+(maxP/20)]);
+				xlabel('Frequency (Hz)');
+				ylabel('Power');
+				if ~me.detrend && ~me.normaliseBaseline
+					ax2.YScale = 'log';
+					ylabel('Power [log]');
+				end
+				line([me.taggingFrequency me.taggingFrequency],[ax2.YLim(1) ax2.YLim(2)],...
+					'Color',[0.3 0.3 0.3 0.5],'linestyle',':','LineWidth',2);
+				if me.plotHarmonics
+					line([me.taggingFrequency*2 me.taggingFrequency*2],[ax2.YLim(1) ax2.YLim(2)],...
+						'Color',[0.3 0.3 0.3 0.5],'linestyle',':','LineWidth',2);
+					line([0 0],[ax2.YLim(1) ax2.YLim(2)],...
+						'Color',[0.3 0.3 0.3 0.5],'linestyle',':','LineWidth',2);
+				end
+				title(['FFT Power: range = ' num2str(me.measureRange,'%.2f ') 'secs | F = ' num2str(me.taggingFrequency) 'Hz\newlineHanning = ' num2str(me.useHanning)]);
+				box on; grid on; grid minor;
+				ax2.FontSize = 12;
+			else
+				ax2 = [];
 			end
-			xlim([-0.1 floor(me.metadata.ana.frequency*3)]);
-			if maxP==0; maxP=1; end
-			ylim([0 maxP+(maxP/20)]);
-			xlabel('Frequency (Hz)');
-			ylabel('Power');
-			if ~me.detrend && ~me.normaliseBaseline
-				ax2.YScale = 'log';
-				ylabel('Power [log]');
+			
+			if me.showFrequencies
+				ax3 = nexttile(tl,[1 2]);
+			else
+				ax3 = nexttile(tl);
 			end
-			line([me.taggingFrequency me.taggingFrequency],[ax2.YLim(1) ax2.YLim(2)],...
-				'Color',[0.3 0.3 0.3 0.5],'linestyle',':','LineWidth',2);
-			title(['FFT Power: range = ' num2str(me.measureRange,'%.2f ') 'secs | F = ' num2str(me.taggingFrequency) 'Hz\newlineHanning = ' num2str(me.useHanning)]);
-			
-			box on; grid on; grid minor;
-			ax2.FontSize = 12;
-			
-			ax3 = nexttile(tl,[1 2]);
 			is0=false;
 			is2=false;
 			hold on
 			if exist('colororder','file')>0; colororder({'k','k'});end
 			yyaxis right
-			phase1H = analysisCore.areabar(cstep,me.meanPhaseValues(start:finish),...
+			pv = me.meanPhaseValues(start:finish);
+			if min(pv) < 0; pv = pv + abs(min(pv)); end
+			phase1H = analysisCore.areabar(cstep,pv,...
 				me.varPhaseValues(start:finish),[0.6 0.6 0.3],0.25,'LineWidth',1.5,'DisplayName','Phase-H1');
 			try
 				phase1H.plot.DataTipTemplate.DataTipRows(1).Label = 'Luminance';
@@ -417,15 +446,17 @@ classdef pupilPower < analysisCore
 			if me.plotHarmonics
 				is2=true;
 				hold on
-				phase2H = analysisCore.areabar(cstep,me.meanPhaseValues2(start:finish),...
+				pv2 = me.meanPhaseValues2(start:finish);
+				if min(pv2) < 0; pv2 = pv2 + abs(min(pv2)); end
+				phase2H = analysisCore.areabar(cstep,pv2,...
 				me.varPhaseValues2(start:finish),[0.6 0.6 0.6],0.25,'LineWidth',1,'DisplayName','Phase-H2');
 				try
 				phase2H.plot.DataTipTemplate.DataTipRows(1).Label = 'Luminance';
 				phase2H.plot.DataTipTemplate.DataTipRows(2).Label = 'Phase';
 			end
 			end
-			mn = min(me.meanPhaseValues-me.varPhaseValues);
-			mx = max(me.meanPhaseValues+me.varPhaseValues);
+			mn = min(pv-me.varPhaseValues);
+			mx = max(pv+me.varPhaseValues);
 			if ~me.plotHarmonics; ylim([mn mx]); end
 			%PL3b = plot(trlColors,rad2deg(A),'k-.','Color',[0.6 0.6 0.3],'linewidth',1);
 			ylabel('Phase (deg)');
@@ -563,9 +594,9 @@ classdef pupilPower < analysisCore
 			handles.ax1 = ax1;
 			handles.ax2 = ax2;
 			handles.ax3 = ax3;
-			handles.PL1 = PL1;
-			handles.PL2 = PL2;
-			handles.PL3a = phase1H;
+			if exist('PL1','var');handles.PL1 = PL1;end
+			if exist('PL2','var');handles.PL2 = PL2;end
+			if exist('PL3a','var');handles.PL3a = phase1H;end
 			if exist('h0PH','var');handles.PL3 = h0PH;end
 			if exist('h1PH','var'); handles.PL4 = h1PH;end
 			if exist('h0h1PH','var');handles.PL5 = h0h1PH;end
@@ -575,6 +606,29 @@ classdef pupilPower < analysisCore
 			drawnow;
 			figure(handles.h2);
 			
+		end
+
+		% ===================================================================
+		%> @brief 
+		%>
+		%> @param
+		%> @return
+		% ===================================================================
+		function plotIndividualTrials(me)
+			if isempty(me.modifiedPupil);warning('No data yet analysed');return;end
+			figure; hold on;
+			numVars					= length(me.modifiedPupil);
+			traceColor				= colormap(me.colorMap);
+			traceColor_step			= floor(length(traceColor)/numVars);
+			for i = 1 : numVars
+				c = traceColor(((i-1)*traceColor_step)+1,:);
+				for j = 1:length(me.modifiedPupil{i})
+					plot(me.modifiedTimes{i}{j}, me.modifiedPupil{i}{j}, 'Color', c);
+				end
+			end
+			box on; grid on
+			xlabel('Time (secs)')
+			ylabel('Pupil Diameter')
 		end
 		
 		% ===================================================================
@@ -927,6 +981,7 @@ classdef pupilPower < analysisCore
 				end
 			end
 			
+			lModel = fittype('a*(sin(x-pi))+b*((x-10)^2)+c*(1)');
 			thisTrials = me.SortedPupil.pupilTrials;
 			numvars=minTrials; %Number of trials
 			t1=tic;
@@ -957,12 +1012,22 @@ classdef pupilPower < analysisCore
 							p=NaN;P=NaN;f=NaN;A=NaN;p0=NaN;p1=NaN;p2=NaN;A0=NaN;A2=NaN;
 						else
 							p = p(idx);
+							t = t(idx);
+							if me.detrendLinear
+								warning off;
+								mf = fit(t',p','poly1');
+								pm = feval(mf,t);
+								p = p - pm;
+								warning on;
+							end
 							if me.detrend
 								p = p - mean(p);
 							end
 							[P,f,A,p1,p0,p2,A0,A2] = me.doFFT(p);
 						end
 
+						me.modifiedPupil{currentVar}{currentBlock} = p;
+						me.modifiedTimes{currentVar}{currentBlock} = t;
 						me.powerValues{currentVar}(currentBlock) = p1; %get the pupil power of tagging frequency
 						me.phaseValues{currentVar}(currentBlock) = rad2deg(A);
 						me.powerValues0{currentVar}(currentBlock) = p0; %get the pupil power of 0 harmonic
