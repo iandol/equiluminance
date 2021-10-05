@@ -228,7 +228,7 @@ try
 		while keepRunning
 			switch stroke
 				case 1
-					grating.driftPhase = 0; %see Cavanagh 1987 Fig. 1,darker red=left
+					grating.driftPhase = 0;
 					draw(grating)
 				case 2
 					grating.driftPhase = 180;

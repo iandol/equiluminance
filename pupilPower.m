@@ -321,8 +321,8 @@ classdef pupilPower < analysisCore
 				end
 				
 				idx = t >= me.measureRange(1) & t <= me.measureRange(2);
-				maxp = max([maxp max(p(idx))]);
-				minp = min([minp min(p(idx))]);
+				maxp = max([maxp max(p(idx)+e(idx))]);
+				minp = min([minp min(p(idx)-e(idx))]);
 
 				if ~isempty(p)
 					if me.drawError
@@ -363,13 +363,13 @@ classdef pupilPower < analysisCore
 			else
 				title(['Raw Pupil (mode: ' mode '|bg: ' num2str(me.metadata.ana.backgroundColor,'%.3f ') '): # Trials = ' num2str(me.metadata.ana.trialNumber) ' | Subject = ' me.metadata.ana.subject  ' | Range = ' num2str(data.diameterRange,'%.2f')])
 			end
-			xlim([-0.25 me.measureRange(2)+0.25]);
+			xlim([me.measureRange(1)-0.25 me.measureRange(2)+0.25]);
 			if minp == 0; minp = -1;end
 			if maxp==0; maxp = 1; end
 			if minp <= 0
-				ylim([minp+(minp/10) maxp+(maxp/10)]);
+				ylim([minp+(minp/7) maxp+(maxp/7)]);
 			else
-				ylim([minp-(minp/10) maxp+(maxp/10)]);
+				ylim([minp-(minp/7) maxp+(maxp/7)]);
 			end
 			legend(colorLabels(start:finish),'FontSize',10,'Location','southwest'); %'Position',[0.955 0.75 0.04 0.24]
 			box on; grid on; 
@@ -614,21 +614,24 @@ classdef pupilPower < analysisCore
 		%> @param
 		%> @return
 		% ===================================================================
-		function plotIndividualTrials(me)
+		function plotIndividualTrials(me,idx)
 			if isempty(me.modifiedPupil);warning('No data yet analysed');return;end
-			figure; hold on;
 			numVars					= length(me.modifiedPupil);
+			if ~exist('idx','var'); idx = 1 : numVars; end
 			traceColor				= colormap(me.colorMap);
 			traceColor_step			= floor(length(traceColor)/numVars);
-			for i = 1 : numVars
-				c = traceColor(((i-1)*traceColor_step)+1,:);
+			figure; hold on;
+			for i = idx
+				cl = traceColor(((i-1)*traceColor_step)+1,:);
 				for j = 1:length(me.modifiedPupil{i})
-					plot(me.modifiedTimes{i}{j}, me.modifiedPupil{i}{j}, 'Color', c);
+					plot(me.modifiedTimes{i}{j}, me.modifiedPupil{i}{j}, 'Color', cl,'LineWidth',2);
 				end
+				box on; grid on
+				xlabel('Time (secs)')
+				ylabel('Pupil Diameter')
+				drawnow;
+				WaitSecs(1);
 			end
-			box on; grid on
-			xlabel('Time (secs)')
-			ylabel('Pupil Diameter')
 		end
 		
 		% ===================================================================
