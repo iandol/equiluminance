@@ -42,6 +42,8 @@ classdef pupilPower < analysisCore
 		simpleMode = false
 		%> show 2nd harmonic plots
 		plotHarmonics = false
+		%> fitting function
+		fit = 'smoothingspline'
 	end
 	
 	properties (Hidden = true)
@@ -175,7 +177,7 @@ classdef pupilPower < analysisCore
 			if isempty(me.l); me.simpleMode = true; end
 			if ~exist('force','var') || isempty(force); force = false; end
 			me.load(force);
-			
+			if isempty(me.metadata);warning('No data was loaded...');return;end
 			if isfield(me.metadata.ana,'onFrames')
 				me.taggingFrequency = (me.metadata.sM.screenVals.fps/me.metadata.ana.onFrames) / 2;
 				me.transitionTime = me.metadata.ana.onFrames * (1/me.metadata.sM.screenVals.fps);
@@ -269,12 +271,16 @@ classdef pupilPower < analysisCore
 				'Name',['pupilPower: ' me.pupilData.file],'Papertype','a4','PaperUnits','centimeters',...
 				'PaperOrientation','landscape','Renderer','painters');
 			if me.showFrequencies
-				tl = tiledlayout(handles.h2,2,3,'TileSpacing','compact');
+				tl = tiledlayout(handles.h2,2,3,'TileSpacing','tight');
 				ax1 = nexttile(tl,[1 3]);
 			else
-				tl = tiledlayout(handles.h2,2,1,'TileSpacing','compact');
+				tl = tiledlayout(handles.h2,2,1,'TileSpacing','tight');
 				ax1 = nexttile(tl);
 			end
+			tl.Padding				= 'tight';
+			tl.Title.String			= me.pupilData.file;
+			tl.Title.Interpreter	= 'none';
+			tl.Title.FontWeight		= 'bold';
 			traceColor				= colormap(me.colorMap);
 			traceColor_step			= floor(length(traceColor)/numVars);
 			
@@ -371,7 +377,7 @@ classdef pupilPower < analysisCore
 			else
 				ylim([minp-(minp/7) maxp+(maxp/7)]);
 			end
-			legend(colorLabels(start:finish),'FontSize',10,'Location','southwest'); %'Position',[0.955 0.75 0.04 0.24]
+			legend(colorLabels(start:finish),'FontSize',10,'Location','northwest'); %'Position',[0.955 0.75 0.04 0.24]
 			box on; grid on; 
 			ax1.XMinorGrid = 'on';
 			ax1.FontSize = 12;
@@ -401,7 +407,7 @@ classdef pupilPower < analysisCore
 					end
 					a = a + 1;
 				end
-				xlim([-0.1 floor(me.metadata.ana.frequency*3)]);
+				xlim([-0.1 floor(me.metadata.ana.frequency*4)]);
 				if maxP==0; maxP=1; end
 				ylim([0 maxP+(maxP/20)]);
 				xlabel('Frequency (Hz)');
@@ -451,13 +457,17 @@ classdef pupilPower < analysisCore
 				phase2H = analysisCore.areabar(cstep,pv2,...
 				me.varPhaseValues2(start:finish),[0.6 0.6 0.6],0.25,'LineWidth',1,'DisplayName','Phase-H2');
 				try
-				phase2H.plot.DataTipTemplate.DataTipRows(1).Label = 'Luminance';
-				phase2H.plot.DataTipTemplate.DataTipRows(2).Label = 'Phase';
+					phase2H.plot.DataTipTemplate.DataTipRows(1).Label = 'Luminance';
+					phase2H.plot.DataTipTemplate.DataTipRows(2).Label = 'Phase';
+				end
+				mn = min([min(pv-me.varPhaseValues) min(pv2-me.varPhaseValues2)]);
+				mx = max([max(pv+me.varPhaseValues) max(pv2+me.varPhaseValues2)]);
+			else
+				mn = min(pv-me.varPhaseValues);
+				mx = max(pv+me.varPhaseValues); 
 			end
-			end
-			mn = min(pv-me.varPhaseValues);
-			mx = max(pv+me.varPhaseValues);
-			if ~me.plotHarmonics; ylim([mn mx]); end
+			
+			ylim([mn mx]);
 			%PL3b = plot(trlColors,rad2deg(A),'k-.','Color',[0.6 0.6 0.3],'linewidth',1);
 			ylabel('Phase (deg)');
 			data.X=cstep;
@@ -519,7 +529,7 @@ classdef pupilPower < analysisCore
 			
 			xx = linspace(min(cstep),max(cstep),500);
 			warning off
-			f = fit(cstep',m','smoothingspline');
+			f = fit(cstep',m',me.fit);
 			warning on
 			yy = feval(f,xx);
 			ymin = find(yy==min(yy));
@@ -587,7 +597,7 @@ classdef pupilPower < analysisCore
 			else
 				leg = [h1PH.plot,phase1H.plot,fitH];
 			end
-			legend(leg,'FontSize',10,'Location','southwest'); %'Position',[0.9125 0.2499 0.0816 0.0735],
+			legend(leg,'FontSize',10,'Location','southeast'); %'Position',[0.9125 0.2499 0.0816 0.0735],
 			
 			box on; grid on;
 			
@@ -615,20 +625,20 @@ classdef pupilPower < analysisCore
 		%> @return
 		% ===================================================================
 		function plotIndividualTrials(me,idx)
-			if isempty(me.modifiedPupil);warning('No data yet analysed');return;end
+			if isempty(me.modifiedPupil); warning('No data yet analysed');return;end
 			numVars					= length(me.modifiedPupil);
 			if ~exist('idx','var'); idx = 1 : numVars; end
+			figure; hold on; colormap(me.colorMap);
+			box on; grid on
+			xlabel('Time (secs)')
+			ylabel('Pupil Diameter')
 			traceColor				= colormap(me.colorMap);
 			traceColor_step			= floor(length(traceColor)/numVars);
-			figure; hold on;
 			for i = idx
 				cl = traceColor(((i-1)*traceColor_step)+1,:);
-				for j = 1:length(me.modifiedPupil{i})
-					plot(me.modifiedTimes{i}{j}, me.modifiedPupil{i}{j}, 'Color', cl,'LineWidth',2);
-				end
-				box on; grid on
-				xlabel('Time (secs)')
-				ylabel('Pupil Diameter')
+				x = cell2mat(me.modifiedTimes{i}(1:end)')';
+				y = cell2mat(me.modifiedPupil{i}(1:end)')';
+				plot(x, y, 'Color', cl,'LineWidth',2);
 				drawnow;
 				WaitSecs(1);
 			end
@@ -907,6 +917,7 @@ classdef pupilPower < analysisCore
 					me.rootDirectory = me.pupilData.dir;
 				end
 				[~,fn] = fileparts(me.pupilData.file);
+				if isempty(fn) || ~exist([me.pupilData.dir,filesep,fn,'.mat'],'file'); warning('No file specified!');return;end
 				me.metadata = load([me.pupilData.dir,filesep,fn,'.mat']); %load .mat of same filename with .edf
 				if isa(me.metadata.sM,'screenManager') && ~isempty(me.metadata.sM.gammaTable)
 					if ~isempty(me.metadata.sM.gammaTable.inputValuesTest)

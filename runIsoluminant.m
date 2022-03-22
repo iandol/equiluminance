@@ -161,7 +161,7 @@ try
 	map = analysisCore.optimalColours(seq.minTrials);
 	
 	initialise(eL, sM); %use sM to pass screen values to eyelink
-	ListenChar(-1); setup(eL); ListenChar(0); % do setup and calibration
+	ListenChar(-1); trackerSetup(eL); ListenChar(0); % do setup and calibration
 	fprintf('--->>> runIsoluminant eL setup complete: %s\n', eL.fullName);
 	WaitSecs('YieldSecs',0.5);
 	getSample(eL); %make sure everything is in memory etc.

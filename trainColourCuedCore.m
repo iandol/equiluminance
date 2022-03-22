@@ -75,7 +75,7 @@ try
 		sM.disableSyncTests = true; 
 	end
 	if ana.debug
-		%sM.windowed		= [0 0 1400 1000]; 
+		sM.windowed		= [800 800]; 
 		sM.visualDebug		= true;
 		sM.debug			= true;
 		sM.verbosityLevel	= 4;
@@ -217,12 +217,16 @@ try
 	
 	%=======================set up the triggers===========================
 	if ana.sendTrigger == true
-		dPP = plusplusManager;
-		dPP.sM = sM;
+		dPP = labJackT;
 		dPP.open();
 		WaitSecs(0.2);
+		dPP.sendStrobe(1);
+		WaitSecs(0.2);
+		dPP.sendStrobe(128);
+		WaitSecs(0.2);
+		dPP.sendStrobe(255);
+		WaitSecs(0.2);
 		dPP.sendStrobe(0);
-		flip(sM); flip(sM);
 	end
 	
 	%====================initialise our trial variables====================
@@ -329,7 +333,7 @@ try
 		statusMessage(eL,'INITIATE FIXATION...');
 		fixated = '';
 		drawPhotoDiode(sM,[0 0 0]);
-		if ana.sendTrigger == true;sendStrobe(dPP,248);flip(sM);end
+		a = 1;
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix') && ~strcmpi(fixated,'EXCLUDED!')
 			drawCross(sM,0.4,fixColour,ana.fixX,ana.fixY);
 			drawPhotoDiode(sM,[0 0 0]);
@@ -360,14 +364,16 @@ try
 				end
 			end
 			flip(sM); %flip the buffer
+			if a == 1 && ana.sendTrigger == true;sendStrobe(dPP,248);end
+			a = a + 1;
 		end
 		
 		if ~strcmpi(fixated,'fix')
 			sM.drawBackground;
 			drawPhotoDiodeSquare(sM,[0 0 0]);
 			flip(sM);
-			if ana.sendTrigger == true;sendStrobe(dPP,249);flip(sM);end
-			if ana.sendTrigger == true;sendStrobe(dPP,255);flip(sM);flip(sM);end %STIM OFF
+			if ana.sendTrigger == true;sendStrobe(dPP,249);end
+			if ana.sendTrigger == true;sendStrobe(dPP,255);end %STIM OFF
 			statusMessage(eL,'Subject Broke Initial Fixation!');
 			edfMessage(eL,'MSG:BreakInitialFix');
 			ana.runningPerformance(ana.nTotal) = -1;
@@ -407,8 +413,8 @@ try
 		end
 		if strcmpi(fixated,'breakfix')
 			sM.drawBackground;
-			if ana.sendTrigger == true;sendStrobe(dPP,249);flip(sM);end
-			if ana.sendTrigger == true;sendStrobe(dPP,255);flip(sM);flip(sM);end %STIM OFF
+			if ana.sendTrigger == true;sendStrobe(dPP,249);end
+			if ana.sendTrigger == true;sendStrobe(dPP,255);end %STIM OFF
 			statusMessage(eL,'Subject Broke CUE Fixation!');
 			edfMessage(eL,'MSG:BreakCueFix');
 			edfMessage(eL,'TRIAL_RESULT -1');
@@ -426,7 +432,7 @@ try
 			fprintf('===>>> BROKE CUE FIXATION Trial = %i\n', seq.totalRuns);
 			drawPhotoDiode(sM,[0 0 0]);
 			flip(sM);
-			aM.beep(250,1,1);
+			aM.beep(150,0.5,1);
 			updatePlot(seq.totalRuns);
 			WaitSecs('YieldSecs',ana.punishDelay);
 			continue
@@ -453,8 +459,8 @@ try
 		end
 		if strcmpi(fixated,'breakfix')
 			drawPhotoDiode(sM,[0 0 0]);
-			if ana.sendTrigger == true;sendStrobe(dPP,249);flip(sM);end
-			if ana.sendTrigger == true;sendStrobe(dPP,255);flip(sM);flip(sM);end %STIM OFF
+			if ana.sendTrigger == true;sendStrobe(dPP,249);end
+			if ana.sendTrigger == true;sendStrobe(dPP,255);end %STIM OFF
 			statusMessage(eL,'Subject Broke Delay Fixation!');
 			edfMessage(eL,'MSG:BreakDelayFix');
 			edfMessage(eL,'TRIAL_RESULT -1');
@@ -471,7 +477,7 @@ try
 			
 			fprintf('===>>> BROKE DELAY FIXATION Trial = %i\n', seq.totalRuns);
 			
-			aM.beep(250,1,1);
+			aM.beep(150,0.5,1);
 			updatePlot(seq.totalRuns);
 			WaitSecs('YieldSecs',ana.punishDelay);
 			continue
@@ -555,7 +561,6 @@ try
 		trackerDrawFixation(eL);
 		statusMessage(eL,'Saccade to Target...');
 
-		if ana.sendTrigger == true;sendStrobe(dPP,seq.outIndex(seq.totalRuns));end
 		drawPhotoDiode(sM,[0 0 0]);
 		vbl = flip(sM);
 		startTick = tick;
@@ -573,6 +578,7 @@ try
 			getSample(eL);
 
 			[tL.vbl(tick),tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);
+			if tick == startTick && ana.sendTrigger == true;sendStrobe(dPP,seq.outIndex(seq.totalRuns));end
 			if tick == startTick; syncTime(eL); end
 			tL.stimTime(tick) = 1;
 			tL.tick = tick;
@@ -581,7 +587,7 @@ try
 
 			fixated=testSearchHoldFixation(eL,'fix','breakfix');
 			if strcmpi(fixated,'breakfix') 
-				if ana.sendTrigger == true;sendStrobe(dPP,253);flip(sM);end %BREAK CHOICE
+				if ana.sendTrigger == true;sendStrobe(dPP,253);end %BREAK CHOICE
 				fprintf('!!!>>> Exclusion = %i Fail Init = %i\n',eL.isExclusion,eL.isInitFail);
 				tFix = GetSecs; tReaction =  tFix - tStart;
 				break %break the while loop
@@ -596,8 +602,6 @@ try
 		end
 		if ana.sendTrigger == true
 			sendStrobe(dPP,255);
-			drawPhotoDiode(sM,[0 0 0]);flip(sM);
-			drawPhotoDiode(sM,[0 0 0]);flip(sM);
 		end %STIM OFF
 
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -734,6 +738,7 @@ try
 	stopRecording(eL);
 	setOffline(eL);
 	close(eL);
+	seq.showLog;
 	if ~isempty(ana.nameExp)
 		ana.plotAxis1 = [];
 		ana.plotAxis2 = [];

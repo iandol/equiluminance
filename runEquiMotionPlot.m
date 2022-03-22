@@ -49,23 +49,37 @@ if ~ana.isMOC
 	'Position',[0.25 0.25 0.5 0.6],...		
 			'Color',[1 1 1],...
 			'PaperType','A4','PaperUnits','centimeters');
+	tiledlayout flow
 	[m,e]=analysisCore.stderr(varCol);
 	[mr,er]=analysisCore.stderr(varcolour);
-	boxplot(varCol,'Colors','k','Notch','on');
+	ratv = (fixCol ./ varCol);
+	[mrr,err]=analysisCore.stderr(ratv);
+	nexttile
+	boxplot(varCol,'Colors','k','Notch','marker');
+	line([0,2],[fixCol, fixCol]);
 	ratio = fixCol / m;
-	tit = sprintf('Match %s=%.3f -> %s=%.3f+-%.3f (%.3f+-%.3f) RATIO = %.3f',...
-		fixLabel,fixCol,varLabel,m,e,mr,er,ratio);
+	tit = sprintf('Match %s=%.3f -> %s=%.3f+-%.3f (%.3f+-%.3f) RATIO = %.3f (%.3f+-%.3f)',...
+		fixLabel,fixCol,varLabel,m,e,mr,er,ratio,mrr,err);
 	title(tit);
+	ylabel('Luminance (cd/m2)')
+	nexttile
+	%boxplot(ratv,'Colors','k','Notch','marker');
+	raincloud_plot(ratv, 'box_on', 1);
+	line([1,1],[-2 2],'Linewidth',2);
+	title(tit);
+	ylabel('Ratio')
 	return
 end
 
 % to plot the psychometric function
 PF					= @PAL_Quick;
-maxbeta				= 200;
-space.alpha			= linspace(min(variableVals), max(variableVals), 100);
-space.beta			= linspace(0, maxbeta, 100);
-space.gamma			= linspace(0, 0.15, 10);
-space.lambda		= linspace(0, 0.15, 10);
+maxbeta				= 30;
+space.alpha			= linspace(min(variableVals), max(variableVals), 200);
+space.beta			= linspace(0, maxbeta, 200);
+%space.beta			= maxbeta;
+space.gamma			= linspace(0, 0.1, 10);
+space.lambda		= linspace(0, 0.1, 10);
+fixP 				= [1 0 0 0];
 pfx					= linspace(min(variableVals),max(variableVals),300);
 
 tit = ['Data: ' f];
@@ -113,7 +127,8 @@ try
 	hold on;
 	try scatter(variableVals,(responseVals./totalVals),(totalVals+1).*20,...
 		'filled','MarkerFaceAlpha',0.5); end
-	[pv,ll,scenario] = PAL_PFML_Fit(variableVals,responseVals,totalVals,space,[1 1 1 1],PF);
+	[pv,ll,scenario] = PAL_PFML_Fit(variableVals,responseVals,totalVals,space,fixP,PF);
+	if scenario < 0; warning('PF did NOT fit!!!!!!'); end
 	fprintf('FIT: %.2f %.2f %.2f %.2f | LL: %.2f | scenario: %i\n',...
 			pv(1),pv(2),pv(3),pv(4),ll,scenario);
 	if isinf(pv(1))
@@ -135,9 +150,9 @@ try
 		char(PF),pv(1),pv(2),sum(totalVals),ratio);
 	tit=regexprep(tit,'_','-');
 	title(tit);
+	line([fixVal fixVal],[0 1],'Color',[.3 .3 .3],'LineStyle','--','LineWidth',2);
+	fprintf('%s var raw: %s\n',varLabel,num2str(pv(1)/maxLuminances(varC),'%.3f '));
 end
-line([fixVal fixVal],[0 1],'Color',[.3 .3 .3],'LineStyle','--','LineWidth',2);
-fprintf('%s var raw: %s\n',varLabel,num2str(pv(1)/maxLuminances(varC),'%.3f '));
 xticks(variableVals);
 xticklabels(varLabels); 
 ax.FontName			= 'Fira code';
