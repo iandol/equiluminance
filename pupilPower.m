@@ -204,6 +204,12 @@ classdef pupilPower < analysisCore
 			data.fixName = fixName;
 			data.varName = varName;
 			data.trlColors = trlColors;
+
+			function spawnMe(src, ~)
+				fnew = figure('Color',[1 1 1],'Units','normalized','Position',[0 0.5 1 0.5]);
+				na = copyobj(src,fnew);
+				na.Position = [0.1 0.1 0.8 0.8];
+			end
 			
 			handles.h1=figure;figpos(2,[1000 500]);set(handles.h1,'Color',[1 1 1],'NumberTitle','off',...
 				'Name',['pupilPower: ' me.pupilData.file],'Papertype','a4','PaperUnits','centimeters',...
@@ -277,6 +283,7 @@ classdef pupilPower < analysisCore
 				tl = tiledlayout(handles.h2,2,1,'TileSpacing','tight');
 				ax1 = nexttile(tl);
 			end
+			ax1.ButtonDownFcn = @spawnMe;
 			tl.Padding				= 'tight';
 			tl.Title.String			= me.pupilData.file;
 			tl.Title.Interpreter	= 'none';
@@ -369,7 +376,7 @@ classdef pupilPower < analysisCore
 			else
 				title(['Raw Pupil (mode: ' mode '|bg: ' num2str(me.metadata.ana.backgroundColor,'%.3f ') '): # Trials = ' num2str(me.metadata.ana.trialNumber) ' | Subject = ' me.metadata.ana.subject  ' | Range = ' num2str(data.diameterRange,'%.2f')])
 			end
-			xlim([me.measureRange(1)-0.25 me.measureRange(2)+0.25]);
+			xlim([me.measureRange(1)-0.3 me.measureRange(2)+0.3]);
 			if minp == 0; minp = -1;end
 			if maxp==0; maxp = 1; end
 			if minp <= 0
@@ -384,6 +391,7 @@ classdef pupilPower < analysisCore
 			
 			if me.showFrequencies
 				ax2 = nexttile(tl);
+				ax2.ButtonDownFcn = @spawnMe;
 				maxP = 0;
 				a=0;
 				for i = start : finish %1: length(me.meanF)
@@ -396,6 +404,7 @@ classdef pupilPower < analysisCore
 					P = P(idx);
 					maxP = max([maxP max(P)]);
 					PL2 = plot(F,P,'color', [c 0.6],...
+						'LineWidth', 2,...
 						'Marker','o','DisplayName',colorLabels{i},...
 						'MarkerSize', 5,'MarkerFaceColor',traceColor((a*traceColor_step)+1,:),...
 						'MarkerEdgeColor', 'none');
@@ -436,6 +445,7 @@ classdef pupilPower < analysisCore
 			else
 				ax3 = nexttile(tl);
 			end
+			ax3.ButtonDownFcn = @spawnMe;
 			is0=false;
 			is2=false;
 			hold on
@@ -541,7 +551,7 @@ classdef pupilPower < analysisCore
 			ratio2 = fixColor / ymin;
 			
 			h1PH = analysisCore.areabar(cstep,m,e,[0.7 0.2 0.2],0.2,...
-				'Marker','o','LineWidth',2,'DisplayName','H1');
+				'LineWidth',2,'DisplayName','H1');
 			try
 				h1PH.plot.DataTipTemplate.DataTipRows(1).Label = 'Luminance';
 				h1PH.plot.DataTipTemplate.DataTipRows(2).Label = 'Power';

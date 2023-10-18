@@ -56,7 +56,6 @@ try
 	sM.windowed		= ana.windowed;
 	sM.pixelsPerCm	= ana.pixelsPerCm;
 	sM.distance		= ana.distance;
-	sM.photoDiode	= true;
 	sM.blend		= true;
 	sM.bitDepth		= ana.bitDepth;
 	sM.verbosityLevel = 4;
@@ -109,20 +108,19 @@ try
 	eL.saveFile = [ana.nameExp '.edf'];
 	eL.recordData = true; %save EDF file
 	eL.sampleRate = ana.sampleRate;
-	eL.remoteCalibration = false; % manual calibration?
-	eL.calibrationProportion = [0.5 0.5];
-	eL.calibrationStyle = ana.calibrationStyle; % calibration style
-	eL.modify.calibrationtargetcolour = [1 1 1];
-	eL.modify.calibrationtargetsize = 1.75;
-	eL.modify.calibrationtargetwidth = 0.1;
-	eL.modify.waitformodereadytime = 500;
-	eL.modify.devicenumber = -1; % -1 = use any keyboard
+	eL.calibration.manual = false; % manual calibration?
+	eL.calibration.proportion = [0.5 0.5];
+	eL.calibration.style = ana.calibrationStyle; % calibration style
+	eL.calibration.calibrationtargetcolour = [1 1 1];
+	eL.calibration.calibrationtargetsize = 1.75;
+	eL.calibration.calibrationtargetwidth = 0.1;
+	eL.calibration.waitformodereadytime = 500;
 	% X, Y, FixInitTime, FixTime, Radius, StrictFix
 	updateFixationValues(eL, ana.fixX, ana.fixY, ana.firstFixInit,...
 		ana.firstFixTime, ana.firstFixDiameter, ana.strictFixation);
 	%sM.verbose = true; eL.verbose = true; sM.verbosityLevel = 10; eL.verbosityLevel = 4; %force lots of log output
 	initialise(eL, sM); %use sM to pass screen values to eyelink
-	ListenChar(-1); setup(eL); ListenChar(0); % do setup and calibration
+	ListenChar(-1); trackerSetup(eL); ListenChar(0); % do setup and calibration
 	fprintf('--->>> runEquiFlicker eL setup complete: %s\n', eL.fullName);
 	WaitSecs('YieldSecs',0.5);
 	getSample(eL); %make sure everything is in memory etc.

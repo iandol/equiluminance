@@ -155,14 +155,14 @@ try
 	eL.saveFile = [ana.nameExp '.edf'];
 	eL.recordData = true; %save EDF file
 	eL.sampleRate = ana.sampleRate;
-	eL.remoteCalibration = false; % manual calibration?
-	eL.calibrationStyle = ana.calibrationStyle; % calibration style
+	eL.calibration.manual = false; % manual calibration?
+	eL.calibration.style = ana.calibrationStyle; % calibration style
 	eL.exclusionZone = ana.exclusionZone;
-	eL.modify.calibrationtargetcolour = [1 1 1];
-	eL.modify.calibrationtargetsize = 1;
-	eL.modify.calibrationtargetwidth = 0.05;
-	eL.modify.waitformodereadytime = 500;
-	eL.modify.devicenumber = -1; % -1 = use any keyboard
+	eL.calibration.calibrationtargetcolour = [1 1 1];
+	eL.calibration.calibrationtargetsize = 1;
+	eL.calibration.calibrationtargetwidth = 0.05;
+	eL.calibration.waitformodereadytime = 500;
+	eL.calibration.devicenumber = -1; % -1 = use any keyboard
 	% X, Y, FixInitTime, FixTime, Radius, StrictFix
 	updateFixationValues(eL, ana.fixX, ana.fixY, ana.firstFixInit,...
 		ana.firstFixTime, ana.firstFixDiameter, ana.strictFixation);
@@ -170,7 +170,7 @@ try
 	%sM.verbose = true; eL.verbose = true; sM.verbosityLevel = 10; eL.verbosityLevel = 4; %force lots of log output
 	
 	initialise(eL, sM); %use sM to pass screen values to eyelink
-	setup(eL); % do setup and calibration
+	trackerSetup(eL); % do setup and calibration
 	fprintf('--->>> Train eL setup complete: %s\n', eL.fullName);
 	WaitSecs('YieldSecs',0.5);
 	getSample(eL); %make sure everything is in memory etc.

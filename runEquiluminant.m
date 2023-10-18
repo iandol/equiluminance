@@ -14,7 +14,7 @@ if length(ana.colorFixed) == 4
 	alpha = ana.colorFixed(4);
 end
 
-fprintf('\n--->>> runIsoluminant Started: ana UUID = %s!\n',ana.uuid);
+fprintf('\n--->>> runEquiluminant Started: ana UUID = %s!\n',ana.uuid);
 
 %===================Initiate out metadata===================
 ana.date		= datestr(datetime);
@@ -60,7 +60,6 @@ try
 	sM.pixelsPerCm	= ana.pixelsPerCm;
 	sM.distance		= ana.distance;
 	sM.debug		= ana.debug;
-	sM.photoDiode	= false;
 	sM.blend		= true;
 	sM.bitDepth		= ana.bitDepth;
 	sM.verbosityLevel = 4;
@@ -75,7 +74,7 @@ try
 	screenVals			= sM.open; % OPEN THE SCREEN
 	ana.gpuInfo			= Screen('GetWindowInfo',sM.win);
 	ana.screenVals		= screenVals;
-	fprintf('\n--->>> runIsoluminant Opened Screen %i : %s\n', sM.win, sM.fullName);
+	fprintf('\n--->>> runEquiluminant Opened Screen %i : %s\n', sM.win, sM.fullName);
 	disp(screenVals);
 	
 	if IsLinux
@@ -133,25 +132,25 @@ try
 	seq.initialise();
 	ana.nTrials = seq.nRuns;
 	ana.onFrames = round(((1/ana.frequency) * sM.screenVals.fps)) / 2; % video frames for each color
-	fprintf('--->>> runIsoluminant # Trials: %i; # Frames Flip: %i; FPS: %i \n',seq.nRuns, ana.onFrames, sM.screenVals.fps);
+	fprintf('--->>> runEquiluminant # Trials: %i; # Frames Flip: %i; FPS: %i \n',seq.nRuns, ana.onFrames, sM.screenVals.fps);
 	WaitSecs('YieldSecs',0.25);
 	
 	%==============================setup eyelink==========================
 	ana.strictFixation = true;
 	eL = eyelinkManager('IP',[]);
-	fprintf('--->>> runIsoluminant eL setup starting: %s\n', eL.fullName);
+	fprintf('--->>> runEquiluminant eL setup starting: %s\n', eL.fullName);
 	eL.isDummy = ana.isDummy; %use dummy or real eyelink?
 	eL.name = ana.nameExp;
 	eL.saveFile = [ana.nameExp '.edf'];
 	eL.recordData = true; %save EDF file
 	eL.sampleRate = ana.sampleRate;
-	eL.remoteCalibration = ana.fixManual; % manual calibration?
-	eL.calibrationStyle = 'HV5'; % calibration style
-	eL.modify.calibrationtargetcolour = [1 1 1];
-	eL.modify.calibrationtargetsize = 1.75;
-	eL.modify.calibrationtargetwidth = 0.1;
-	eL.modify.waitformodereadytime = 500;
-	eL.modify.devicenumber = -1; % -1 = use any keyboard
+	eL.calibration.manual = ana.fixManual; % manual calibration?
+	eL.calibration.style = 'HV5'; % calibration style
+	eL.calibration.calibrationtargetcolour = [1 1 1];
+	eL.calibration.calibrationtargetsize = 1.75;
+	eL.calibration.calibrationtargetwidth = 0.1;
+	eL.calibration.waitformodereadytime = 500;
+	eL.calibration.devicenumber = -1; % -1 = use any keyboard
 	% X, Y, FixInitTime, FixTime, Radius, StrictFix
 	updateFixationValues(eL, ana.fixX, ana.fixY, ana.firstFixInit,...
 		ana.firstFixTime, ana.firstFixDiameter, ana.strictFixation);
@@ -162,7 +161,7 @@ try
 	
 	initialise(eL, sM); %use sM to pass screen values to eyelink
 	ListenChar(-1); trackerSetup(eL); ListenChar(0); % do setup and calibration
-	fprintf('--->>> runIsoluminant eL setup complete: %s\n', eL.fullName);
+	fprintf('--->>> runEquiluminant eL setup complete: %s\n', eL.fullName);
 	WaitSecs('YieldSecs',0.5);
 	getSample(eL); %make sure everything is in memory etc.
 	
@@ -186,7 +185,7 @@ try
 	%-------------------------------------TASK LOOP----------------------------------
 	while ~seq.taskFinished && ~breakLoop
 		%=========================MAINTAIN INITIAL FIXATION==========================
-		fprintf('===>>> runIsoluminant START Run = %i / %i (%i:%i) | %s, %s\n', seq.totalRuns, seq.nRuns, seq.thisBlock, seq.thisRun, sM.fullName, eL.fullName);
+		fprintf('===>>> runEquiluminant START Run = %i / %i (%i:%i) | %s, %s\n', seq.totalRuns, seq.nRuns, seq.thisBlock, seq.thisRun, sM.fullName, eL.fullName);
 		resetFixation(eL);
 		trackerClearScreen(eL);
 		trackerDrawFixation(eL); %draw fixation window on eyelink computer
@@ -196,7 +195,7 @@ try
 		WaitSecs('YieldSecs',0.1);
 		statusMessage(eL,'INITIATE FIXATION...');
 		fixated = '';
-		fprintf('===>>> runIsoluminant initiating fixation to start run...\n');
+		fprintf('===>>> runEquiluminant initiating fixation to start run...\n');
 		%syncTime(eL);
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
 			if ana.fixCross
@@ -204,7 +203,7 @@ try
 			else
 				drawSpot(sM, 0.2, ana.fixColour, ana.fixX, ana.fixY);
 			end
-            drawPhotoDiode(sM,[0 0 0 1]);
+            %drawPhotoDiodeSquare(sM,[0 0 0 1]);
 			getSample(eL);
 			fixated=testSearchHoldFixation(eL,'fix','breakfix');
 			Screen('Flip',sM.win); %flip the buffer
@@ -213,20 +212,20 @@ try
 				rchar = KbName(keyCode); if iscell(rchar);rchar=rchar{1};end
 				switch lower(rchar)
 					case {'c'}
-						fprintf('===>>> runIsoluminant recalibrate pressed!\n');
+						fprintf('===>>> runEquiluminant recalibrate pressed!\n');
 						fixated = 'breakfix';
 						stopRecording(eL);
 						setOffline(eL);
 						trackerSetup(eL);
 						WaitSecs('YieldSecs',2);
 					case {'d'}
-						fprintf('===>>> runIsoluminant drift correct pressed!\n');
+						fprintf('===>>> runEquiluminant drift correct pressed!\n');
 						fixated = 'breakfix';
 						stopRecording(eL);
 						driftCorrection(eL);
 						WaitSecs('YieldSecs',2);
 					case {'q'}
-						fprintf('===>>> runIsoluminant Q pressed!!!\n');
+						fprintf('===>>> runEquiluminant Q pressed!!!\n');
 						fixated = 'breakfix';
 						breakLoop = true;
 				end
@@ -303,7 +302,7 @@ try
 			else
 				drawSpot(sM, 0.2, ana.fixColour, ana.fixX, ana.fixY);
 			end
-            drawPhotoDiode(sM,[1 1 1 1]);
+            %drawPhotoDiodeSquare(sM,[1 1 1 1]);
 			finishDrawing(sM);
 			
 			[tL.vbl(tick),tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);
@@ -372,18 +371,18 @@ try
 				rchar = KbName(keyCode); if iscell(rchar);rchar=rchar{1};end
 				switch lower(rchar)
 					case {'c'}
-						fprintf('===>>> runIsoluminant recalibrate pressed!\n');
+						fprintf('===>>> runEquiluminant recalibrate pressed!\n');
 						stopRecording(eL);
 						setOffline(eL);
 						trackerSetup(eL);
 						WaitSecs('YieldSecs',2);
 					case {'d'}
-						fprintf('===>>> runIsoluminant drift correct pressed!\n');
+						fprintf('===>>> runEquiluminant drift correct pressed!\n');
 						stopRecording(eL);
 						driftCorrection(eL);
 						WaitSecs('YieldSecs',2);
 					case {'q'}
-						fprintf('===>>> runIsoluminant quit pressed!!!\n');
+						fprintf('===>>> runEquiluminant quit pressed!!!\n');
 						trackerClearScreen(eL);
 						stopRecording(eL);
 						setOffline(eL);
@@ -396,7 +395,7 @@ try
 	end % while ~breakLoop
 	
 	%===============================Clean up============================
-	fprintf('===>>> runIsoluminant Finished Trials: %i\n',seq.totalRuns);
+	fprintf('===>>> runEquiluminant Finished Trials: %i\n',seq.totalRuns);
 	Screen('DrawText', sM.win, '===>>> FINISHED!!!');
 	Screen('Flip',sM.win);
 	WaitSecs('YieldSecs', 2);

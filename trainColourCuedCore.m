@@ -192,16 +192,16 @@ try
 	eL.isDummy = ana.isDummy; %use dummy or real eyelink?
 	eL.saveFile = [ana.nameExp '.edf'];
 	eL.recordData = true; %save EDF file
-	eL.calibrationProportion = ana.calibprop;
+	eL.calibration.proportion = ana.calibprop;
 	eL.sampleRate = ana.sampleRate;
 	eL.verbose	= true;
-	eL.remoteCalibration = ana.manualCalibration; % manual calibration?
-	eL.calibrationStyle = ana.calibrationStyle; % calibration style
-	eL.modify.calibrationtargetcolour = [1 1 1];
-	eL.modify.calibrationtargetsize = 1.5;
-	eL.modify.calibrationtargetwidth = 0.08;
-	eL.modify.waitformodereadytime = 500;
-	eL.modify.devicenumber = -1; % -1 = use any keyboard
+	eL.calibration.manual = ana.manualCalibration; % manual calibration?
+	eL.calibration.style = ana.calibrationStyle; % calibration style
+	eL.calibration.calibrationtargetcolour = [1 1 1];
+	eL.calibration.calibrationtargetsize = 1.5;
+	eL.calibration.calibrationtargetwidth = 0.08;
+	eL.calibration.waitformodereadytime = 500;
+	eL.calibration.devicenumber = -1; % -1 = use any keyboard
 	% X, Y, FixInitTime, FixTime, Radius, StrictFix
 	targetFixModifier = 1.6;
 	updateFixationValues(eL, ana.fixX, ana.fixY, ana.firstFixInit,...
@@ -210,7 +210,7 @@ try
 	%sM.verbose = true; eL.verbose = true; sM.verbosityLevel = 10; eL.verbosityLevel = 4; %force lots of log output
 	
 	initialise(eL, sM); %use sM to pass screen values to eyelink
-	setup(eL); % do setup and calibration
+	trackerSetup(eL); % do setup and calibration
 	fprintf('--->>> Train eL setup complete: %s\n', eL.fullName);
 	WaitSecs('YieldSecs',0.5);
 	getSample(eL); %make sure everything is in memory etc.

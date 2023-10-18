@@ -57,7 +57,6 @@ try
 	sM.windowed = ana.windowed;
 	sM.pixelsPerCm = ana.pixelsPerCm;
 	sM.distance = ana.distance;
-	sM.photoDiode = true;
 	sM.debug = ana.debug;
 	sM.blend = true;
 	sM.bitDepth = ana.bitDepth;
@@ -178,20 +177,20 @@ try
 	eL.saveFile = [ana.nameExp '.edf'];
 	eL.recordData = true; %save EDF file
 	eL.sampleRate = ana.sampleRate;
-	eL.remoteCalibration = false; % manual calibration?
-	eL.calibrationStyle = ana.calibrationStyle; % calibration style
-	eL.calibrationProportion = [0.5 0.5];
-	eL.modify.calibrationtargetcolour = [1 1 1];
-	eL.modify.calibrationtargetsize = 1.75;
-	eL.modify.calibrationtargetwidth = 0.1;
-	eL.modify.waitformodereadytime = 500;
-	eL.modify.devicenumber = -1; % -1 = use any keyboard
+	eL.calibration.manual = false; % manual calibration?
+	eL.calibration.style = ana.calibrationStyle; % calibration style
+	eL.calibration.proportion = [0.5 0.5];
+	eL.calibration.calibrationtargetcolour = [1 1 1];
+	eL.calibration.calibrationtargetsize = 1.75;
+	eL.calibration.calibrationtargetwidth = 0.1;
+	eL.calibration.waitformodereadytime = 500;
+	eL.calibration.devicenumber = -1; % -1 = use any keyboard
 	% X, Y, FixInitTime, FixTime, Radius, StrictFix
 	updateFixationValues(eL, ana.fixX, ana.fixY, ana.firstFixInit,...
 		ana.firstFixTime, ana.firstFixDiameter, ana.strictFixation);
 	%sM.verbose = true; eL.verbose = true; sM.verbosityLevel = 10; eL.verbosityLevel = 4; %force lots of log output
 	initialise(eL, sM); %use sM to pass screen values to eyelink
-	ListenChar(-1); setup(eL); ListenChar(0); % do setup and calibration
+	ListenChar(-1); trackerSetup(eL); ListenChar(0); % do setup and calibration
 	fprintf('--->>> runEquiMotion eL setup complete: %s\n', eL.fullName);
 	WaitSecs('YieldSecs',0.5);
 	getSample(eL); %make sure everything is in memory etc.
@@ -271,13 +270,13 @@ try
 		%================================initiate fixation===========================
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix') && breakLoop == false
 			drawCross(sM, 0.75, [1 1 1], ana.fixX, ana.fixY, 0.1, true, 0.5);
-            drawPhotoDiode(sM,[0 0 0 1]);
+			%drawPhotoDiodeSquare(sM,[0 0 0 1]);
 			finishDrawing(sM);
 			getSample(eL);
 			fixated=testSearchHoldFixation(eL,'fix','breakfix');
 			%flip(sM); %flip the buffer
 			[tL.vbl(tick), tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);
-            tL.stimTime(tick) = 0;
+			tL.stimTime(tick) = 0;
 			tick = tick + 1;
 			[keyIsDown, ~, keyCode] = KbCheck(-1);
 			if keyIsDown
@@ -311,7 +310,7 @@ try
 			resetFixation(eL);
 			stopRecording(eL);
 			setOffline(eL);
-            Screen('Flip',sM.win); %flip the buffer
+			Screen('Flip',sM.win); %flip the buffer
 			WaitSecs('YieldSecs',0.2);
 			continue
 		end
@@ -350,7 +349,7 @@ try
 			else
 				%drawCross(sM, 0.75, [1 1 1], ana.fixX, ana.fixY, 0.1, true, 0.2);
 			end
-            drawPhotoDiode(sM,[1 1 1 1]);
+			%drawPhotoDiodeSquare(sM,[1 1 1 1]);
 			finishDrawing(sM);
 			
 			[vbl, tL.show(tick),tL.flip(tick),tL.miss(tick)] = Screen('Flip',sM.win, vbl + halfisi);
@@ -503,7 +502,7 @@ end
 	end
 
 	function getResponse()
-		drawPhotoDiode(sM,[0 0 0 1]);
+		%drawPhotoDiodeSquare(sM,[0 0 0 1]);
 		DrawFormattedText2(['Which Direction (press arrow button)?:\n  [<b>LEFT<b>] = LEFT MOTION'...
 			'\n  [<b>RIGHT<b>]=RIGHT MOTION \n  [<b>UP<b>]=REDO'],...
 			'win',sM.win,'sx','center','sy','center','xalign','center','yalign','center');
@@ -557,7 +556,8 @@ end
 				setOffline(eL);
 				breakLoop = true;
 		end
-		drawPhotoDiode(sM,[0 0 0 1]);flip(sM);
+		%drawPhotoDiodeSquare(sM,[0 0 0 1]);
+		flip(sM);
 		WaitSecs('YieldSecs',ana.trialInterval);
 	end
 	
