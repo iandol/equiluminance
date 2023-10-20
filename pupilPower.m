@@ -376,7 +376,7 @@ classdef pupilPower < analysisCore
 			else
 				title(['Raw Pupil (mode: ' mode '|bg: ' num2str(me.metadata.ana.backgroundColor,'%.3f ') '): # Trials = ' num2str(me.metadata.ana.trialNumber) ' | Subject = ' me.metadata.ana.subject  ' | Range = ' num2str(data.diameterRange,'%.2f')])
 			end
-			xlim([me.measureRange(1)-0.3 me.measureRange(2)+0.3]);
+			xlim([me.measureRange(1)-0.2 me.measureRange(2)+0.2]);
 			if minp == 0; minp = -1;end
 			if maxp==0; maxp = 1; end
 			if minp <= 0
@@ -584,6 +584,12 @@ classdef pupilPower < analysisCore
 				line([fixColor fixColor],[ax3.YLim(1) ax3.YLim(2)],...
 				'lineStyle',':','Color',[0.3 0.3 0.3 0.5],'linewidth',2);
 			end
+
+			if ymin <= max(cstep) && ymin >= min(cstep)
+				line([ymin ymin],[ax3.YLim(1) ax3.YLim(2)],...
+				'lineStyle',':','Color',[1.0 0.5 0.1 0.5],'linewidth',2);
+			end
+
 			if max(me.maxLuminances) == 1
 				xlabel('LuminanceStep (0 <-> 1)')
 			else
@@ -625,7 +631,8 @@ classdef pupilPower < analysisCore
 			if exist('h0h1PH','var');handles.PL8 = h0h1PH;end
 			drawnow;
 			figure(handles.h2);
-			
+			fontsize(14,'points');
+			fontname('Source Sans 3');
 		end
 
 		% ===================================================================
