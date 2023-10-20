@@ -1,4 +1,4 @@
-# Equiluminant
+# Pupil Frequency-Taging Method (PFTM) Equiluminance Testing
 Perceptual equiluminance testing using pupillometry (Pupil frequency Taggimg Method) + minimum flicker and minimum motion measurements. These experiments depend on the [Opticka experimental framework](https://github.com/iandol/opticka) and PTB to be installed to function. The GUIs allow you to modify most options and then run the task. For the
 
 ![](GUI.png)
