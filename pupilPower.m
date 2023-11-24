@@ -44,6 +44,9 @@ classdef pupilPower < analysisCore
 		plotHarmonics = false
 		%> fitting function
 		fit = 'smoothingspline'
+		%> conversion to diameter? true/false | calibration value | measured
+		%> diameter
+		useDiameter = {false, 9250, 8}
 	end
 	
 	properties (Hidden = true)
@@ -370,7 +373,11 @@ classdef pupilPower < analysisCore
 			data.diameterRange = maxp - minp;
 			
 			xlabel('Time (secs)')
-			ylabel('Pupil Diameter')
+			if me.useDiameter{1} == false
+				ylabel('Pupil Diameter (area)')
+			else
+				ylabel('Pupil Diameter (mm)')
+			end
 			if me.normaliseBaseline
 				title(['Normalised Pupil (mode: ' mode '|bg: ' num2str(me.metadata.ana.backgroundColor,'%.3f ') '): # Trials = ' num2str(me.metadata.ana.trialNumber) ' | Subject = ' me.metadata.ana.subject  ' | baseline = ' num2str(me.baselineWindow,'%.2f ') 'secs'  ' | Range = ' num2str(data.diameterRange,'%.2f')]);
 			else
@@ -539,7 +546,8 @@ classdef pupilPower < analysisCore
 			
 			xx = linspace(min(cstep),max(cstep),500);
 			warning off
-			f = fit(cstep',m',me.fit);
+			[f, gof] = fit(cstep',m',me.fit);
+			disp(gof)
 			warning on
 			yy = feval(f,xx);
 			ymin = find(yy==min(yy));
@@ -1022,6 +1030,9 @@ classdef pupilPower < analysisCore
 				for currentBlock=1:numBlocks
 					if ~isempty(thisTrials{currentVar}{currentBlock}.variable)
 						p = thisTrials{currentVar}{currentBlock}.pa;
+						if me.useDiameter{1} == true
+							p = analysisCore.pupilConversion(p, me.useDiameter{2}, me.useDiameter{3});
+						end
 						t = thisTrials{currentVar}{currentBlock}.times / 1e3;
 						if me.smoothPupil
 							p = smoothdata(p,me.smoothMethod,smoothSamples);
