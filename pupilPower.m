@@ -940,6 +940,7 @@ classdef pupilPower < analysisCore
 					me.pupilData=eyelinkAnalysis;
 					me.fileName = me.pupilData.file;
 					me.rootDirectory = me.pupilData.dir;
+					me.pupilData.useDiameter = me.useDiameter;
 				end
 				[~,fn] = fileparts(me.pupilData.file);
 				if isempty(fn) || ~exist([me.pupilData.dir,filesep,fn,'.mat'],'file'); warning('No file specified!');return;end
@@ -1030,9 +1031,6 @@ classdef pupilPower < analysisCore
 				for currentBlock=1:numBlocks
 					if ~isempty(thisTrials{currentVar}{currentBlock}.variable)
 						p = thisTrials{currentVar}{currentBlock}.pa;
-						if me.useDiameter{1} == true
-							p = analysisCore.pupilConversion(p, me.useDiameter{2}, me.useDiameter{3});
-						end
 						t = thisTrials{currentVar}{currentBlock}.times / 1e3;
 						if me.smoothPupil
 							p = smoothdata(p,me.smoothMethod,smoothSamples);
