@@ -1,4 +1,7 @@
 # Pupil Frequency-Tagging Method (PFTM) Equiluminance Testing
+
+> Ye L, Mahony B, W., Wang X, Daye P, Wang W, Cavanagh P, Pouget P, & Andolina IM (2023) “Assessing perceptual chromatic equiluminance using a reflexive pupillary response” bioRχiv, 2023.10.19.563116 <https://doi.org/10.1101/2023.10.19.563116>
+
 Perceptual equiluminance testing using pupillometry (Pupil Frequency Tagging Method) + minimum (heterochromatic) flicker and minimum motion measurements. These experiments depend on the [Opticka experimental framework](https://github.com/iandol/opticka) and PTB to be installed to function. The GUIs allow you to modify most options and then run the task. For the
 
 ![](GUI.png)
