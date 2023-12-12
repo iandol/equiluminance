@@ -1,17 +1,17 @@
-# Pupil Frequency-Taging Method (PFTM) Equiluminance Testing
-Perceptual equiluminance testing using pupillometry (Pupil frequency Taggimg Method) + minimum flicker and minimum motion measurements. These experiments depend on the [Opticka experimental framework](https://github.com/iandol/opticka) and PTB to be installed to function. The GUIs allow you to modify most options and then run the task. For the
+# Pupil Frequency-Tagging Method (PFTM) Equiluminance Testing
+Perceptual equiluminance testing using pupillometry (Pupil Frequency Tagging Method) + minimum (heterochromatic) flicker and minimum motion measurements. These experiments depend on the [Opticka experimental framework](https://github.com/iandol/opticka) and PTB to be installed to function. The GUIs allow you to modify most options and then run the task. For the
 
 ![](GUI.png)
 
 There are three different tasks:
 
-* `EquiLum.mlapp` — GUI to run equiluminant task.
-* `EquiFlicker.mlapp` — GUI to run minimum flicker task.
-* `Equimotion.mlapp` — GUI to run minimum motion task.
+* `EquiLum.mlapp` — GUI to run the PFTM equiluminant task.
+* `EquiFlicker.mlapp` — GUI to run the minimum flicker task.
+* `Equimotion.mlapp` — GUI to run the minimum motion task.
 
 And some analysis tools:
-* `pupilPower.m` — class to load eyelink file & perform PFTM analysis from pupil data.
-* `pupilPowerReport.rpt` — MATLAB report generator setup, pass in a YAML list of eyelink files to automate analysis and generate a PDF report.
+* `pupilPower.m` — class to load eyelink files & perform PFTM analysis from pupil data.
+* `pupilPowerReport.rpt` — MATLAB report generator setup, pass in a YAML list of eyelink files to automate analysis across all subjects and generate a PDF report.
 * `runEquiMotionPlot.m`` — a function to replot the psychometric curve fits from the EquiMotion task.
 
 ## Equimotion "Yellow"
