@@ -114,11 +114,11 @@ classdef pupilPower < analysisCore
 		%> processed luminance data fits
 		l
 		%> raw data removed, cannot reparse from EDF events.
-		isRawDataRemoved logical = false
+		isRawDataRemoved = false
 		%> allowed properties passed to object upon construction, see parseArgs
-		allowedProperties char = ['calibrationFile|useHanning|defLuminances|fileName|pupilData|'...
-			'normaliseBaseline|normalisePowerPlots|error|colorMap|'...
-			'maxLuminances|smoothPupil|smoothMethod|drawError|downSample']
+		allowedProperties = {'calibrationFile','useHanning','defLuminances','fileName','pupilData',...
+			'normaliseBaseline','normalisePowerPlots','error','colorMap',...
+			'maxLuminances','smoothPupil','smoothMethod','drawError','downSample','useDiameter'}
 	end
 	
 	%=======================================================================
@@ -141,6 +141,7 @@ classdef pupilPower < analysisCore
 			varargin = optickaCore.addDefaults(varargin,defaults);
 			me = me@analysisCore(varargin); %superclass constructor
 			if nargin>0; me.parseArgs(varargin, me.allowedProperties); end
+			
 			if ~isempty(me.fileName)
 				[p,f,~] = fileparts(me.fileName);
 				if ~isempty(p) && (exist(p,'dir') == 7)
@@ -152,7 +153,7 @@ classdef pupilPower < analysisCore
 			else
 				if isempty(me.name); me.name = 'pupilPower'; end
 				me.rootDirectory = pwd;
-				run(me);
+				%run(me);
 			end
 		end
 		
@@ -179,6 +180,7 @@ classdef pupilPower < analysisCore
 			if ~me.simpleMode;loadCalibration(me); fitLuminances(me);end
 			if isempty(me.l); me.simpleMode = true; end
 			if ~exist('force','var') || isempty(force); force = false; end
+			if ~isempty(me.pupilData);me.pupilData.useDiameter = me.useDiameter;end
 			me.load(force);
 			if isempty(me.metadata);warning('No data was loaded...');return;end
 			if isfield(me.metadata.ana,'onFrames')
@@ -940,7 +942,6 @@ classdef pupilPower < analysisCore
 					me.pupilData=eyelinkAnalysis;
 					me.fileName = me.pupilData.file;
 					me.rootDirectory = me.pupilData.dir;
-					me.pupilData.useDiameter = me.useDiameter;
 				end
 				[~,fn] = fileparts(me.pupilData.file);
 				if isempty(fn) || ~exist([me.pupilData.dir,filesep,fn,'.mat'],'file'); warning('No file specified!');return;end
@@ -965,6 +966,7 @@ classdef pupilPower < analysisCore
 				me.pupilData.measureRange = me.measureRange;
 				me.pupilData.pixelsPerCm = me.metadata.sM.pixelsPerCm;
 				me.pupilData.distance = me.metadata.sM.distance;
+				me.pupilData.useDiameter = me.useDiameter;
 				
 				fprintf('\n<strong>--->>></strong> LOADING raw EDF data: \n')
 				parseSimple(me.pupilData);
