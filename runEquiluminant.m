@@ -1,6 +1,6 @@
-function runIsoluminant(ana)
+function runEquiluminant(ana)
 
-global rM
+[rM, aM] = optickaCore.initialiseGlobals();
 
 if ana.sendReward
 	if ~exist('rM','var') || isempty(rM)
@@ -462,9 +462,9 @@ end
 		P = P - mean(P);
 		P1 = fft(P);
 		P2 = abs(P1/L);
-		P3 = P2(1:L/2+1);
+		P3 = P2(1:floor(L+1/2));
 		P3(2:end-1) = 2*P3(2:end-1);
-		f  = Fs*(0:(L/2))/L;
+		f  = Fs*(0:round(L/2))/L;
 		idx = findNearest(f, ana.frequency);
 		fprintf('F (%.2f) actually @ %.2f\n\n',ana.frequency,f(idx));
 		powerValues(thisTrial) = P3(idx);
