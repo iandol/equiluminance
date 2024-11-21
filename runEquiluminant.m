@@ -155,6 +155,8 @@ try
 	eL.calibration.calibrationtargetwidth = 0.1;
 	eL.calibration.waitformodereadytime = 500;
 	eL.calibration.devicenumber = -1; % -1 = use any keyboard
+	%------uncomment the next line to try the original callback, note you'll lose control of the reward system
+	%eL.calibration.callback = 'PsychEyelinkDispatchCallback';
 	% X, Y, FixInitTime, FixTime, Radius, StrictFix
 	updateFixationValues(eL, ana.fixX, ana.fixY, ana.firstFixInit,...
 		ana.firstFixTime, ana.firstFixDiameter, ana.strictFixation);
