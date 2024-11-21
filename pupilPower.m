@@ -6,7 +6,7 @@ classdef pupilPower < analysisCore
 		%> filename to use
 		fileName char
 		%> eyelink parsed edf data
-		pupilData eyelinkAnalysis
+		pupilData
 		%> plot verbosity
 		verbose = true
 		%> normalise the pupil diameter to the baseline?
