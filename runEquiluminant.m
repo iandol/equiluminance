@@ -9,6 +9,10 @@ if ana.sendReward
 	open(rM) %open our reward manager
 end
 
+%------for windows, optionally disable audio manager
+%close(aM); reset(aM);
+%aM.device = -1; aM.silentMode = true;
+
 alpha = 1;
 if length(ana.colorFixed) == 4
 	alpha = ana.colorFixed(4);
